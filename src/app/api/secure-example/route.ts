@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+export const runtime = "edge";
+
 // App Router-compatible route handler. We set a few basic security headers
 // manually instead of using Express Helmet (not compatible here).
 export function GET() {
