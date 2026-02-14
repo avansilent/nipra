@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "pages:build": "next build && npx @cloudflare/next-on-pages"
+    "pages:build": "npm run build && npx @opennextjs/cloudflare"
   },
   "dependencies": {
     "framer-motion": "^12.24.11",
@@ -16,10 +16,10 @@
     "next-auth": "^4.24.13"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^0.6.4",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
-    "@cloudflare/next-on-pages": "^1.13.13",
     "eslint": "^9",
     "eslint-config-next": "16.0.7",
     "tailwindcss": "^4",
