@@ -1,7 +1,4 @@
 name = "nipra"
-main = ".open-next/worker.js"
+pages_build_output_dir = ".open-next"
 compatibility_date = "2026-02-14"
 compatibility_flags = ["nodejs_compat"]
-
-[site]
-bucket = ".open-next/assets"
