@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "pages:build": "npm run build && npx @opennextjs/cloudflare build"
+    "pages:build": "npm run build && npx @opennextjs/cloudflare build && node -e \"require('fs').copyFileSync('.open-next/worker.js', '.open-next/_worker.js')\""
   },
   "dependencies": {
     "framer-motion": "^12.24.11",
