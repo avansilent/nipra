@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "pages:build": "npm run build && npx @opennextjs/cloudflare"
+    "pages:build": "npm run build && npx @opennextjs/cloudflare build"
   },
   "dependencies": {
     "framer-motion": "^12.24.11",
