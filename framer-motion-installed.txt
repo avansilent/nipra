@@ -1,0 +1,4 @@
+// Framer Motion is now installed. You can use it for advanced animations in your components.
+// Example usage:
+// import { motion } from 'framer-motion';
+// <motion.div animate={{ opacity: 1 }} initial={{ opacity: 0 }} />

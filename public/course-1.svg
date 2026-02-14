@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
+  <defs>
+    <linearGradient id="g1" x1="0" x2="1">
+      <stop offset="0%" stop-color="#fef3c7" />
+      <stop offset="100%" stop-color="#fee2e2" />
+    </linearGradient>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#g1)" />
+  <g fill="#111827" font-family="Poppins, Inter, sans-serif">
+    <text x="40" y="120" font-size="34" font-weight="700">Social Media</text>
+    <text x="40" y="170" font-size="18">Marketing</text>
+  </g>
+</svg>

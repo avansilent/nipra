@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
+  <rect width="100%" height="100%" fill="#f0fdf4" />
+  <g fill="#064e3b" font-family="Poppins, Inter, sans-serif">
+    <text x="40" y="120" font-size="34" font-weight="700">Content Marketing</text>
+    <text x="40" y="170" font-size="18">Brand Strategy</text>
+  </g>
+</svg>
