@@ -1,65 +1,61 @@
 "use client";
-import { motion } from "framer-motion";
-import { Suspense } from "react";
-import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useSearchParams, useRouter } from "next/navigation";
 
-function LoginInner() {
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { createSupabaseBrowserClient } from "../../lib/supabase/browser";
+
+export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const searchParams = useSearchParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const callbackUrl = searchParams.get("callbackUrl") || "/admin";
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setLoading(true);
     setError(null);
 
-    const result = await signIn("credentials", {
-      redirect: false,
-      email,
-      password,
-      callbackUrl,
-    });
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    setLoading(false);
+      if (signInError) {
+        setError(signInError.message);
+        setLoading(false);
+        return;
+      }
 
-    if (!result || result.error) {
-      setError("Invalid email or password");
-      return;
+      router.push(callbackUrl);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to sign in.");
+      setLoading(false);
     }
-
-    router.push(callbackUrl);
-  }
+  };
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="w-full max-w-5xl mx-auto py-10 md:py-16"
-    >
+    <section className="w-full max-w-5xl mx-auto py-10 md:py-16">
       <div className="grid gap-10 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-center">
         <div className="space-y-4">
           <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-slate-900">
             Log in to your account
           </h1>
           <p className="text-sm md:text-base text-slate-500 max-w-md">
-            Use your admin credentials to manage the homepage categories and
-            content.
+            Use your admin credentials to manage content and updates.
           </p>
           <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
             Admin access only
           </p>
         </div>
 
-        <motion.form
-          whileHover={{ translateY: -2 }}
+        <form
           onSubmit={handleSubmit}
           className="w-full max-w-md bg-white/95 rounded-2xl shadow-md p-6 md:p-7 flex flex-col gap-5 border border-[#e2e8f0]"
         >
@@ -67,7 +63,7 @@ function LoginInner() {
             <label className="text-xs font-medium text-[#334155]">Email</label>
             <input
               type="email"
-              placeholder="admin@edunext.com"
+              placeholder="admin@yourdomain.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="input w-full text-sm"
@@ -87,9 +83,7 @@ function LoginInner() {
             />
           </div>
 
-          {error && (
-            <p className="text-xs text-red-500">{error}</p>
-          )}
+          {error && <p className="text-xs text-red-500">{error}</p>}
 
           <button
             type="submit"
@@ -100,26 +94,10 @@ function LoginInner() {
           </button>
 
           <p className="text-[11px] text-slate-400 mt-1">
-            Only users with admin access can open the admin panel.
+            Admin access is restricted to verified accounts.
           </p>
-        </motion.form>
+        </form>
       </div>
-    </motion.section>
-  );
-}
-
-export default function Login() {
-  return (
-    <Suspense
-      fallback={
-        <section className="w-full max-w-5xl mx-auto py-10 md:py-16">
-          <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 text-sm text-slate-600">
-            Loading login…
-          </div>
-        </section>
-      }
-    >
-      <LoginInner />
-    </Suspense>
+    </section>
   );
 }

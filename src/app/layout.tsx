@@ -1,7 +1,7 @@
-import './globals.css';
-import Navbar from './Navbar';
-import type { Metadata } from 'next';
-import { Providers } from './Providers';
+import "./globals.css";
+import Navbar from "./Navbar";
+import type { Metadata } from "next";
+import { Providers } from "./Providers";
 
 export const metadata: Metadata = {
   title: 'Nipra Academy',
