@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "pages:build": "npm run build"
+    "pages:build": "opennextjs-cloudflare build"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
@@ -14,14 +14,15 @@
     "framer-motion": "^12.24.11",
     "gsap": "^3.14.2",
     "helmet": "^8.1.0",
-    "next": "16.0.7"
+    "next": "16.0.11"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.8.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.0.7",
+    "eslint-config-next": "16.0.11",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
