@@ -12,9 +12,16 @@ export default function HeroBanner() {
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold leading-tight tracking-tight">Complete Academic Journey</h2>
             <p className="mt-4 text-sm md:text-base max-w-lg text-white/90">From foundation to senior secondary, build concepts, confidence, and competitive readiness with expert-led guidance.</p>
 
-            <div className="mt-6 flex items-center gap-4">
-              <Link href="/courses" className="inline-block hero-cta bg-white text-[#034d47] font-semibold rounded-md px-5 py-3 shadow">Explore Programs</Link>
-              <Link href="/login" className="inline-block hero-cta text-white/90 border border-white/30 rounded-md px-4 py-2 text-sm">Talk to us</Link>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Link href="/courses" className="inline-block hero-cta hero-cta-primary font-semibold rounded-md px-5 py-3 shadow">
+                Explore Programs
+              </Link>
+              <Link href="/login" className="inline-block hero-cta hero-cta-student rounded-md px-4 py-2 text-sm">
+                Student Login
+              </Link>
+              <Link href="/admin" className="inline-block hero-cta hero-cta-admin rounded-md px-4 py-2 text-sm">
+                Admin Login
+              </Link>
             </div>
           </div>
 

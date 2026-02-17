@@ -12,7 +12,74 @@ export default function Login() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const callbackUrl = searchParams.get("callbackUrl") || "/admin";
+  const loginType = searchParams.get("type") || "student";
+  const isAdminLogin = loginType === "admin";
+
+  const normalizeRole = (role?: string | null): "admin" | "student" =>
+    role === "admin" ? "admin" : "student";
+
+  const getRoleRedirect = (role?: string | null) => {
+    const normalizedRole = normalizeRole(role);
+    if (normalizedRole === "admin") {
+      return "/admin/dashboard";
+    }
+    return "/student/dashboard";
+  };
+
+  const resolveUserRole = async () => {
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) {
+      console.log("[login] Supabase client missing");
+      return null;
+    }
+
+    console.log("[login] Step 1: reading user with auth.getUser()");
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
+    if (!user) {
+      console.log("[login] No user returned from auth.getUser()");
+      return null;
+    }
+
+    console.log("[login] Step 3: fetching profile with maybeSingle()");
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      console.log("[login] Profile read error", profileError.message);
+    }
+
+    if (!profile) {
+      console.log("[login] Step 4: profile missing, creating profile row");
+      const { error: insertError } = await supabase.from("profiles").insert({
+        id: user.id,
+        role: "student",
+      });
+
+      if (insertError) {
+        console.log("[login] Profile auto-create failed", insertError.message);
+        return normalizeRole(
+          user.app_metadata?.role ??
+            user.user_metadata?.role ??
+            "student"
+        );
+      }
+
+      return "student";
+    }
+
+    console.log("[login] Profile role found", profile.role);
+
+      return normalizeRole(
+      profile?.role ??
+      user.app_metadata?.role ??
+      user.user_metadata?.role ??
+      "student"
+    );
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -21,80 +88,115 @@ export default function Login() {
 
     try {
       const supabase = createSupabaseBrowserClient();
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInError) {
-        setError(signInError.message);
-        setLoading(false);
+      if (!supabase) {
+        setError("Supabase is not configured yet. Please add env vars.");
         return;
       }
 
-      router.push(callbackUrl);
-      router.refresh();
+      console.log("[login] Signing in with password");
+      const signInPayload = {
+        email: email.trim(),
+        password,
+      };
+
+      const { error: signInError } = await supabase.auth.signInWithPassword(signInPayload);
+
+      if (signInError) {
+        console.log("[login] Sign-in failed", signInError.message);
+        setError(signInError.message);
+        return;
+      }
+
+      console.log("[login] Step 2: sign-in success");
+      const role = await resolveUserRole();
+      console.log("[login] Step 5: redirecting by role", role);
+      router.replace(getRoleRedirect(role));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to sign in.");
+      console.log("[login] Unexpected error", err);
+      const message = err instanceof Error ? err.message : "Unable to sign in.";
+      setError(message);
+    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <section className="w-full max-w-5xl mx-auto py-10 md:py-16">
-      <div className="grid gap-10 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-center">
-        <div className="space-y-4">
-          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-slate-900">
-            Log in to your account
+    <section className="auth-shell">
+      <div className="auth-grid">
+        <div className="auth-panel">
+          <div className="auth-badge">
+            {isAdminLogin ? "Admin access" : "Student access"}
+          </div>
+          <h1 className="auth-title">
+            {isAdminLogin ? "Welcome back to Nipra Admin" : "Welcome back to Nipra"}
           </h1>
-          <p className="text-sm md:text-base text-slate-500 max-w-md">
-            Use your admin credentials to manage content and updates.
+          <p className="auth-subtitle">
+            {isAdminLogin
+              ? "Secure sign-in for content management."
+              : "Sign in to open your student dashboard and resources."}
           </p>
-          <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
-            Admin access only
-          </p>
+
+          <div className="auth-note">
+            <span className="auth-note-label">Security notice</span>
+            <p className="auth-note-text">
+              Repeated failed attempts may temporarily lock access. Use your
+              verified admin email.
+            </p>
+          </div>
+
+          <div className="auth-links">
+            <a href="/" className="auth-link-ghost">
+              Back to home
+            </a>
+          </div>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="w-full max-w-md bg-white/95 rounded-2xl shadow-md p-6 md:p-7 flex flex-col gap-5 border border-[#e2e8f0]"
-        >
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-[#334155]">Email</label>
+        <form onSubmit={handleSubmit} className="auth-card">
+          <div className="auth-card-head">
+            <h2>{isAdminLogin ? "Admin login" : "Student login"}</h2>
+            <p>
+              {isAdminLogin
+                ? "Use your verified email and password."
+                : "Use your registered email and password."}
+            </p>
+          </div>
+
+          <label className="auth-field">
+            <span>Email</span>
             <input
               type="email"
               placeholder="admin@yourdomain.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="input w-full text-sm"
+              className="auth-input"
               required
             />
-          </div>
+          </label>
 
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-[#334155]">Password</label>
+          <label className="auth-field">
+            <span>Password</span>
             <input
               type="password"
               placeholder="Your secure password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="input w-full text-sm"
+              className="auth-input"
               required
             />
-          </div>
+          </label>
 
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p className="auth-error">{error}</p>}
 
           <button
             type="submit"
-            className="btn w-full text-sm disabled:opacity-70 disabled:cursor-not-allowed"
+            className="auth-submit"
             disabled={loading}
           >
-            {loading ? "Signing in..." : "Log in"}
+            {loading ? "Signing in..." : "Continue"}
           </button>
 
-          <p className="text-[11px] text-slate-400 mt-1">
-            Admin access is restricted to verified accounts.
+          <p className="auth-help">
+            Need access? Contact support to verify your admin account.
           </p>
         </form>
       </div>

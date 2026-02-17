@@ -20,7 +20,7 @@ type HomeClientProps = {
 
 export default function HomeClient({ content }: HomeClientProps) {
   return (
-    <div className="min-h-screen flex flex-col w-full bg-[#f6f2e9]">
+    <div className="min-h-screen flex flex-col w-full bg-transparent">
       <main className="flex-1 w-full pt-20 pb-16">
         <section className="w-full max-w-6xl mx-auto px-6">
           <motion.div

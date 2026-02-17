@@ -1,77 +1,11 @@
 "use client";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { Session } from "@supabase/supabase-js";
-import { createSupabaseBrowserClient } from "../lib/supabase/browser";
+import { useAuth } from "./AuthProvider";
 
 export default function Navbar() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const router = useRouter();
-
-  useEffect(() => {
-    const supabase = createSupabaseBrowserClient();
-
-    supabase.auth.getSession().then(async ({ data }) => {
-      const nextSession = data.session ?? null;
-      setSession(nextSession);
-
-      if (!nextSession) {
-        setIsAdmin(false);
-        return;
-      }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", nextSession.user.id)
-        .single();
-
-      const role =
-        profile?.role ??
-        nextSession.user.app_metadata?.role ??
-        nextSession.user.user_metadata?.role;
-
-      setIsAdmin(role === "admin");
-    });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, nextSession) => {
-        setSession(nextSession);
-
-        if (!nextSession) {
-          setIsAdmin(false);
-          return;
-        }
-
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", nextSession.user.id)
-          .single();
-
-        const role =
-          profile?.role ??
-          nextSession.user.app_metadata?.role ??
-          nextSession.user.user_metadata?.role;
-
-        setIsAdmin(role === "admin");
-      }
-    );
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
-
-  const handleSignOut = async () => {
-    const supabase = createSupabaseBrowserClient();
-    await supabase.auth.signOut();
-    router.push("/");
-    router.refresh();
-  };
+  const { isAuthenticated, role, logout } = useAuth();
+  const isAdmin = role === "admin";
 
   return (
     <motion.nav
@@ -144,43 +78,33 @@ export default function Navbar() {
 
           {/* Right utilities */}
           <div className="ml-auto flex items-center gap-3">
-            {session ? (
+            <Link href="/login?type=student" className="inline-flex">
+              <motion.div
+                whileHover={{ y: -2, scale: 1.02 }}
+                whileTap={{ scale: 0.985 }}
+                className="nav-action nav-login-student items-center px-4 py-2 rounded-full bg-white text-slate-900 font-semibold shadow-lg flex"
+              >
+                Student Login
+              </motion.div>
+            </Link>
+            <Link href="/login?type=admin" className="inline-flex">
+              <motion.div
+                whileHover={{ y: -2, scale: 1.02 }}
+                whileTap={{ scale: 0.985 }}
+                className="nav-action nav-login-admin items-center px-4 py-2 rounded-full bg-white text-slate-900 font-semibold shadow-lg flex"
+              >
+                Admin Login
+              </motion.div>
+            </Link>
+
+            {isAuthenticated && (
               <button
                 type="button"
-                onClick={handleSignOut}
-                className="hidden sm:inline-flex items-center px-3 py-2 rounded-full border border-white/40 bg-white/70 text-slate-900 font-semibold hover:bg-white transition nav-action"
+                onClick={logout}
+                className="inline-flex items-center px-3 py-2 rounded-full font-semibold transition nav-action nav-logout-action"
               >
                 Log out
               </button>
-            ) : (
-              <a
-                href="/login"
-                className="hidden sm:inline-flex items-center px-3 py-2 rounded-full border border-white/40 bg-white/70 text-slate-900 font-semibold hover:bg-white transition nav-action"
-              >
-                Log in
-              </a>
-            )}
-
-            {isAdmin ? (
-              <Link href="/admin" className="hidden sm:inline-flex">
-                <motion.div
-                  whileHover={{ y: -2, scale: 1.02 }}
-                  whileTap={{ scale: 0.985 }}
-                  className="nav-action items-center px-4 py-2 rounded-full bg-white text-slate-900 font-semibold shadow-lg flex"
-                >
-                  Admin panel
-                </motion.div>
-              </Link>
-            ) : (
-              <Link href="/student" className="hidden sm:inline-flex">
-                <motion.div
-                  whileHover={{ y: -2, scale: 1.02 }}
-                  whileTap={{ scale: 0.985 }}
-                  className="nav-action items-center px-4 py-2 rounded-full bg-white text-slate-900 font-semibold shadow-lg flex"
-                >
-                  Student portal
-                </motion.div>
-              </Link>
             )}
 
             {/* Search icon (keeps UI minimal) */}
