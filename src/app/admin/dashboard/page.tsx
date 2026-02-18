@@ -55,6 +55,7 @@ export default function AdminDashboardPage() {
 
 	const [ready, setReady] = useState(false);
 	const [isAdmin, setIsAdmin] = useState(false);
+	const [instituteId, setInstituteId] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState<string | null>(null);
 
@@ -89,38 +90,79 @@ export default function AdminDashboardPage() {
 		setSuccess(null);
 	};
 
-	const loadDashboardData = async () => {
+	const loadDashboardData = async (targetInstituteId?: string) => {
 		if (!supabase) {
 			setError("Supabase is not configured yet.");
 			return;
 		}
 
-		const [coursesResp, studentsResp, enrollmentsResp, testsResp, notesResp, resultsResp] =
+		const effectiveInstituteId = targetInstituteId ?? instituteId;
+
+		if (!effectiveInstituteId) {
+			setError("Institute not assigned for this admin.");
+			return;
+		}
+
+		const [coursesResp, tenantProfilesResp, enrollmentsResp, testsResp, notesResp, resultsResp] =
 			await Promise.all([
-				supabase.from("courses").select("id, title, description").order("created_at", { ascending: false }),
-				supabase.from("users").select("id, name, role").eq("role", "student").order("created_at", { ascending: false }),
+				supabase
+					.from("courses")
+					.select("id, title, description")
+					.eq("institute_id", effectiveInstituteId)
+					.order("created_at", { ascending: false }),
+				supabase
+					.from("profiles")
+					.select("id")
+					.eq("role", "student")
+					.eq("institute_id", effectiveInstituteId),
 				supabase
 					.from("enrollments")
 					.select("student_id, course_id, student:users(id, name), course:courses(id, title)")
+					.eq("institute_id", effectiveInstituteId)
 					.order("enrolled_at", { ascending: false }),
-				supabase.from("tests").select("id, title, test_date, course_id").order("test_date", { ascending: true }),
-				supabase.from("notes").select("id, title, course_id, file_url, created_at").order("created_at", { ascending: false }),
+				supabase
+					.from("tests")
+					.select("id, title, test_date, course_id")
+					.eq("institute_id", effectiveInstituteId)
+					.order("test_date", { ascending: true }),
+				supabase
+					.from("notes")
+					.select("id, title, course_id, file_url, created_at")
+					.eq("institute_id", effectiveInstituteId)
+					.order("created_at", { ascending: false }),
 				supabase
 					.from("results")
 					.select("student_id, test_id, marks, student:users(id, name), test:tests(id, title)")
+					.eq("institute_id", effectiveInstituteId)
 					.order("recorded_at", { ascending: false })
 					.limit(50),
 			]);
 
 		if (coursesResp.error) throw new Error(coursesResp.error.message);
-		if (studentsResp.error) throw new Error(studentsResp.error.message);
+		if (tenantProfilesResp.error) throw new Error(tenantProfilesResp.error.message);
 		if (enrollmentsResp.error) throw new Error(enrollmentsResp.error.message);
 		if (testsResp.error) throw new Error(testsResp.error.message);
 		if (notesResp.error) throw new Error(notesResp.error.message);
 		if (resultsResp.error) throw new Error(resultsResp.error.message);
 
 		setCourses((coursesResp.data ?? []) as CourseRow[]);
-		setStudents((studentsResp.data ?? []) as StudentRow[]);
+		const tenantStudentIds = (tenantProfilesResp.data ?? []).map((profile) => profile.id);
+
+		if (tenantStudentIds.length > 0) {
+			const { data: usersData, error: usersError } = await supabase
+				.from("users")
+				.select("id, name, role")
+				.in("id", tenantStudentIds)
+				.order("created_at", { ascending: false });
+
+			if (usersError) {
+				throw new Error(usersError.message);
+			}
+
+			setStudents((usersData ?? []) as StudentRow[]);
+		} else {
+			setStudents([]);
+		}
 		setEnrollments((enrollmentsResp.data ?? []) as EnrollmentRow[]);
 		setTests((testsResp.data ?? []) as TestRow[]);
 		setNotes((notesResp.data ?? []) as NoteRow[]);
@@ -146,7 +188,7 @@ export default function AdminDashboardPage() {
 
 				const { data: profile } = await supabase
 					.from("profiles")
-					.select("role")
+					.select("role, institute_id")
 					.eq("id", user.id)
 					.maybeSingle();
 
@@ -159,8 +201,20 @@ export default function AdminDashboardPage() {
 					return;
 				}
 
+				const tenantId =
+					profile?.institute_id ??
+					(user.app_metadata?.institute_id as string | undefined) ??
+					(user.user_metadata?.institute_id as string | undefined) ??
+					null;
+
+				if (!tenantId) {
+					setError("Institute not assigned for this admin.");
+					return;
+				}
+
+				setInstituteId(tenantId);
 				setIsAdmin(true);
-				await loadDashboardData();
+				await loadDashboardData(tenantId);
 			} catch (loadError) {
 				setError(loadError instanceof Error ? loadError.message : "Unable to load dashboard");
 			} finally {
@@ -174,6 +228,10 @@ export default function AdminDashboardPage() {
 	const createCourse = async () => {
 		resetFeedback();
 		if (!supabase) return;
+		if (!instituteId) {
+			setError("Institute not assigned for this admin.");
+			return;
+		}
 
 		if (!newCourseTitle.trim()) {
 			setError("Course title is required.");
@@ -183,6 +241,7 @@ export default function AdminDashboardPage() {
 		const { error: insertError } = await supabase.from("courses").insert({
 			title: newCourseTitle.trim(),
 			description: newCourseDescription.trim() || null,
+			institute_id: instituteId,
 		});
 
 		if (insertError) {
@@ -199,6 +258,10 @@ export default function AdminDashboardPage() {
 	const updateCourse = async (course: CourseRow) => {
 		resetFeedback();
 		if (!supabase) return;
+		if (!instituteId) {
+			setError("Institute not assigned for this admin.");
+			return;
+		}
 
 		const { error: updateError } = await supabase
 			.from("courses")
@@ -206,7 +269,8 @@ export default function AdminDashboardPage() {
 				title: course.title.trim(),
 				description: course.description?.trim() || null,
 			})
-			.eq("id", course.id);
+			.eq("id", course.id)
+			.eq("institute_id", instituteId);
 
 		if (updateError) {
 			setError(updateError.message);
@@ -220,8 +284,16 @@ export default function AdminDashboardPage() {
 	const deleteCourse = async (courseId: string) => {
 		resetFeedback();
 		if (!supabase) return;
+		if (!instituteId) {
+			setError("Institute not assigned for this admin.");
+			return;
+		}
 
-		const { error: deleteError } = await supabase.from("courses").delete().eq("id", courseId);
+		const { error: deleteError } = await supabase
+			.from("courses")
+			.delete()
+			.eq("id", courseId)
+			.eq("institute_id", instituteId);
 		if (deleteError) {
 			setError(deleteError.message);
 			return;
@@ -234,6 +306,10 @@ export default function AdminDashboardPage() {
 	const assignStudentToCourse = async () => {
 		resetFeedback();
 		if (!supabase) return;
+		if (!instituteId) {
+			setError("Institute not assigned for this admin.");
+			return;
+		}
 
 		if (!assignCourseId || !assignStudentId) {
 			setError("Select both student and course.");
@@ -243,6 +319,7 @@ export default function AdminDashboardPage() {
 		const { error: insertError } = await supabase.from("enrollments").insert({
 			student_id: assignStudentId,
 			course_id: assignCourseId,
+			institute_id: instituteId,
 		});
 
 		if (insertError) {
@@ -257,12 +334,17 @@ export default function AdminDashboardPage() {
 	const removeEnrollment = async (studentId: string, courseId: string) => {
 		resetFeedback();
 		if (!supabase) return;
+		if (!instituteId) {
+			setError("Institute not assigned for this admin.");
+			return;
+		}
 
 		const { error: deleteError } = await supabase
 			.from("enrollments")
 			.delete()
 			.eq("student_id", studentId)
-			.eq("course_id", courseId);
+			.eq("course_id", courseId)
+			.eq("institute_id", instituteId);
 
 		if (deleteError) {
 			setError(deleteError.message);
@@ -311,6 +393,10 @@ export default function AdminDashboardPage() {
 	const createTest = async () => {
 		resetFeedback();
 		if (!supabase) return;
+		if (!instituteId) {
+			setError("Institute not assigned for this admin.");
+			return;
+		}
 		if (!testCourseId || !testTitle.trim() || !testDate) {
 			setError("Course, test title, and date are required.");
 			return;
@@ -320,6 +406,7 @@ export default function AdminDashboardPage() {
 			course_id: testCourseId,
 			title: testTitle.trim(),
 			test_date: testDate,
+			institute_id: instituteId,
 		});
 
 		if (insertError) {
@@ -336,6 +423,10 @@ export default function AdminDashboardPage() {
 	const saveMarks = async () => {
 		resetFeedback();
 		if (!supabase) return;
+		if (!instituteId) {
+			setError("Institute not assigned for this admin.");
+			return;
+		}
 
 		const numericMarks = Number(markValue);
 		if (!markStudentId || !markTestId || Number.isNaN(numericMarks)) {
@@ -363,6 +454,7 @@ export default function AdminDashboardPage() {
 				student_id: markStudentId,
 				test_id: markTestId,
 				marks: numericMarks,
+				institute_id: instituteId,
 			},
 			{ onConflict: "student_id,test_id" }
 		);

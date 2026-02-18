@@ -37,10 +37,28 @@ export default function Courses() {
           return;
         }
 
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("institute_id")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        const instituteId =
+          profile?.institute_id ??
+          (user.app_metadata?.institute_id as string | undefined) ??
+          (user.user_metadata?.institute_id as string | undefined) ??
+          null;
+
+        if (!instituteId) {
+          setError("Institute not assigned for this account.");
+          return;
+        }
+
         const { data: enrollmentRows, error: enrollmentError } = await supabase
           .from("enrollments")
           .select("course:course_id (id, title, description)")
-          .eq("student_id", user.id);
+          .eq("student_id", user.id)
+          .eq("institute_id", instituteId);
 
         if (enrollmentError) {
           setError(enrollmentError.message);

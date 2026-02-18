@@ -67,7 +67,7 @@ export default function StudentPortal() {
         const { data: profile } = await withTimeout(
           supabase
             .from("profiles")
-            .select("role")
+            .select("role, institute_id")
             .eq("id", user.id)
             .maybeSingle()
         );
@@ -84,11 +84,23 @@ export default function StudentPortal() {
           return;
         }
 
+        const instituteId =
+          profile?.institute_id ??
+          (user.app_metadata?.institute_id as string | undefined) ??
+          (user.user_metadata?.institute_id as string | undefined) ??
+          null;
+
+        if (!instituteId) {
+          setError("Institute not assigned for this account.");
+          return;
+        }
+
         const { data: enrollmentRows, error: enrollmentError } = await withTimeout(
           supabase
             .from("enrollments")
             .select("course:course_id (id, title, description)")
             .eq("student_id", user.id)
+            .eq("institute_id", instituteId)
         );
 
         if (enrollmentError) {
@@ -113,6 +125,7 @@ export default function StudentPortal() {
             supabase
               .from("tests")
               .select("id, title, test_date, course_id")
+                .eq("institute_id", instituteId)
               .in("course_id", courseIds)
               .order("test_date", { ascending: true })
           );
@@ -127,6 +140,7 @@ export default function StudentPortal() {
             supabase
               .from("notes")
               .select("id, title, file_url, course_id")
+                .eq("institute_id", instituteId)
               .in("course_id", courseIds)
               .limit(10)
           );
@@ -143,6 +157,7 @@ export default function StudentPortal() {
             .from("results")
             .select("test_id, marks, test:tests(title)")
             .eq("student_id", user.id)
+            .eq("institute_id", instituteId)
         );
 
         if (resultError) {

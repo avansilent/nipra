@@ -78,7 +78,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, institute_id")
     .eq("id", session.user.id)
     .maybeSingle();
 
@@ -88,6 +88,22 @@ export async function middleware(request: NextRequest) {
     session.user.user_metadata?.role ??
     "student"
   );
+
+  const instituteId =
+    profile?.institute_id ??
+    session.user.app_metadata?.institute_id ??
+    session.user.user_metadata?.institute_id ??
+    null;
+
+  if (!instituteId && (isAdminRoute || isStudentRoute || isProtectedApiRoute)) {
+    if (isProtectedApiRoute) {
+      return NextResponse.json({ error: "Institute not assigned" }, { status: 403 });
+    }
+
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    return NextResponse.redirect(loginUrl);
+  }
 
   if ((isAdminRoute || isAdminApiRoute) && role !== "admin") {
     if (isProtectedApiRoute) {

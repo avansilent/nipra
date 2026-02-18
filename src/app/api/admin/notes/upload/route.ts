@@ -24,13 +24,23 @@ export async function POST(request: Request) {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, institute_id")
       .eq("id", user.id)
       .maybeSingle();
 
     const role = profile?.role ?? user.app_metadata?.role ?? user.user_metadata?.role;
+    const instituteId =
+      profile?.institute_id ??
+      (user.app_metadata?.institute_id as string | undefined) ??
+      (user.user_metadata?.institute_id as string | undefined) ??
+      null;
+
     if (role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (!instituteId) {
+      return NextResponse.json({ error: "Institute not assigned" }, { status: 403 });
     }
 
     const formData = await request.formData();
@@ -40,6 +50,17 @@ export async function POST(request: Request) {
 
     if (!courseId) {
       return NextResponse.json({ error: "Course is required" }, { status: 400 });
+    }
+
+    const { data: course } = await supabase
+      .from("courses")
+      .select("id")
+      .eq("id", courseId)
+      .eq("institute_id", instituteId)
+      .maybeSingle();
+
+    if (!course) {
+      return NextResponse.json({ error: "Course not found for your institute" }, { status: 404 });
     }
 
     if (!(file instanceof File)) {
@@ -76,6 +97,7 @@ export async function POST(request: Request) {
       .from("notes")
       .insert({
         course_id: courseId,
+        institute_id: instituteId,
         title: noteTitle || file.name,
         file_url: storagePath,
       })

@@ -80,21 +80,26 @@ export default function AdminPage() {
   });
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [instituteId, setInstituteId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const loadAdminData = async (supabase: NonNullable<ReturnType<typeof createSupabaseBrowserClient>>) => {
+  const loadAdminData = async (
+    supabase: NonNullable<ReturnType<typeof createSupabaseBrowserClient>>,
+    targetInstituteId: string
+  ) => {
     const [coursesResp, testsResp, notesResp, resultsResp, profilesResp] = await Promise.all([
-      withTimeout(supabase.from("courses").select("id", { count: "exact", head: true })),
-      withTimeout(supabase.from("tests").select("id", { count: "exact", head: true })),
-      withTimeout(supabase.from("notes").select("id", { count: "exact", head: true })),
-      withTimeout(supabase.from("results").select("test_id", { count: "exact", head: true })),
+      withTimeout(supabase.from("courses").select("id", { count: "exact", head: true }).eq("institute_id", targetInstituteId)),
+      withTimeout(supabase.from("tests").select("id", { count: "exact", head: true }).eq("institute_id", targetInstituteId)),
+      withTimeout(supabase.from("notes").select("id", { count: "exact", head: true }).eq("institute_id", targetInstituteId)),
+      withTimeout(supabase.from("results").select("test_id", { count: "exact", head: true }).eq("institute_id", targetInstituteId)),
       withTimeout(
         supabase
           .from("profiles")
           .select("id, role, created_at")
+          .eq("institute_id", targetInstituteId)
           .order("created_at", { ascending: false })
           .limit(20)
       ),
@@ -137,7 +142,7 @@ export default function AdminPage() {
         const { data: profile } = await withTimeout(
           supabase
             .from("profiles")
-            .select("role")
+            .select("role, institute_id")
             .eq("id", data.session.user.id)
             .maybeSingle()
         );
@@ -154,6 +159,19 @@ export default function AdminPage() {
           return;
         }
 
+        const tenantId =
+          profile?.institute_id ??
+          (data.session.user.app_metadata?.institute_id as string | undefined) ??
+          (data.session.user.user_metadata?.institute_id as string | undefined) ??
+          null;
+
+        if (!tenantId) {
+          setError("Institute not assigned for this admin account.");
+          return;
+        }
+
+        setInstituteId(tenantId);
+
         const { data: row, error: fetchError } = await withTimeout(
           supabase
             .from("site_content")
@@ -168,7 +186,7 @@ export default function AdminPage() {
           setContent(mergeHomeContent(row.data as Partial<HomeContent>));
         }
 
-        await loadAdminData(supabase);
+        await loadAdminData(supabase, tenantId);
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : "Unable to load admin panel.");
       } finally {
@@ -228,10 +246,16 @@ export default function AdminPage() {
       return;
     }
 
+    if (!instituteId) {
+      setError("Institute not assigned for this admin account.");
+      return;
+    }
+
     const { error: updateError } = await supabase
       .from("profiles")
       .update({ role: nextRole })
-      .eq("id", userId);
+      .eq("id", userId)
+      .eq("institute_id", instituteId);
 
     if (updateError) {
       setError(updateError.message);
@@ -253,7 +277,7 @@ export default function AdminPage() {
 
   const handleRefresh = async () => {
     const supabase = createSupabaseBrowserClient();
-    if (!supabase || !session) {
+    if (!supabase || !session || !instituteId) {
       return;
     }
 
@@ -273,7 +297,7 @@ export default function AdminPage() {
         setContent(mergeHomeContent(row.data as Partial<HomeContent>));
       }
 
-      await loadAdminData(supabase);
+      await loadAdminData(supabase, instituteId);
     } catch (refreshError) {
       setError(refreshError instanceof Error ? refreshError.message : "Unable to refresh dashboard.");
     }

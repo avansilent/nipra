@@ -19,6 +19,7 @@ type AuthContextValue = {
   user: User | null;
   session: Session | null;
   role: AuthRole;
+  instituteId: string | null;
   loading: boolean;
   isAuthenticated: boolean;
   logout: () => Promise<void>;
@@ -63,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<AuthRole>(null);
+  const [instituteId, setInstituteId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const router = useRouter();
@@ -74,15 +76,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (nextUser: User | null) => {
       if (!supabase || !nextUser) {
         setRole(null);
+        setInstituteId(null);
         return;
       }
 
-      let profile: { role?: string | null } | null = null;
+      let profile: { role?: string | null; institute_id?: string | null } | null = null;
       try {
         const { data } = await withTimeout(
           supabase
             .from("profiles")
-            .select("role")
+            .select("role, institute_id")
             .eq("id", nextUser.id)
             .maybeSingle(),
           1500
@@ -100,10 +103,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!nextRole) {
         try {
+          const nextInstituteId =
+            (nextUser.app_metadata?.institute_id as string | undefined) ??
+            (nextUser.user_metadata?.institute_id as string | undefined) ??
+            null;
+
           const { error: insertError } = await withTimeout(
             supabase.from("profiles").insert({
               id: nextUser.id,
               role: "student",
+              institute_id: nextInstituteId,
             }),
             1500
           );
@@ -117,6 +126,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setRole(nextRole ?? "student");
+      setInstituteId(
+        profile?.institute_id ??
+          (nextUser.app_metadata?.institute_id as string | undefined) ??
+          (nextUser.user_metadata?.institute_id as string | undefined) ??
+          null
+      );
     },
     [supabase]
   );
@@ -193,6 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(null);
       setUser(null);
       setRole(null);
+      setInstituteId(null);
       router.push("/");
       return;
     }
@@ -201,6 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setUser(null);
     setRole(null);
+    setInstituteId(null);
     router.push("/");
     router.refresh();
   }, [router, supabase]);
@@ -210,11 +227,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       session,
       role,
+      instituteId,
       loading,
       isAuthenticated: !!user,
       logout,
     }),
-    [loading, logout, role, session, user]
+    [instituteId, loading, logout, role, session, user]
   );
 
   if (shouldBlockScreen) {

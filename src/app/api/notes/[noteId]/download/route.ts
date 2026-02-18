@@ -21,7 +21,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
     const { data: note, error: noteError } = await supabase
       .from("notes")
-      .select("id, title, file_url, course_id")
+      .select("id, title, file_url, course_id, institute_id")
       .eq("id", noteId)
       .maybeSingle();
 
@@ -31,12 +31,22 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, institute_id")
       .eq("id", user.id)
       .maybeSingle();
 
     const role = profile?.role ?? user.app_metadata?.role ?? user.user_metadata?.role;
+    const instituteId =
+      profile?.institute_id ??
+      (user.app_metadata?.institute_id as string | undefined) ??
+      (user.user_metadata?.institute_id as string | undefined) ??
+      null;
+
     const isAdmin = role === "admin";
+
+    if (!instituteId || note.institute_id !== instituteId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     if (!isAdmin) {
       const { data: enrollment } = await supabase
@@ -44,6 +54,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
         .select("student_id")
         .eq("student_id", user.id)
         .eq("course_id", note.course_id)
+        .eq("institute_id", instituteId)
         .maybeSingle();
 
       if (!enrollment) {

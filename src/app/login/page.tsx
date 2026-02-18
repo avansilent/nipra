@@ -26,6 +26,62 @@ export default function Login() {
     return "/student/dashboard";
   };
 
+  const getRuntimeSubdomain = () => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    const hostname = window.location.hostname.toLowerCase();
+    if (hostname === "localhost" || hostname.endsWith(".localhost")) {
+      return null;
+    }
+
+    const parts = hostname.split(".");
+    if (parts.length < 3) {
+      return null;
+    }
+
+    const candidate = parts[0];
+    if (candidate === "www") {
+      return null;
+    }
+    return candidate;
+  };
+
+  const resolveInstituteId = async (
+    supabase: NonNullable<ReturnType<typeof createSupabaseBrowserClient>>,
+    user: {
+      app_metadata?: Record<string, unknown>;
+      user_metadata?: Record<string, unknown>;
+    }
+  ) => {
+    const metadataInstituteId =
+      (user.app_metadata?.institute_id as string | undefined) ??
+      (user.user_metadata?.institute_id as string | undefined);
+
+    if (metadataInstituteId) {
+      return metadataInstituteId;
+    }
+
+    const metadataSubdomain =
+      (user.app_metadata?.subdomain as string | undefined) ??
+      (user.user_metadata?.subdomain as string | undefined) ??
+      getRuntimeSubdomain() ??
+      undefined;
+
+    if (!metadataSubdomain) {
+      return null;
+    }
+
+    const { data: institute } = await supabase
+      .from("institutes")
+      .select("id")
+      .eq("subdomain", metadataSubdomain)
+      .maybeSingle();
+
+    return institute?.id ?? null;
+  };
+
   const resolveUserRole = async () => {
     const supabase = createSupabaseBrowserClient();
     if (!supabase) {
@@ -54,9 +110,11 @@ export default function Login() {
 
     if (!profile) {
       console.log("[login] Step 4: profile missing, creating profile row");
+      const instituteId = await resolveInstituteId(supabase, user);
       const { error: insertError } = await supabase.from("profiles").insert({
         id: user.id,
         role: "student",
+        institute_id: instituteId,
       });
 
       if (insertError) {
