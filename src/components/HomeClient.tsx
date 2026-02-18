@@ -20,8 +20,8 @@ type HomeClientProps = {
 
 export default function HomeClient({ content }: HomeClientProps) {
   return (
-    <div className="min-h-screen flex flex-col w-full bg-transparent">
-      <main className="flex-1 w-full pt-20 pb-16">
+    <div className="w-full bg-transparent">
+      <div className="w-full pb-16">
         <section className="w-full max-w-6xl mx-auto px-6">
           <motion.div
             initial="hidden"
@@ -168,18 +168,8 @@ export default function HomeClient({ content }: HomeClientProps) {
             </motion.div>
           </motion.section>
 
-          <section className="site-footer">
-            <div className="footer-brand">Nipra Academy</div>
-            <div className="footer-links">
-              <a href="/courses">Courses</a>
-              <a href="/notes">Notes</a>
-              <a href="/question-papers">Paper Books</a>
-              <a href="/contact">Contact</a>
-            </div>
-            <div className="footer-meta">{content.footerTagline}</div>
-          </section>
         </section>
-      </main>
+      </div>
     </div>
   );
 }
