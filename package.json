@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "pages:build": "opennextjs-cloudflare build"
+    "pages:build": "opennextjs-cloudflare build && node -e \"const fs=require('fs');const path=require('path');const root='.open-next';const src=path.join(root,'worker.js');const dst=path.join(root,'_worker.js');if(!fs.existsSync(src)){throw new Error('Missing '+src)}fs.copyFileSync(src,dst);console.log('Created',dst);\""
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

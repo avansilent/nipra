@@ -24,6 +24,7 @@ export default function HomeClient({ content }: HomeClientProps) {
       <div className="w-full pb-16">
         <section className="w-full max-w-6xl mx-auto px-6">
           <motion.div
+            id="about"
             initial="hidden"
             animate="show"
             variants={container}
@@ -60,6 +61,7 @@ export default function HomeClient({ content }: HomeClientProps) {
           </motion.div>
 
           <motion.section
+            id="contact"
             initial="hidden"
             animate="show"
             variants={container}

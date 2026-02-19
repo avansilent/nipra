@@ -1,23 +1,20 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { useAuth } from "./AuthProvider";
 
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/courses", label: "Courses" },
-  { href: "/notes", label: "Notes" },
-  { href: "/test-series", label: "Tests" },
-  { href: "/question-papers", label: "Papers" },
-  { href: "/contact", label: "Contact" },
+  { href: "/books", label: "Books" },
+  { href: "/question-papers", label: "Question Papers" },
+  { href: "/#about", label: "About" },
+  { href: "/#contact", label: "Contact" },
 ];
 
 export default function Navbar() {
-  const { isAuthenticated, role, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-
-  const dashboardHref = role === "admin" ? "/admin/dashboard" : "/student/dashboard";
 
   return (
     <motion.nav
@@ -27,32 +24,35 @@ export default function Navbar() {
       className="w-full fixed top-0 left-0 z-50"
     >
       <div className="glass-bar border-b border-white/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           {/* Brand */}
-          <Link href="/" className="flex items-center gap-2.5 shrink-0">
+          <Link href="/" className="flex items-center gap-2 shrink-0">
             <motion.div
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.995 }}
-              className="flex items-center justify-center w-10 h-10"
+              className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 overflow-hidden"
             >
-              <img
-                src="/logo.png?v=3"
+              <Image
+                src="/logo.png"
                 alt="Nipra Academy"
-                className="w-9 h-9 object-contain"
+                width={36}
+                height={36}
+                priority
+                className="w-full h-full object-contain"
               />
             </motion.div>
-            <span className="font-bold tracking-tight text-[#0b1220] text-lg leading-tight hidden sm:inline">
+            <span className="font-bold tracking-tight text-[#0b1220] text-base leading-tight hidden sm:inline">
               Nipra Academy
             </span>
           </Link>
 
           {/* Desktop Navigation — centered */}
-          <div className="hidden lg:flex items-center gap-1 flex-1 justify-center">
+          <div className="hidden lg:flex items-center gap-1 flex-1 justify-center px-4">
             {navLinks.map((link) => (
               <motion.div
                 key={link.href}
-                whileHover={{ y: -2 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ y: -2, scale: 1.01 }}
+                whileTap={{ scale: 0.985 }}
                 className="nav-center-link"
               >
                 <Link href={link.href} className="nav-link-pill flex flex-col px-3 py-1.5">
@@ -65,47 +65,24 @@ export default function Navbar() {
 
           {/* Right actions */}
           <div className="flex items-center gap-2 shrink-0">
-            {isAuthenticated ? (
-              <>
-                <Link href={dashboardHref} className="hidden sm:inline-flex">
-                  <motion.div
-                    whileHover={{ y: -2, scale: 1.02 }}
-                    whileTap={{ scale: 0.985 }}
-                    className="nav-action items-center px-4 py-2 rounded-full font-semibold text-sm flex"
-                  >
-                    Dashboard
-                  </motion.div>
-                </Link>
-                <button
-                  type="button"
-                  onClick={logout}
-                  className="inline-flex items-center px-3 py-2 rounded-full font-semibold text-sm transition nav-action nav-logout-action"
-                >
-                  Log out
-                </button>
-              </>
-            ) : (
-              <>
-                <Link href="/login?type=student" className="hidden sm:inline-flex">
-                  <motion.div
-                    whileHover={{ y: -2, scale: 1.02 }}
-                    whileTap={{ scale: 0.985 }}
-                    className="nav-action nav-login-student items-center px-4 py-2 rounded-full font-semibold text-sm flex"
-                  >
-                    Student Login
-                  </motion.div>
-                </Link>
-                <Link href="/login?type=admin" className="hidden md:inline-flex">
-                  <motion.div
-                    whileHover={{ y: -2, scale: 1.02 }}
-                    whileTap={{ scale: 0.985 }}
-                    className="nav-action nav-login-admin items-center px-4 py-2 rounded-full font-semibold text-sm flex"
-                  >
-                    Admin Login
-                  </motion.div>
-                </Link>
-              </>
-            )}
+            <Link href="/login?type=student" className="hidden sm:inline-flex">
+              <motion.div
+                whileHover={{ y: -2, scale: 1.02 }}
+                whileTap={{ scale: 0.985 }}
+                className="nav-action nav-login-student items-center px-4 py-2 rounded-full font-semibold text-sm flex"
+              >
+                Student Login
+              </motion.div>
+            </Link>
+            <Link href="/login?type=admin" className="hidden md:inline-flex">
+              <motion.div
+                whileHover={{ y: -2, scale: 1.02 }}
+                whileTap={{ scale: 0.985 }}
+                className="nav-action nav-login-admin items-center px-4 py-2 rounded-full font-semibold text-sm flex"
+              >
+                Admin Login
+              </motion.div>
+            </Link>
 
             {/* Mobile menu toggle */}
             <button
@@ -145,42 +122,32 @@ export default function Navbar() {
           >
             <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col gap-2">
               {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMenuOpen(false)}
-                  className="px-3 py-2.5 rounded-xl text-sm font-medium text-[#0f172a] hover:bg-white/50 transition"
-                >
-                  {link.label}
-                </Link>
+                <motion.div key={link.href} whileHover={{ x: 2 }} whileTap={{ scale: 0.99 }}>
+                  <Link
+                    href={link.href}
+                    onClick={() => setMenuOpen(false)}
+                    className="px-3 py-2.5 rounded-xl text-sm font-medium text-[#0f172a] hover:bg-white/50 transition block"
+                  >
+                    {link.label}
+                  </Link>
+                </motion.div>
               ))}
-              {!isAuthenticated && (
-                <div className="flex gap-2 mt-2 sm:hidden">
-                  <Link
-                    href="/login?type=student"
-                    onClick={() => setMenuOpen(false)}
-                    className="flex-1 text-center px-4 py-2.5 rounded-full bg-white font-semibold text-sm shadow-sm"
-                  >
-                    Student Login
-                  </Link>
-                  <Link
-                    href="/login?type=admin"
-                    onClick={() => setMenuOpen(false)}
-                    className="flex-1 text-center px-4 py-2.5 rounded-full bg-indigo-600 text-white font-semibold text-sm shadow-sm"
-                  >
-                    Admin Login
-                  </Link>
-                </div>
-              )}
-              {isAuthenticated && (
+              <div className="flex gap-2 mt-2 sm:hidden">
                 <Link
-                  href={dashboardHref}
+                  href="/login?type=student"
                   onClick={() => setMenuOpen(false)}
-                  className="sm:hidden px-3 py-2.5 rounded-xl text-sm font-medium text-[#0f172a] hover:bg-white/50 transition"
+                  className="flex-1 text-center px-4 py-2.5 rounded-full bg-white font-semibold text-sm shadow-sm"
                 >
-                  Dashboard
+                  Student Login
                 </Link>
-              )}
+                <Link
+                  href="/login?type=admin"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex-1 text-center px-4 py-2.5 rounded-full bg-indigo-600 text-white font-semibold text-sm shadow-sm"
+                >
+                  Admin Login
+                </Link>
+              </div>
             </div>
           </motion.div>
         )}

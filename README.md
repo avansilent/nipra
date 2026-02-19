@@ -33,6 +33,15 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
+## Deploy on Cloudflare Pages (OpenNext)
+
+Use these exact settings in Cloudflare Pages project build configuration:
+
+- Build command: `npm run pages:build`
+- Build output directory: `.open-next`
+
+This project generates `.open-next/_worker.js` during `pages:build`. If output is set to `.open-next/assets`, Cloudflare serves static files only and root routes can return 404.
+
 ## API Routes
 
 This directory contains example API routes for the headless API app.
