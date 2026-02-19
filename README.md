@@ -41,7 +41,7 @@ Use these exact settings in Cloudflare Pages project build configuration:
 - Build output directory: `.open-next`
 - Wrangler config: `wrangler.toml` (already included in repo)
 
-This project generates `.open-next/_worker.js` during `pages:build`. If output is set to `.open-next/assets`, Cloudflare serves static files only and root routes can return 404.
+This project generates `.open-next/_worker.js` and flattens `.open-next/assets` into `.open-next` during `pages:build` so Cloudflare can serve `/_next/*` files correctly. If output is set to `.open-next/assets`, or assets are not flattened, the app can render a blank page with many 404 chunk/css errors.
 
 ## API Routes
 
