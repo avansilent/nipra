@@ -39,6 +39,7 @@ Use these exact settings in Cloudflare Pages project build configuration:
 
 - Build command: `npm run pages:build`
 - Build output directory: `.open-next`
+- Wrangler config: `wrangler.toml` (already included in repo)
 
 This project generates `.open-next/_worker.js` during `pages:build`. If output is set to `.open-next/assets`, Cloudflare serves static files only and root routes can return 404.
 
