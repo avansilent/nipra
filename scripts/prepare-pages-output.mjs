@@ -23,5 +23,14 @@ if (!fs.existsSync(nextStaticDir)) {
   throw new Error(`Expected static assets at ${nextStaticDir}`);
 }
 
+const routes = {
+  version: 1,
+  include: ["/*"],
+  exclude: ["/_next/static/*", "/favicon.ico", "/*.png", "/*.svg", "/*.jpg", "/*.jpeg", "/*.webp", "/*.gif"],
+};
+
+fs.writeFileSync(path.join(root, "_routes.json"), JSON.stringify(routes, null, 2));
+
 console.log(`Created ${workerDst}`);
 console.log(`Flattened ${assetsDir} into ${root}`);
+console.log(`Created ${path.join(root, "_routes.json")}`);
