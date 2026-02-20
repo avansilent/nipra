@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "../../lib/supabase/browser";
 
@@ -138,6 +138,25 @@ export default function Login() {
       "student"
     );
   };
+
+  useEffect(() => {
+    const restoreSession = async () => {
+      const supabase = createSupabaseBrowserClient();
+      if (!supabase) {
+        return;
+      }
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        return;
+      }
+
+      const role = await resolveUserRole();
+      router.replace(getRoleRedirect(role));
+    };
+
+    restoreSession();
+  }, [router]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

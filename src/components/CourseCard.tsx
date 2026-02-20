@@ -40,6 +40,8 @@ export default function CourseCard({
             src={image}
             alt={title}
             className="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
             onError={(e) => {
               e.currentTarget.style.display = "none";
             }}

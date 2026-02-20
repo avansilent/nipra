@@ -14,6 +14,13 @@ const fadeUp = {
   show: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 };
 
+const trustStats = [
+  { label: "Students Enrolled", value: "25,000+" },
+  { label: "Selections", value: "3,200+" },
+  { label: "Years Experience", value: "12+" },
+  { label: "Success Rate", value: "93%" },
+];
+
 type HomeClientProps = {
   content: HomeContent;
 };
@@ -76,6 +83,26 @@ export default function HomeClient({ content }: HomeClientProps) {
                 <div key={item.id} className="stat-card">
                   <div className="stat-value">{item.value}</div>
                   <div className="stat-label">{item.label}</div>
+                </div>
+              ))}
+            </motion.div>
+          </motion.section>
+
+          <motion.section
+            initial="hidden"
+            animate="show"
+            variants={container}
+            className="section-block"
+          >
+            <motion.div variants={fadeUp} className="section-head">
+              <h3 className="section-title">Why families trust Nipra</h3>
+              <p className="section-subtitle">A coaching institute platform with proven outcomes and consistent mentorship.</p>
+            </motion.div>
+            <motion.div variants={fadeUp} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {trustStats.map((stat) => (
+                <div key={stat.label} className="glass-readable smooth-hover p-4 hover:-translate-y-0.5">
+                  <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
+                  <p className="text-xs uppercase tracking-[0.14em] text-slate-500 mt-2">{stat.label}</p>
                 </div>
               ))}
             </motion.div>

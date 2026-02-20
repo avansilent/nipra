@@ -3,7 +3,7 @@ import React from "react";
 
 export default function Card({ title, subtitle, cta }: { title: string; subtitle?: string; cta?: string }) {
   return (
-    <article className="bg-white rounded-2xl shadow-md p-6 border border-[#e6eefb] hover:shadow-xl transition-shadow duration-200">
+    <article className="glass-readable smooth-hover bg-white p-4 md:p-6 hover:-translate-y-0.5">
       <h3 className="text-lg font-semibold font-poppins text-[#0f172a] mb-2">{title}</h3>
       {subtitle && <p className="text-sm text-[#64748b] mb-4">{subtitle}</p>}
       {cta && (

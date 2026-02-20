@@ -1,12 +1,13 @@
-/* Modern fonts */
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Spline+Sans:wght@300;400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ===== CSS VARIABLES ===== */
 :root {
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
   --bg-1: #f4f6fb;
   --bg-2: #ffffff;
   --ink-1: #0b0f1a;
@@ -20,6 +21,7 @@
   --elev-1: 0 4px 12px rgba(16,24,40,0.05);
   --elev-2: 0 8px 24px rgba(16,24,40,0.08);
   --elev-3: 0 16px 40px rgba(16,24,40,0.12);
+  --radius-md: 14px;
   --transition-fast: 140ms;
   --transition-snappy: 110ms;
   --transition-smooth: 240ms;
@@ -30,7 +32,7 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body {
-  font-family: 'Spline Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--font-inter), system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 15px;
   line-height: 1.6;
   letter-spacing: 0;
@@ -48,7 +50,7 @@ html, body {
 }
 
 h1, h2, h3, h4 { 
-  font-family: 'Space Grotesk', 'Spline Sans', system-ui; 
+  font-family: var(--font-space-grotesk), var(--font-inter), system-ui; 
   color: var(--ink-1); 
   letter-spacing: -0.035em; 
 }
@@ -65,11 +67,11 @@ a:hover { color: #1d4ed8; }
 
 /* ===== BUTTONS ===== */
 button, .btn {
-  font-family: 'Spline Sans', system-ui;
+  font-family: var(--font-inter), system-ui;
   background: linear-gradient(135deg, var(--accent-from), var(--accent-to));
   color: #fff;
   border: none;
-  border-radius: 9999px;
+  border-radius: var(--radius-md);
   padding: 0.6rem 1.4rem;
   font-size: 0.9rem;
   font-weight: 600;
@@ -79,6 +81,24 @@ button, .btn {
 }
 .btn:hover { transform: translateY(-2px) scale(1.02); box-shadow: var(--elev-3); filter: brightness(1.03); }
 .btn:active { transform: translateY(0) scale(0.99); box-shadow: var(--elev-1); }
+
+input,
+textarea,
+select {
+  border-radius: var(--radius-md);
+}
+
+.glass-readable {
+  background: linear-gradient(135deg, rgba(255,255,255,0.86), rgba(241,245,249,0.72));
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(226,232,240,0.8);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elev-2);
+}
+
+.smooth-hover {
+  transition: transform var(--transition-smooth) var(--transition-snap), box-shadow var(--transition-smooth) var(--transition-snap), border-color var(--transition-smooth) var(--transition-snap), background var(--transition-smooth) var(--transition-snap);
+}
 
 /* ===== AUTH (Premium) ===== */
 .auth-shell {

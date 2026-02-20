@@ -306,8 +306,14 @@ export default function AdminPage() {
   if (loading) {
     return (
       <section className="admin-shell">
-        <div className="admin-card admin-card--compact">
-          Loading admin tools...
+        <div className="admin-card admin-card--compact animate-pulse">
+          <div className="h-5 w-40 rounded bg-slate-200" />
+          <div className="mt-3 h-4 w-64 rounded bg-slate-200" />
+          <div className="mt-6 grid gap-3 md:grid-cols-3">
+            <div className="h-20 rounded-[14px] bg-slate-200" />
+            <div className="h-20 rounded-[14px] bg-slate-200" />
+            <div className="h-20 rounded-[14px] bg-slate-200" />
+          </div>
         </div>
       </section>
     );

@@ -198,6 +198,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const onLoginPage = pathname === "/login";
     if (onLoginPage && user) {
       router.replace(role === "admin" ? "/admin/dashboard" : "/student/dashboard");
+      return;
+    }
+
+    const isProtectedPage = pathname.startsWith("/admin") || pathname.startsWith("/student") || pathname === "/dashboard";
+    if (!user && isProtectedPage) {
+      const loginType = pathname.startsWith("/admin") ? "admin" : "student";
+      router.replace(`/login?type=${loginType}`);
+      return;
+    }
+
+    if (user && pathname === "/dashboard") {
+      router.replace(role === "admin" ? "/admin/dashboard" : "/student/dashboard");
     }
   }, [loading, pathname, role, router, user]);
 
@@ -238,8 +250,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   if (shouldBlockScreen) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-[#f8fafc] text-slate-600">
-        <div className="rounded-xl border border-slate-200 bg-white px-5 py-3 shadow-sm text-sm">
-          Checking session...
+        <div className="w-64 rounded-[14px] border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="h-3 w-24 rounded bg-slate-200 animate-pulse" />
+          <div className="mt-3 h-3 w-40 rounded bg-slate-200 animate-pulse" />
+          <div className="mt-2 h-3 w-32 rounded bg-slate-200 animate-pulse" />
         </div>
       </div>
     );

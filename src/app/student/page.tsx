@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 
 export default function StudentPortal() {
   const [ready, setReady] = useState(false);
+  const [lastLogin, setLastLogin] = useState<string | null>(null);
   const [courses, setCourses] = useState<Array<{ id: string; title: string; description: string | null }>>([]);
   const [tests, setTests] = useState<Array<{ id: string; title: string; test_date: string; course_id: string }>>([]);
   const [results, setResults] = useState<Array<{ test_id: string; marks: number; test_title: string | null }>>([]);
@@ -78,6 +79,8 @@ export default function StudentPortal() {
             user.user_metadata?.role ??
             "student"
         );
+
+        setLastLogin(user.last_sign_in_at ?? null);
 
         if (role !== "student") {
           router.replace(role === "admin" ? "/admin/dashboard" : "/login");
@@ -395,6 +398,56 @@ export default function StudentPortal() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        transition={{ duration: 0.45, delay: 0.1 }}
+        variants={sectionVariant}
+        className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4"
+      >
+        <div className="glass-readable smooth-hover p-4 hover:-translate-y-0.5">
+          <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Attendance</p>
+          <p className="mt-2 text-2xl font-bold text-slate-900">{participationRate}%</p>
+          <p className="text-xs text-slate-500 mt-1">Based on tests attempted</p>
+        </div>
+        <div className="glass-readable smooth-hover p-4 hover:-translate-y-0.5">
+          <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Recent Activity</p>
+          <p className="mt-2 text-2xl font-bold text-slate-900">{tests.length + notes.length}</p>
+          <p className="text-xs text-slate-500 mt-1">Tests + resources this cycle</p>
+        </div>
+        <div className="glass-readable smooth-hover p-4 hover:-translate-y-0.5">
+          <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Last Login</p>
+          <p className="mt-2 text-base font-semibold text-slate-900">
+            {lastLogin ? new Date(lastLogin).toLocaleString() : "Not available"}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">Auto-restored from session</p>
+        </div>
+        <div className="glass-readable smooth-hover p-4 hover:-translate-y-0.5">
+          <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Progress Chart</p>
+          <div className="mt-3 space-y-2">
+            {(recentResultTrend.length ? recentResultTrend : [{ test_id: "init", marks: 0, test_title: "No data" }]).map((item) => {
+              const width = recentResultTrend.length > 0 ? Math.max(8, Math.round((Number(item.marks || 0) / peakForTrend) * 100)) : 8;
+              return (
+                <div key={item.test_id}>
+                  <div className="flex items-center justify-between text-[11px] text-slate-600 mb-1">
+                    <span>{item.test_title ?? "Test"}</span>
+                    <span>{item.marks}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${width}%` }}
+                      transition={{ duration: 0.6, ease: "easeOut" }}
+                      className="h-2 rounded-full bg-gradient-to-r from-indigo-500 to-sky-500"
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </motion.div>
