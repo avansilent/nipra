@@ -15,15 +15,22 @@ export default function Login() {
   const loginType = searchParams.get("type") || "student";
   const isAdminLogin = loginType === "admin";
 
-  const normalizeRole = (role?: string | null): "admin" | "student" =>
-    role === "admin" ? "admin" : "student";
+  const normalizeRole = (role?: string | null): "admin" | "student" | null => {
+    if (role === "admin" || role === "student") {
+      return role;
+    }
+    return null;
+  };
 
   const getRoleRedirect = (role?: string | null) => {
     const normalizedRole = normalizeRole(role);
     if (normalizedRole === "admin") {
       return "/admin/dashboard";
     }
-    return "/student/dashboard";
+    if (normalizedRole === "student") {
+      return "/student/dashboard";
+    }
+    return null;
   };
 
   const getRuntimeSubdomain = () => {
@@ -82,7 +89,7 @@ export default function Login() {
     return institute?.id ?? null;
   };
 
-  const resolveUserRole = async () => {
+  const resolveUserRole = async (): Promise<"admin" | "student" | null> => {
     const supabase = createSupabaseBrowserClient();
     if (!supabase) {
       console.log("[login] Supabase client missing");
@@ -100,7 +107,7 @@ export default function Login() {
     console.log("[login] Step 3: fetching profile with maybeSingle()");
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, institute_id")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -109,34 +116,13 @@ export default function Login() {
     }
 
     if (!profile) {
-      console.log("[login] Step 4: profile missing, creating profile row");
-      const instituteId = await resolveInstituteId(supabase, user);
-      const { error: insertError } = await supabase.from("profiles").insert({
-        id: user.id,
-        role: "student",
-        institute_id: instituteId,
-      });
-
-      if (insertError) {
-        console.log("[login] Profile auto-create failed", insertError.message);
-        return normalizeRole(
-          user.app_metadata?.role ??
-            user.user_metadata?.role ??
-            "student"
-        );
-      }
-
-      return "student";
+      console.log("[login] Profile missing for user", user.id);
+      return null;
     }
 
     console.log("[login] Profile role found", profile.role);
 
-      return normalizeRole(
-      profile?.role ??
-      user.app_metadata?.role ??
-      user.user_metadata?.role ??
-      "student"
-    );
+    return normalizeRole(profile?.role ?? null);
   };
 
   useEffect(() => {
@@ -152,7 +138,12 @@ export default function Login() {
       }
 
       const role = await resolveUserRole();
-      router.replace(getRoleRedirect(role));
+      const redirectTo = getRoleRedirect(role);
+      if (!redirectTo) {
+        setError("Role not configured. Please contact admin.");
+        return;
+      }
+      router.replace(redirectTo);
     };
 
     restoreSession();
@@ -187,7 +178,12 @@ export default function Login() {
       console.log("[login] Step 2: sign-in success");
       const role = await resolveUserRole();
       console.log("[login] Step 5: redirecting by role", role);
-      router.replace(getRoleRedirect(role));
+      const redirectTo = getRoleRedirect(role);
+      if (!redirectTo) {
+        setError("Role not configured. Please contact admin.");
+        return;
+      }
+      router.replace(redirectTo);
     } catch (err) {
       console.log("[login] Unexpected error", err);
       const message = err instanceof Error ? err.message : "Unable to sign in.";

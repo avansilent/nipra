@@ -213,6 +213,15 @@ create table if not exists public.notes (
   created_at timestamptz not null default timezone('utc', now())
 );
 
+create table if not exists public.materials (
+  id uuid primary key default gen_random_uuid(),
+  course_id uuid not null references public.courses(id) on delete cascade,
+  institute_id uuid references public.institutes(id) on delete set null,
+  title text not null,
+  file_url text not null,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
 create table if not exists public.tests (
   id uuid primary key default gen_random_uuid(),
   course_id uuid not null references public.courses(id) on delete cascade,
@@ -231,16 +240,32 @@ create table if not exists public.results (
   primary key (student_id, test_id)
 );
 
+create table if not exists public.announcements (
+  id uuid primary key default gen_random_uuid(),
+  institute_id uuid references public.institutes(id) on delete set null,
+  title text not null,
+  body text not null,
+  created_by uuid references public.users(id) on delete set null,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
 alter table public.courses add column if not exists institute_id uuid references public.institutes(id) on delete set null;
 alter table public.enrollments add column if not exists institute_id uuid references public.institutes(id) on delete set null;
 alter table public.notes add column if not exists institute_id uuid references public.institutes(id) on delete set null;
+alter table public.materials add column if not exists institute_id uuid references public.institutes(id) on delete set null;
 alter table public.tests add column if not exists institute_id uuid references public.institutes(id) on delete set null;
 alter table public.results add column if not exists institute_id uuid references public.institutes(id) on delete set null;
+alter table public.announcements add column if not exists institute_id uuid references public.institutes(id) on delete set null;
 
 update public.notes n
 set institute_id = c.institute_id
 from public.courses c
 where n.course_id = c.id and n.institute_id is null;
+
+update public.materials m
+set institute_id = c.institute_id
+from public.courses c
+where m.course_id = c.id and m.institute_id is null;
 
 update public.tests t
 set institute_id = c.institute_id
@@ -262,9 +287,11 @@ where p.id = r.student_id and r.institute_id is null;
 
 alter table public.courses enable row level security;
 alter table public.notes enable row level security;
+alter table public.materials enable row level security;
 alter table public.tests enable row level security;
 alter table public.enrollments enable row level security;
 alter table public.results enable row level security;
+alter table public.announcements enable row level security;
 
 drop policy if exists "Users can read own profile" on public.profiles;
 create policy "Users can read own profile" on public.profiles
@@ -327,6 +354,17 @@ create policy "Authenticated users can read notes" on public.notes
   for select
   using (auth.uid() is not null and institute_id = public.get_my_institute_id());
 
+drop policy if exists "Admins can manage materials" on public.materials;
+create policy "Admins can manage materials" on public.materials
+  for all
+  using (public.is_admin() and institute_id = public.get_my_institute_id())
+  with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+drop policy if exists "Authenticated users can read materials" on public.materials;
+create policy "Authenticated users can read materials" on public.materials
+  for select
+  using (auth.uid() is not null and institute_id = public.get_my_institute_id());
+
 drop policy if exists "Admins can manage tests" on public.tests;
 create policy "Admins can manage tests" on public.tests
   for all
@@ -366,8 +404,23 @@ create policy "Admins can manage results" on public.results
   using (public.is_admin() and institute_id = public.get_my_institute_id())
   with check (public.is_admin() and institute_id = public.get_my_institute_id());
 
+drop policy if exists "Admins can manage announcements" on public.announcements;
+create policy "Admins can manage announcements" on public.announcements
+  for all
+  using (public.is_admin() and institute_id = public.get_my_institute_id())
+  with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+drop policy if exists "Authenticated users can read announcements" on public.announcements;
+create policy "Authenticated users can read announcements" on public.announcements
+  for select
+  using (auth.uid() is not null and institute_id = public.get_my_institute_id());
+
 insert into storage.buckets (id, name, public)
 values ('notes', 'notes', false)
+on conflict (id) do update set public = excluded.public;
+
+insert into storage.buckets (id, name, public)
+values ('materials', 'materials', false)
 on conflict (id) do update set public = excluded.public;
 
 drop policy if exists "Admins manage notes bucket" on storage.objects;
@@ -376,13 +429,22 @@ create policy "Admins manage notes bucket" on storage.objects
   using (bucket_id = 'notes' and public.is_admin())
   with check (bucket_id = 'notes' and public.is_admin());
 
+drop policy if exists "Admins manage materials bucket" on storage.objects;
+create policy "Admins manage materials bucket" on storage.objects
+  for all
+  using (bucket_id = 'materials' and public.is_admin())
+  with check (bucket_id = 'materials' and public.is_admin());
+
 create index if not exists idx_profiles_institute_id on public.profiles(institute_id);
 create index if not exists idx_courses_institute_id on public.courses(institute_id);
 create index if not exists idx_enrollments_institute_id on public.enrollments(institute_id);
 create index if not exists idx_notes_institute_id on public.notes(institute_id);
+create index if not exists idx_materials_institute_id on public.materials(institute_id);
 create index if not exists idx_tests_institute_id on public.tests(institute_id);
 create index if not exists idx_results_institute_id on public.results(institute_id);
+create index if not exists idx_announcements_institute_id on public.announcements(institute_id);
 create index if not exists idx_enrollments_course_id on public.enrollments(course_id);
 create index if not exists idx_notes_course_id on public.notes(course_id);
+create index if not exists idx_materials_course_id on public.materials(course_id);
 create index if not exists idx_tests_course_id on public.tests(course_id);
 create index if not exists idx_results_test_id on public.results(test_id);

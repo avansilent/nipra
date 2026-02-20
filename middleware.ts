@@ -6,8 +6,12 @@ export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
   const pathname = request.nextUrl.pathname;
 
-  const normalizeRole = (role?: string | null): "admin" | "student" =>
-    role === "admin" ? "admin" : "student";
+  const normalizeRole = (role?: string | null): "admin" | "student" | null => {
+    if (role === "admin" || role === "student") {
+      return role;
+    }
+    return null;
+  };
 
   type SupabaseCookieOptions = {
     domain?: string;
@@ -86,7 +90,7 @@ export async function middleware(request: NextRequest) {
     profile?.role ??
     session.user.app_metadata?.role ??
     session.user.user_metadata?.role ??
-    "student"
+    null
   );
 
   const instituteId =
@@ -98,6 +102,16 @@ export async function middleware(request: NextRequest) {
   if (!instituteId && (isAdminRoute || isStudentRoute || isProtectedApiRoute)) {
     if (isProtectedApiRoute) {
       return NextResponse.json({ error: "Institute not assigned" }, { status: 403 });
+    }
+
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    return NextResponse.redirect(loginUrl);
+  }
+
+  if (!role && (isAdminRoute || isStudentRoute || isProtectedApiRoute)) {
+    if (isProtectedApiRoute) {
+      return NextResponse.json({ error: "Role not configured" }, { status: 403 });
     }
 
     const loginUrl = request.nextUrl.clone();
