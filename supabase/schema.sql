@@ -1,3 +1,5 @@
+create extension if not exists pgcrypto;
+
 create table if not exists public.institutes (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -258,27 +260,48 @@ alter table public.results add column if not exists institute_id uuid references
 alter table public.announcements add column if not exists institute_id uuid references public.institutes(id) on delete set null;
 
 update public.notes n
-set institute_id = c.institute_id
-from public.courses c
-where n.course_id = c.id and n.institute_id is null;
+set institute_id = (
+  select c.institute_id
+  from public.courses c
+  where c.id = n.course_id
+  limit 1
+)
+where n.institute_id is null;
 
 update public.materials m
-set institute_id = c.institute_id
-from public.courses c
-where m.course_id = c.id and m.institute_id is null;
+set institute_id = (
+  select c.institute_id
+  from public.courses c
+  where c.id = m.course_id
+  limit 1
+)
+where m.institute_id is null;
 
 update public.tests t
-set institute_id = c.institute_id
-from public.courses c
-where t.course_id = c.id and t.institute_id is null;
+set institute_id = (
+  select c.institute_id
+  from public.courses c
+  where c.id = t.course_id
+  limit 1
+)
+where t.institute_id is null;
 
 update public.enrollments e
-set institute_id = coalesce(p.institute_id, c.institute_id)
-from public.profiles p,
-     public.courses c
-where p.id = e.student_id
-  and c.id = e.course_id
-  and e.institute_id is null;
+set institute_id = coalesce(
+  (
+    select p.institute_id
+    from public.profiles p
+    where p.id = e.student_id
+    limit 1
+  ),
+  (
+    select c.institute_id
+    from public.courses c
+    where c.id = e.course_id
+    limit 1
+  )
+)
+where e.institute_id is null;
 
 update public.results r
 set institute_id = coalesce(
@@ -297,10 +320,13 @@ set institute_id = coalesce(
   (
     select e.institute_id
     from public.enrollments e
-    join public.tests t2 on true
     where e.student_id = r.student_id
-      and t2.id = r.test_id
-      and e.course_id = t2.course_id
+      and e.course_id = (
+        select t2.course_id
+        from public.tests t2
+        where t2.id = r.test_id
+        limit 1
+      )
     limit 1
   )
 )
