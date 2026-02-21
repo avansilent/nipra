@@ -132,10 +132,14 @@ export default function AdminPage() {
 
     const load = async () => {
       try {
-        const { data } = await withTimeout(supabase.auth.getSession());
-        setSession(data.session ?? null);
+        const [{ data: userData }, { data: sessionData }] = await Promise.all([
+          withTimeout(supabase.auth.getUser()),
+          withTimeout(supabase.auth.getSession()),
+        ]);
+        const verifiedUser = userData.user ?? null;
+        setSession(sessionData.session ?? null);
 
-        if (!data.session) {
+        if (!verifiedUser) {
           return;
         }
 
@@ -143,14 +147,14 @@ export default function AdminPage() {
           supabase
             .from("profiles")
             .select("role, institute_id")
-            .eq("id", data.session.user.id)
+            .eq("id", verifiedUser.id)
             .maybeSingle()
         );
 
         const currentRole =
           profile?.role ??
-          data.session.user.app_metadata?.role ??
-          data.session.user.user_metadata?.role;
+          verifiedUser.app_metadata?.role ??
+          verifiedUser.user_metadata?.role;
 
         const adminAccess = currentRole === "admin";
         setIsAdmin(adminAccess);
@@ -161,8 +165,8 @@ export default function AdminPage() {
 
         const tenantId =
           profile?.institute_id ??
-          (data.session.user.app_metadata?.institute_id as string | undefined) ??
-          (data.session.user.user_metadata?.institute_id as string | undefined) ??
+          (verifiedUser.app_metadata?.institute_id as string | undefined) ??
+          (verifiedUser.user_metadata?.institute_id as string | undefined) ??
           null;
 
         if (!tenantId) {

@@ -44,8 +44,9 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  const { data } = await supabase.auth.getSession();
-  const session = data.session;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const isApiRoute = pathname.startsWith("/api/");
   const isAuthApiRoute = pathname.startsWith("/api/auth/");
@@ -61,7 +62,7 @@ export async function middleware(request: NextRequest) {
     isStudentRoute ||
     isProtectedApiRoute;
 
-  if (!session && requiresSession) {
+  if (!user && requiresSession) {
     if (isProtectedApiRoute) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -76,27 +77,27 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (!session) {
+  if (!user) {
     return response;
   }
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("role, institute_id")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .maybeSingle();
 
   const role = normalizeRole(
     profile?.role ??
-    session.user.app_metadata?.role ??
-    session.user.user_metadata?.role ??
+    user.app_metadata?.role ??
+    user.user_metadata?.role ??
     null
   );
 
   const instituteId =
     profile?.institute_id ??
-    session.user.app_metadata?.institute_id ??
-    session.user.user_metadata?.institute_id ??
+    user.app_metadata?.institute_id ??
+    user.user_metadata?.institute_id ??
     null;
 
   if (!instituteId && (isAdminRoute || isStudentRoute || isProtectedApiRoute)) {

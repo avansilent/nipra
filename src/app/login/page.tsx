@@ -132,8 +132,10 @@ export default function Login() {
         return;
       }
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
         return;
       }
 

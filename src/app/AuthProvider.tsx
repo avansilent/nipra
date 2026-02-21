@@ -127,13 +127,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       setRoleResolved(false);
       try {
-        const { data } = await withTimeout(
+        let userData: { user: User | null } = { user: null };
+        try {
+          const { data } = await withTimeout(supabase.auth.getUser(), 3000);
+          userData = { user: data.user ?? null };
+        } catch {
+          userData = { user: null };
+        }
+
+        const { data: sessionData } = await withTimeout(
           supabase.auth.getSession(),
           3000,
           { data: { session: null }, error: null }
         );
-        const nextSession = data.session ?? null;
-        const nextUser = nextSession?.user ?? null;
+        const nextSession = sessionData.session ?? null;
+        const nextUser = userData.user ?? null;
 
         if (!mounted) {
           return;
@@ -156,9 +164,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           setRoleResolved(false);
           setSession(nextSession);
-          const nextUser = nextSession?.user ?? null;
-          setUser(nextUser);
-          await resolveRole(nextUser);
+          let verifiedUser: User | null = null;
+          try {
+            const { data } = await withTimeout(supabase.auth.getUser(), 3000);
+            verifiedUser = data.user ?? null;
+          } catch {
+            verifiedUser = null;
+          }
+          setUser(verifiedUser);
+          await resolveRole(verifiedUser);
         } finally {
           setLoading(false);
         }
