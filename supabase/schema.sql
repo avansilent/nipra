@@ -274,16 +274,22 @@ where t.course_id = c.id and t.institute_id is null;
 
 update public.enrollments e
 set institute_id = coalesce(p.institute_id, c.institute_id)
-from public.profiles p
-left join public.courses c on c.id = e.course_id
-where p.id = e.student_id and e.institute_id is null;
+from public.profiles p,
+     public.courses c
+where p.id = e.student_id
+  and c.id = e.course_id
+  and e.institute_id is null;
 
 update public.results r
 set institute_id = coalesce(p.institute_id, t.institute_id, e.institute_id)
-from public.profiles p
-left join public.tests t on t.id = r.test_id
-left join public.enrollments e on e.student_id = r.student_id and e.course_id = t.course_id
-where p.id = r.student_id and r.institute_id is null;
+from public.profiles p,
+     public.tests t
+left join public.enrollments e
+  on e.student_id = p.id
+ and e.course_id = t.course_id
+where p.id = r.student_id
+  and t.id = r.test_id
+  and r.institute_id is null;
 
 alter table public.courses enable row level security;
 alter table public.notes enable row level security;
