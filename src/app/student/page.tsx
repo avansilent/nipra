@@ -12,14 +12,21 @@ export default function StudentPortal() {
   const [tests, setTests] = useState<Array<{ id: string; title: string; test_date: string; course_id: string }>>([]);
   const [results, setResults] = useState<Array<{ test_id: string; marks: number; test_title: string | null }>>([]);
   const [notes, setNotes] = useState<Array<{ id: string; title: string; file_url: string; course_id: string }>>([]);
+  const [materials, setMaterials] = useState<Array<{ id: string; title: string; file_url: string; course_id: string }>>([]);
+  const [announcements, setAnnouncements] = useState<Array<{ id: string; title: string; body: string; created_at: string }>>([]);
   const [timelineFilter, setTimelineFilter] = useState<"all" | "upcoming" | "completed" | "missed">("all");
   const [downloadingNoteId, setDownloadingNoteId] = useState<string | null>(null);
+  const [downloadingMaterialId, setDownloadingMaterialId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const normalizeRole = (role?: string | null): "admin" | "student" =>
-    role === "admin" ? "admin" : "student";
+  const normalizeRole = (role?: string | null): "admin" | "student" | null => {
+    if (role === "admin" || role === "student") {
+      return role;
+    }
+    return null;
+  };
   const withTimeout = async <T,>(
     promise: Promise<T> | PromiseLike<T>,
     ms = 5000
@@ -77,7 +84,7 @@ export default function StudentPortal() {
           profile?.role ??
             user.app_metadata?.role ??
             user.user_metadata?.role ??
-            "student"
+            null
         );
 
         setLastLogin(user.last_sign_in_at ?? null);
@@ -153,6 +160,36 @@ export default function StudentPortal() {
           } else {
             setNotes((noteRows ?? []) as NoteRow[]);
           }
+
+          const { data: materialRows, error: materialError } = await withTimeout(
+            supabase
+              .from("materials")
+              .select("id, title, file_url, course_id")
+              .eq("institute_id", instituteId)
+              .in("course_id", courseIds)
+              .limit(10)
+          );
+
+          if (materialError) {
+            setError(materialError.message);
+          } else {
+            setMaterials((materialRows ?? []) as NoteRow[]);
+          }
+        }
+
+        const { data: announcementRows, error: announcementError } = await withTimeout(
+          supabase
+            .from("announcements")
+            .select("id, title, body, created_at")
+            .eq("institute_id", instituteId)
+            .order("created_at", { ascending: false })
+            .limit(6)
+        );
+
+        if (announcementError) {
+          setError(announcementError.message);
+        } else {
+          setAnnouncements(announcementRows ?? []);
         }
 
         const { data: resultRows, error: resultError } = await withTimeout(
@@ -262,6 +299,24 @@ export default function StudentPortal() {
       setError(downloadError instanceof Error ? downloadError.message : "Unable to download note.");
     } finally {
       setDownloadingNoteId(null);
+    }
+  };
+
+  const handleMaterialDownload = async (materialId: string) => {
+    try {
+      setDownloadingMaterialId(materialId);
+      const response = await fetch(`/api/materials/${materialId}/download`);
+      const data = await response.json();
+
+      if (!response.ok || !data?.url) {
+        throw new Error(data?.error ?? "Unable to download material.");
+      }
+
+      window.open(data.url, "_blank", "noopener,noreferrer");
+    } catch (downloadError) {
+      setError(downloadError instanceof Error ? downloadError.message : "Unable to download material.");
+    } finally {
+      setDownloadingMaterialId(null);
     }
   };
 
@@ -629,6 +684,57 @@ export default function StudentPortal() {
               );
             })
           )}
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        transition={{ duration: 0.45, delay: 0.32 }}
+        variants={sectionVariant}
+        className="mt-8 grid gap-6 md:grid-cols-2"
+      >
+        <div className="rounded-[2rem] bg-gradient-to-br from-white/84 to-sky-50/40 p-6 shadow-[0_22px_60px_rgba(15,23,42,0.1)] backdrop-blur-md ring-1 ring-white/70">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-900">Study Materials</h3>
+            <span className="text-xs text-slate-500">PDF uploads from admin</span>
+          </div>
+          <div className="mt-4 space-y-3">
+            {materials.length === 0 ? (
+              <p className="text-sm text-slate-500">No materials uploaded yet.</p>
+            ) : (
+              materials.map((material) => (
+                <div key={material.id} className="rounded-2xl px-4 py-3 bg-white/90 shadow-[0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-white/85">
+                  <p className="text-sm font-semibold text-slate-900">{material.title}</p>
+                  <button
+                    type="button"
+                    onClick={() => handleMaterialDownload(material.id)}
+                    className="mt-2 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white hover:bg-slate-800 transition"
+                    disabled={downloadingMaterialId === material.id}
+                  >
+                    {downloadingMaterialId === material.id ? "Preparing..." : "Secure download"}
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-[2rem] bg-gradient-to-br from-white/84 to-violet-50/40 p-6 shadow-[0_22px_60px_rgba(15,23,42,0.1)] backdrop-blur-md ring-1 ring-white/70">
+          <h3 className="text-sm font-semibold text-slate-900">Announcements</h3>
+          <div className="mt-4 space-y-3">
+            {announcements.length === 0 ? (
+              <p className="text-sm text-slate-500">No announcements yet.</p>
+            ) : (
+              announcements.map((announcement) => (
+                <div key={announcement.id} className="rounded-2xl px-4 py-3 bg-white/90 shadow-[0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-white/85">
+                  <p className="text-sm font-semibold text-slate-900">{announcement.title}</p>
+                  <p className="mt-1 text-xs text-slate-500">{new Date(announcement.created_at).toLocaleDateString()}</p>
+                  <p className="mt-2 text-sm text-slate-700 whitespace-pre-wrap">{announcement.body}</p>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </motion.div>
     </section>

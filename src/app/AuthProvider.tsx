@@ -28,10 +28,10 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const normalizeRole = (role?: string | null): AuthRole => {
-  if (!role) {
-    return null;
+  if (role === "admin" || role === "student") {
+    return role;
   }
-  return role === "admin" ? "admin" : "student";
+  return null;
 };
 
 const withTimeout = async <T,>(
@@ -64,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<AuthRole>(null);
+  const [roleResolved, setRoleResolved] = useState(false);
   const [instituteId, setInstituteId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -77,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!supabase || !nextUser) {
         setRole(null);
         setInstituteId(null);
+        setRoleResolved(true);
         return;
       }
 
@@ -95,43 +97,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile = null;
       }
 
-      let nextRole = normalizeRole(
+      const nextRole = normalizeRole(
         profile?.role ??
           nextUser.app_metadata?.role ??
           nextUser.user_metadata?.role
       );
 
-      if (!nextRole) {
-        try {
-          const nextInstituteId =
-            (nextUser.app_metadata?.institute_id as string | undefined) ??
-            (nextUser.user_metadata?.institute_id as string | undefined) ??
-            null;
-
-          const { error: insertError } = await withTimeout(
-            supabase.from("profiles").insert({
-              id: nextUser.id,
-              role: "student",
-              institute_id: nextInstituteId,
-            }),
-            1500
-          );
-
-          if (!insertError) {
-            nextRole = "student";
-          }
-        } catch {
-          nextRole = "student";
-        }
-      }
-
-      setRole(nextRole ?? "student");
+      setRole(nextRole);
       setInstituteId(
         profile?.institute_id ??
           (nextUser.app_metadata?.institute_id as string | undefined) ??
           (nextUser.user_metadata?.institute_id as string | undefined) ??
           null
       );
+      setRoleResolved(true);
     },
     [supabase]
   );
@@ -146,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const initialize = async () => {
       setLoading(true);
+      setRoleResolved(false);
       try {
         const { data } = await withTimeout(
           supabase.auth.getSession(),
@@ -174,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event, nextSession) => {
         try {
+          setRoleResolved(false);
           setSession(nextSession);
           const nextUser = nextSession?.user ?? null;
           setUser(nextUser);
@@ -191,13 +172,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [resolveRole, supabase]);
 
   useEffect(() => {
-    if (loading) {
+    if (loading || (user && !roleResolved)) {
       return;
     }
 
     const onLoginPage = pathname === "/login";
     if (onLoginPage && user) {
-      router.replace(role === "admin" ? "/admin/dashboard" : "/student/dashboard");
+      if (role === "admin") {
+        router.replace("/admin/dashboard");
+      } else if (role === "student") {
+        router.replace("/student/dashboard");
+      }
       return;
     }
 
@@ -209,9 +194,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (user && pathname === "/dashboard") {
-      router.replace(role === "admin" ? "/admin/dashboard" : "/student/dashboard");
+      if (role === "admin") {
+        router.replace("/admin/dashboard");
+      } else if (role === "student") {
+        router.replace("/student/dashboard");
+      } else {
+        router.replace("/login");
+      }
     }
-  }, [loading, pathname, role, router, user]);
+  }, [loading, pathname, role, roleResolved, router, user]);
 
   const shouldBlockScreen = loading && pathname === "/login";
 
