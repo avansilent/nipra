@@ -39,7 +39,14 @@ Use these exact settings in Cloudflare Pages project build configuration:
 
 - Build command: `npm run pages:build`
 - Build output directory: `.open-next`
+- Deploy command: `npm run pages:deploy` (or `npx wrangler pages deploy .open-next --project-name nipra`)
 - Wrangler config: `wrangler.toml` (already included in repo)
+
+If Cloudflare runs `npx wrangler deploy`, deployment fails with:
+
+`It looks like you've run a Workers-specific command in a Pages project.`
+
+Reason: `wrangler deploy` is for Workers projects, while this repository is configured as a Pages project (`pages_build_output_dir` is set in `wrangler.toml`).
 
 This project generates `.open-next/_worker.js`, flattens `.open-next/assets` into `.open-next`, and writes `.open-next/_routes.json` during `pages:build` so Cloudflare serves `/_next/static/*` directly. If output is set to `.open-next/assets`, assets are not flattened, or `_routes.json` is missing, the app can render a blank page with many 404 chunk/css errors.
 

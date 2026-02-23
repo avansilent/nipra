@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "pages:build": "opennextjs-cloudflare build && node scripts/prepare-pages-output.mjs"
+    "pages:build": "opennextjs-cloudflare build && node scripts/prepare-pages-output.mjs",
+    "pages:deploy": "wrangler pages deploy .open-next --project-name nipra"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
