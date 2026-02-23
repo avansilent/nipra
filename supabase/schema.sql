@@ -63,7 +63,8 @@ returns uuid as $$
   from public.profiles
   where id = auth.uid()
   limit 1;
-$$ language sql stable security definer;
+$$ language sql stable security definer
+set search_path = public, pg_temp;
 
 create or replace function public.is_admin()
 returns boolean as $$
@@ -72,7 +73,8 @@ returns boolean as $$
     from public.profiles
     where id = auth.uid() and role = 'admin'
   );
-$$ language sql stable security definer;
+$$ language sql stable security definer
+set search_path = public, pg_temp;
 
 create or replace function public.handle_new_user()
 returns trigger as $$
@@ -159,7 +161,8 @@ begin
 
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer
+set search_path = public, pg_temp;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
