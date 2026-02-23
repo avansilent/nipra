@@ -12,7 +12,7 @@ alter table public.institutes enable row level security;
 drop policy if exists "Authenticated can read institutes" on public.institutes;
 create policy "Authenticated can read institutes" on public.institutes
   for select
-  using (auth.uid() is not null);
+  using ((select auth.uid()) is not null);
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -344,35 +344,37 @@ alter table public.results enable row level security;
 alter table public.announcements enable row level security;
 
 drop policy if exists "Users can read own profile" on public.profiles;
-create policy "Users can read own profile" on public.profiles
-  for select
-  using (auth.uid() = id);
-
-drop policy if exists "Users can update own profile" on public.profiles;
-create policy "Users can update own profile" on public.profiles
-  for update
-  using (auth.uid() = id);
-
 drop policy if exists "Admins can read institute profiles" on public.profiles;
-create policy "Admins can read institute profiles" on public.profiles
-  for select
-  using (public.is_admin() and institute_id = public.get_my_institute_id());
-
-drop policy if exists "Admins can update institute profiles" on public.profiles;
-create policy "Admins can update institute profiles" on public.profiles
-  for update
-  using (public.is_admin() and institute_id = public.get_my_institute_id())
-  with check (public.is_admin() and institute_id = public.get_my_institute_id());
-
-drop policy if exists "Users can read own user row" on public.users;
-create policy "Users can read own user row" on public.users
-  for select
-  using (auth.uid() = id);
-
-drop policy if exists "Admins can read all users" on public.users;
-create policy "Admins can read all users" on public.users
+drop policy if exists "Users and admins can read profiles" on public.profiles;
+create policy "Users and admins can read profiles" on public.profiles
   for select
   using (
+    (select auth.uid()) = id
+    or (public.is_admin() and institute_id = public.get_my_institute_id())
+  );
+
+drop policy if exists "Users can update own profile" on public.profiles;
+drop policy if exists "Admins can update institute profiles" on public.profiles;
+drop policy if exists "Users and admins can update profiles" on public.profiles;
+create policy "Users and admins can update profiles" on public.profiles
+  for update
+  using (
+    (select auth.uid()) = id
+    or (public.is_admin() and institute_id = public.get_my_institute_id())
+  )
+  with check (
+    (select auth.uid()) = id
+    or (public.is_admin() and institute_id = public.get_my_institute_id())
+  );
+
+drop policy if exists "Users can read own user row" on public.users;
+drop policy if exists "Admins can read all users" on public.users;
+drop policy if exists "Users and admins can read users" on public.users;
+create policy "Users and admins can read users" on public.users
+  for select
+  using (
+    (select auth.uid()) = id
+    or (
     public.is_admin()
     and exists (
       select 1
@@ -380,90 +382,170 @@ create policy "Admins can read all users" on public.users
       where p.id = public.users.id
         and p.institute_id = public.get_my_institute_id()
     )
+    )
   );
 
 drop policy if exists "Admins can manage courses" on public.courses;
-create policy "Admins can manage courses" on public.courses
-  for all
+drop policy if exists "Admins can insert courses" on public.courses;
+drop policy if exists "Admins can update courses" on public.courses;
+drop policy if exists "Admins can delete courses" on public.courses;
+create policy "Admins can insert courses" on public.courses
+  for insert
+  with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+create policy "Admins can update courses" on public.courses
+  for update
   using (public.is_admin() and institute_id = public.get_my_institute_id())
   with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+create policy "Admins can delete courses" on public.courses
+  for delete
+  using (public.is_admin() and institute_id = public.get_my_institute_id());
 
 drop policy if exists "Authenticated users can read courses" on public.courses;
 create policy "Authenticated users can read courses" on public.courses
   for select
-  using (auth.uid() is not null and institute_id = public.get_my_institute_id());
+  using ((select auth.uid()) is not null and institute_id = public.get_my_institute_id());
 
 drop policy if exists "Admins can manage notes" on public.notes;
-create policy "Admins can manage notes" on public.notes
-  for all
+drop policy if exists "Admins can insert notes" on public.notes;
+drop policy if exists "Admins can update notes" on public.notes;
+drop policy if exists "Admins can delete notes" on public.notes;
+create policy "Admins can insert notes" on public.notes
+  for insert
+  with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+create policy "Admins can update notes" on public.notes
+  for update
   using (public.is_admin() and institute_id = public.get_my_institute_id())
   with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+create policy "Admins can delete notes" on public.notes
+  for delete
+  using (public.is_admin() and institute_id = public.get_my_institute_id());
 
 drop policy if exists "Authenticated users can read notes" on public.notes;
 create policy "Authenticated users can read notes" on public.notes
   for select
-  using (auth.uid() is not null and institute_id = public.get_my_institute_id());
+  using ((select auth.uid()) is not null and institute_id = public.get_my_institute_id());
 
 drop policy if exists "Admins can manage materials" on public.materials;
-create policy "Admins can manage materials" on public.materials
-  for all
+drop policy if exists "Admins can insert materials" on public.materials;
+drop policy if exists "Admins can update materials" on public.materials;
+drop policy if exists "Admins can delete materials" on public.materials;
+create policy "Admins can insert materials" on public.materials
+  for insert
+  with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+create policy "Admins can update materials" on public.materials
+  for update
   using (public.is_admin() and institute_id = public.get_my_institute_id())
   with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+create policy "Admins can delete materials" on public.materials
+  for delete
+  using (public.is_admin() and institute_id = public.get_my_institute_id());
 
 drop policy if exists "Authenticated users can read materials" on public.materials;
 create policy "Authenticated users can read materials" on public.materials
   for select
-  using (auth.uid() is not null and institute_id = public.get_my_institute_id());
+  using ((select auth.uid()) is not null and institute_id = public.get_my_institute_id());
 
 drop policy if exists "Admins can manage tests" on public.tests;
-create policy "Admins can manage tests" on public.tests
-  for all
+drop policy if exists "Admins can insert tests" on public.tests;
+drop policy if exists "Admins can update tests" on public.tests;
+drop policy if exists "Admins can delete tests" on public.tests;
+create policy "Admins can insert tests" on public.tests
+  for insert
+  with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+create policy "Admins can update tests" on public.tests
+  for update
   using (public.is_admin() and institute_id = public.get_my_institute_id())
   with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+create policy "Admins can delete tests" on public.tests
+  for delete
+  using (public.is_admin() and institute_id = public.get_my_institute_id());
 
 drop policy if exists "Authenticated users can read tests" on public.tests;
 create policy "Authenticated users can read tests" on public.tests
   for select
-  using (auth.uid() is not null and institute_id = public.get_my_institute_id());
+  using ((select auth.uid()) is not null and institute_id = public.get_my_institute_id());
 
 drop policy if exists "Students can read own enrollments" on public.enrollments;
-create policy "Students can read own enrollments" on public.enrollments
+drop policy if exists "Admins can manage enrollments" on public.enrollments;
+drop policy if exists "Students and admins can read enrollments" on public.enrollments;
+create policy "Students and admins can read enrollments" on public.enrollments
   for select
   using (
-    auth.uid() = student_id
+    ((select auth.uid()) = student_id or public.is_admin())
     and institute_id = public.get_my_institute_id()
   );
 
-drop policy if exists "Admins can manage enrollments" on public.enrollments;
-create policy "Admins can manage enrollments" on public.enrollments
-  for all
+drop policy if exists "Admins can insert enrollments" on public.enrollments;
+drop policy if exists "Admins can update enrollments" on public.enrollments;
+drop policy if exists "Admins can delete enrollments" on public.enrollments;
+create policy "Admins can insert enrollments" on public.enrollments
+  for insert
+  with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+create policy "Admins can update enrollments" on public.enrollments
+  for update
   using (public.is_admin() and institute_id = public.get_my_institute_id())
   with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+create policy "Admins can delete enrollments" on public.enrollments
+  for delete
+  using (public.is_admin() and institute_id = public.get_my_institute_id());
 
 drop policy if exists "Students can read own results" on public.results;
-create policy "Students can read own results" on public.results
+drop policy if exists "Admins can manage results" on public.results;
+drop policy if exists "Students and admins can read results" on public.results;
+create policy "Students and admins can read results" on public.results
   for select
   using (
-    auth.uid() = student_id
+    ((select auth.uid()) = student_id or public.is_admin())
     and institute_id = public.get_my_institute_id()
   );
 
-drop policy if exists "Admins can manage results" on public.results;
-create policy "Admins can manage results" on public.results
-  for all
+drop policy if exists "Admins can insert results" on public.results;
+drop policy if exists "Admins can update results" on public.results;
+drop policy if exists "Admins can delete results" on public.results;
+create policy "Admins can insert results" on public.results
+  for insert
+  with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+create policy "Admins can update results" on public.results
+  for update
   using (public.is_admin() and institute_id = public.get_my_institute_id())
   with check (public.is_admin() and institute_id = public.get_my_institute_id());
 
+create policy "Admins can delete results" on public.results
+  for delete
+  using (public.is_admin() and institute_id = public.get_my_institute_id());
+
 drop policy if exists "Admins can manage announcements" on public.announcements;
-create policy "Admins can manage announcements" on public.announcements
-  for all
+drop policy if exists "Admins can insert announcements" on public.announcements;
+drop policy if exists "Admins can update announcements" on public.announcements;
+drop policy if exists "Admins can delete announcements" on public.announcements;
+create policy "Admins can insert announcements" on public.announcements
+  for insert
+  with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+create policy "Admins can update announcements" on public.announcements
+  for update
   using (public.is_admin() and institute_id = public.get_my_institute_id())
   with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+create policy "Admins can delete announcements" on public.announcements
+  for delete
+  using (public.is_admin() and institute_id = public.get_my_institute_id());
 
 drop policy if exists "Authenticated users can read announcements" on public.announcements;
 create policy "Authenticated users can read announcements" on public.announcements
   for select
-  using (auth.uid() is not null and institute_id = public.get_my_institute_id());
+  using ((select auth.uid()) is not null and institute_id = public.get_my_institute_id());
 
 insert into storage.buckets (id, name, public)
 values ('notes', 'notes', false)
