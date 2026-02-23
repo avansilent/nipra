@@ -135,19 +135,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           userData = { user: null };
         }
 
-        const { data: sessionData } = await withTimeout(
-          supabase.auth.getSession(),
-          3000,
-          { data: { session: null }, error: null }
-        );
-        const nextSession = sessionData.session ?? null;
         const nextUser = userData.user ?? null;
 
         if (!mounted) {
           return;
         }
 
-        setSession(nextSession);
+        setSession(null);
         setUser(nextUser);
         await resolveRole(nextUser);
       } finally {

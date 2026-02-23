@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
 import { createSupabaseBrowserClient } from "../../lib/supabase/browser";
 import type { HomeContent, Program, Stat, Testimonial, Faq } from "../../types/home";
 import { defaultHomeContent, mergeHomeContent } from "../../data/homeContent";
@@ -68,7 +67,7 @@ const withTimeout = async <T,>(
 };
 
 export default function AdminPage() {
-  const [session, setSession] = useState<Session | null>(null);
+  const [hasUser, setHasUser] = useState(false);
   const [content, setContent] = useState<HomeContent>(defaultHomeContent);
   const [stats, setStats] = useState<AdminStats>({
     students: 0,
@@ -132,12 +131,9 @@ export default function AdminPage() {
 
     const load = async () => {
       try {
-        const [{ data: userData }, { data: sessionData }] = await Promise.all([
-          withTimeout(supabase.auth.getUser()),
-          withTimeout(supabase.auth.getSession()),
-        ]);
+        const { data: userData } = await withTimeout(supabase.auth.getUser());
         const verifiedUser = userData.user ?? null;
-        setSession(sessionData.session ?? null);
+        setHasUser(!!verifiedUser);
 
         if (!verifiedUser) {
           return;
@@ -201,8 +197,9 @@ export default function AdminPage() {
     load();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, nextSession) => {
-        setSession(nextSession);
+      async () => {
+        const { data: userData } = await withTimeout(supabase.auth.getUser());
+        setHasUser(!!userData.user);
       }
     );
 
@@ -281,7 +278,7 @@ export default function AdminPage() {
 
   const handleRefresh = async () => {
     const supabase = createSupabaseBrowserClient();
-    if (!supabase || !session || !instituteId) {
+    if (!supabase || !hasUser || !instituteId) {
       return;
     }
 
@@ -323,7 +320,7 @@ export default function AdminPage() {
     );
   }
 
-  if (!session) {
+  if (!hasUser) {
     return (
       <section className="admin-shell">
         <div className="admin-card admin-card--compact">
