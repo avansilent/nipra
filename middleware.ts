@@ -87,8 +87,19 @@ export async function middleware(request: NextRequest) {
     .eq("id", user.id)
     .maybeSingle();
 
+  let fallbackRole: string | null = null;
+  if (!profile?.role) {
+    const { data: userRow } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+    fallbackRole = userRow?.role ?? null;
+  }
+
   const role = normalizeRole(
     profile?.role ??
+    fallbackRole ??
     user.app_metadata?.role ??
     user.user_metadata?.role ??
     null

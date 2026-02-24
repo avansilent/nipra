@@ -58,6 +58,7 @@ export default function Login() {
   const resolveInstituteId = async (
     supabase: NonNullable<ReturnType<typeof createSupabaseBrowserClient>>,
     user: {
+      id: string;
       app_metadata?: Record<string, unknown>;
       user_metadata?: Record<string, unknown>;
     }
@@ -115,14 +116,52 @@ export default function Login() {
       console.log("[login] Profile read error", profileError.message);
     }
 
-    if (!profile) {
-      console.log("[login] Profile missing for user", user.id);
+    const profileRole = normalizeRole(profile?.role ?? null);
+    if (profileRole) {
+      console.log("[login] Profile role found", profileRole);
+      return profileRole;
+    }
+
+    console.log("[login] Profile role missing, checking users table fallback");
+    const { data: userRow, error: userRowError } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (userRowError) {
+      console.log("[login] Users role read error", userRowError.message);
       return null;
     }
 
-    console.log("[login] Profile role found", profile.role);
+    const fallbackRole = normalizeRole(userRow?.role ?? null);
+    if (!fallbackRole) {
+      console.log("[login] Role missing in both profiles and users", user.id);
+      return null;
+    }
 
-    return normalizeRole(profile?.role ?? null);
+    const instituteId =
+      profile?.institute_id ??
+      (await resolveInstituteId(supabase, user));
+
+    const { error: upsertError } = await supabase
+      .from("profiles")
+      .upsert(
+        {
+          id: user.id,
+          role: fallbackRole,
+          institute_id: instituteId,
+        },
+        { onConflict: "id" }
+      );
+
+    if (upsertError) {
+      console.log("[login] Could not self-heal profile", upsertError.message);
+    } else {
+      console.log("[login] Profile self-healed from users role", fallbackRole);
+    }
+
+    return fallbackRole;
   };
 
   useEffect(() => {
