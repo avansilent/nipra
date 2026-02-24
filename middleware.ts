@@ -116,9 +116,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.json({ error: "Institute not assigned" }, { status: 403 });
     }
 
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
-    return NextResponse.redirect(loginUrl);
+    return response;
   }
 
   if (!role && (isAdminRoute || isStudentRoute || isProtectedApiRoute)) {
