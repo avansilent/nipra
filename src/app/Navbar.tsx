@@ -33,15 +33,15 @@ export default function Navbar() {
             >
               <Image
                 src="/logo.png"
-                alt="Nipra Academy"
+                alt="Nipracademy"
                 width={36}
                 height={36}
                 priority
                 className="w-full h-full object-contain"
               />
             </motion.div>
-            <span className="font-bold tracking-tight text-[#0b1220] text-sm sm:text-base leading-tight">
-              Nipra Academy
+            <span className="inline-flex items-center rounded-[999px] border border-white/25 bg-white/18 px-5.5 py-2.5 text-[2.05rem] sm:text-[2.6rem] font-black leading-[1.05] tracking-[-0.09em] text-[#0f172a] shadow-[0_18px_40px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.65)] backdrop-blur-2xl transition-all duration-500 ease-out hover:-translate-y-0.5 hover:scale-[1.04] hover:bg-white/26 hover:shadow-[0_24px_54px_rgba(15,23,42,0.16),inset_0_1px_0_rgba(255,255,255,0.82)]">
+              Nipracademy
             </span>
           </Link>
 

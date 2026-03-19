@@ -21,7 +21,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: 'Nipra Academy',
+  title: 'Nipracademy',
   description: 'A premium, minimal, Apple-style educational SaaS platform.',
 };
 
@@ -37,8 +37,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </main>
             <footer className="w-full py-10 text-center bg-white/80 border-t border-[#e2e8f0]">
               <div className="max-w-7xl mx-auto px-6 md:px-12">
-                <div className="font-semibold text-[#0f172a] mb-2">Nipra Academy</div>
-                <p className="text-xs text-[#94a3b8]">© {new Date().getFullYear()} Nipra Academy. All rights reserved.</p>
+                <div className="inline-flex items-center rounded-[999px] border border-white/25 bg-white/18 px-5.5 py-2.5 text-[2.2rem] font-black leading-[1.05] tracking-[-0.09em] text-[#0f172a] shadow-[0_14px_34px_rgba(15,23,42,0.1)] backdrop-blur-2xl">Nipracademy</div>
+                <p className="text-xs text-[#94a3b8]">© {new Date().getFullYear()} Nipracademy. All rights reserved.</p>
               </div>
             </footer>
           </div>

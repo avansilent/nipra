@@ -97,26 +97,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile = null;
       }
 
-      let fallbackRole: string | null = null;
-      if (!profile?.role) {
-        try {
-          const { data: userRow } = await withTimeout(
-            supabase
-              .from("users")
-              .select("role")
-              .eq("id", nextUser.id)
-              .maybeSingle(),
-            1500
-          );
-          fallbackRole = userRow?.role ?? null;
-        } catch {
-          fallbackRole = null;
-        }
-      }
-
       const nextRole = normalizeRole(
         profile?.role ??
-          fallbackRole ??
           nextUser.app_metadata?.role ??
           nextUser.user_metadata?.role
       );
