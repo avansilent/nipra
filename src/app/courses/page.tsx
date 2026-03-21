@@ -102,7 +102,7 @@ export default function Courses() {
           <motion.p variants={itemReveal} className="app-page-subtitle">You can see only courses assigned to your account.</motion.p>
         </motion.div>
         <motion.div whileHover={buttonHover} whileTap={tapPress} className="inline-flex">
-          <Link href="/student/dashboard" className="btn px-4 py-2 rounded-xl">Student Dashboard</Link>
+          <Link href="/student/dashboard" className="mobile-page-cta btn px-4 py-2 rounded-xl">Student Dashboard</Link>
         </motion.div>
       </motion.div>
 

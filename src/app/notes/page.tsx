@@ -15,7 +15,7 @@ const sampleNotes = [
 
 export default function Notes() {
   return (
-    <section className="relative overflow-hidden bg-gray-50 px-6 py-24">
+    <section className="mobile-public-shell relative overflow-hidden bg-gray-50 px-6 py-24">
       <div className="pointer-events-none absolute left-0 top-16 h-60 w-60 rounded-full bg-slate-200/55 blur-3xl" />
       <div className="pointer-events-none absolute bottom-0 right-0 h-72 w-72 rounded-full bg-amber-100/45 blur-3xl" />
       <div className="mx-auto max-w-6xl space-y-10">
@@ -25,13 +25,13 @@ export default function Notes() {
           viewport={viewportOnce}
           variants={sectionReveal}
           whileHover={hoverLift}
-          className="rounded-[32px] bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(245,248,250,0.95))] p-8 shadow-[0_30px_80px_rgba(15,23,42,0.12)] ring-1 ring-white/80 md:p-12"
+          className="mobile-public-card rounded-[32px] bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(245,248,250,0.95))] p-8 shadow-[0_30px_80px_rgba(15,23,42,0.12)] ring-1 ring-white/80 md:p-12"
         >
           <motion.div initial="hidden" whileInView="show" viewport={viewportOnce} variants={notesGrid} className="max-w-2xl space-y-4">
             <motion.span variants={itemReveal} className="inline-flex items-center rounded-full bg-slate-100 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 shadow-sm">
               Revision Library
             </motion.span>
-            <motion.h1 variants={itemReveal} className="text-3xl font-bold text-gray-900 md:text-4xl">Notes</motion.h1>
+            <motion.h1 variants={itemReveal} className="mobile-public-title text-3xl font-bold text-gray-900 md:text-4xl">Notes</motion.h1>
             <motion.p variants={itemReveal} className="text-base leading-relaxed text-gray-600 md:text-lg">Concise, well-structured notes for fast revision.</motion.p>
             <motion.div variants={itemReveal} className="flex flex-wrap gap-3 pt-1">
               {noteHighlights.map((item) => (

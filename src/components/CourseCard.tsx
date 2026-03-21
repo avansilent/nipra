@@ -31,7 +31,7 @@ export default function CourseCard({
       whileInView="show"
       viewport={viewportOnce}
       whileHover={hoverLift}
-      className="group relative min-h-[260px] cursor-pointer overflow-hidden rounded-2xl bg-white shadow-md transition duration-200 hover:shadow-xl"
+      className="mobile-course-card group relative min-h-[260px] cursor-pointer overflow-hidden rounded-2xl bg-white shadow-md transition duration-200 hover:shadow-xl"
     >
       <div className="relative aspect-[3/2] overflow-hidden bg-slate-100">
         {image ? (
@@ -47,11 +47,11 @@ export default function CourseCard({
             }}
           />
         ) : (
-          <div className="flex h-full w-full flex-col items-start justify-end bg-gradient-to-br from-slate-100 via-white to-stone-50 p-6 text-left">
+          <div className="mobile-course-card-cover flex h-full w-full flex-col items-start justify-end bg-gradient-to-br from-slate-100 via-white to-stone-50 p-6 text-left">
             <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700 shadow-sm">
               {tag}
             </span>
-            <p className="mt-3 max-w-[12rem] text-base font-semibold leading-relaxed text-slate-800">
+            <p className="mobile-course-card-copy mt-3 max-w-[12rem] text-base font-semibold leading-relaxed text-slate-800">
               Structured learning paths built for momentum and clarity.
             </p>
           </div>
@@ -61,10 +61,10 @@ export default function CourseCard({
         )}
       </div>
 
-      <div className="flex flex-col gap-4 bg-white px-6 py-6">
-        <h3 className={`${titleClassName ?? "text-xl"} font-semibold leading-tight tracking-tight text-slate-900`}>{title}</h3>
+      <div className="mobile-course-card-body flex flex-col gap-4 bg-white px-6 py-6">
+        <h3 className={`mobile-course-card-title ${titleClassName ?? "text-xl"} font-semibold leading-tight tracking-tight text-slate-900`}>{title}</h3>
 
-        <p className="text-base leading-relaxed text-slate-600">{duration ?? "Certification • Self-paced"}</p>
+        <p className="mobile-course-card-copy text-base leading-relaxed text-slate-600">{duration ?? "Certification • Self-paced"}</p>
 
         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-700">
           <span className="rounded-full bg-slate-50 px-3 py-1">Certification</span>

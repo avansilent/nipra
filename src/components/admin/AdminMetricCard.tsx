@@ -16,7 +16,7 @@ export default function AdminMetricCard({ label, value, helper }: AdminMetricCar
       viewport={{ once: true, amount: 0.3 }}
       whileHover={{ y: -6, scale: 1.01 }}
       transition={{ duration: 0.35 }}
-      className="relative overflow-hidden rounded-[30px] bg-white/92 px-6 py-6 shadow-[0_24px_56px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+      className="admin-mobile-metric-card relative overflow-hidden rounded-[30px] bg-white/92 px-6 py-6 shadow-[0_24px_56px_rgba(15,23,42,0.08)] backdrop-blur-xl"
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/80" />
       <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-[radial-gradient(circle,rgba(148,163,184,0.14),transparent_68%)] blur-2xl" />

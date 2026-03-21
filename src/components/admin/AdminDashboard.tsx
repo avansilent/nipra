@@ -628,8 +628,8 @@ export default function AdminDashboard() {
 
   if (role !== "admin") {
     return (
-      <section className="app-page-shell">
-        <div className="rounded-[34px] bg-white/92 p-8 shadow-[0_28px_75px_rgba(15,23,42,0.1)] backdrop-blur-xl">
+      <section className="admin-mobile-gate app-page-shell">
+        <div className="admin-mobile-gate-card rounded-[34px] bg-white/92 p-8 shadow-[0_28px_75px_rgba(15,23,42,0.1)] backdrop-blur-xl">
           <p className={badgeClass}>Restricted Area</p>
           <h1 className="mt-4 text-3xl font-black tracking-[-0.05em] text-slate-950">Admin access required</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">This dashboard is available only to owner-level admin accounts.</p>
@@ -643,27 +643,27 @@ export default function AdminDashboard() {
   }
 
   return (
-    <section className="relative w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+    <section className="admin-mobile-shell relative w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <div className="pointer-events-none absolute left-0 top-8 h-48 w-48 rounded-full bg-stone-200/45 blur-3xl" />
       <div className="pointer-events-none absolute right-0 top-24 h-64 w-64 rounded-full bg-slate-100/85 blur-3xl" />
       <div className="pointer-events-none absolute bottom-10 left-1/3 h-56 w-56 rounded-full bg-slate-100/70 blur-3xl" />
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }} className="mx-auto max-w-7xl">
-        <div className="rounded-[40px] bg-white/88 p-4 shadow-[0_32px_90px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-6">
-          <div className="relative overflow-hidden flex flex-col gap-4 rounded-[34px] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(246,248,250,0.96))] px-5 py-6 text-slate-900 shadow-[0_24px_80px_rgba(15,23,42,0.08)] sm:px-7">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }} className="admin-mobile-frame mx-auto max-w-7xl">
+        <div className="admin-mobile-outer rounded-[40px] bg-white/88 p-4 shadow-[0_32px_90px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-6">
+          <div className="admin-mobile-hero relative overflow-hidden flex flex-col gap-4 rounded-[34px] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(246,248,250,0.96))] px-5 py-6 text-slate-900 shadow-[0_24px_80px_rgba(15,23,42,0.08)] sm:px-7">
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/90" />
             <div className="pointer-events-none absolute -right-12 -top-8 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(226,232,240,0.95),transparent_66%)] blur-3xl" />
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="admin-mobile-hero-row flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Owner Control Center</p>
                 <h1 className="mt-3 max-w-4xl text-3xl font-black tracking-[-0.05em] sm:text-4xl">A premium control room with calmer spacing, softer contrast, and cleaner hierarchy.</h1>
                 <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">Manage students, course access, content publishing, and institute branding from one cleaner Apple-style workspace.</p>
               </div>
-              <div className="flex flex-wrap gap-3">
+              <div className="admin-mobile-hero-actions flex flex-wrap gap-3">
                 <button type="button" onClick={() => void loadDashboard()} className={secondaryButtonClass}>Refresh</button>
                 <button type="button" onClick={() => void logout()} className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(15,23,42,0.14)] transition hover:-translate-y-0.5 hover:bg-slate-800">Logout</button>
               </div>
             </div>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="admin-mobile-overview-grid grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {overviewMetrics.map((metric) => (
                 <div key={metric.label} className="rounded-[26px] bg-white px-4 py-3 shadow-[0_12px_28px_rgba(15,23,42,0.06)] backdrop-blur-sm">
                   <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">{metric.label}</p>
@@ -682,7 +682,7 @@ export default function AdminDashboard() {
           )}
 
           {generatedCredentials ? (
-            <div className="mt-4 rounded-[26px] bg-white px-4 py-4 shadow-[0_16px_38px_rgba(15,23,42,0.08)]">
+            <div className="admin-mobile-credentials mt-4 rounded-[26px] bg-white px-4 py-4 shadow-[0_16px_38px_rgba(15,23,42,0.08)]">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-700">Latest credentials</p>
               <div className="mt-3 grid gap-3 md:grid-cols-4">
                 <div><p className="text-xs text-slate-500">Student</p><p className="text-sm font-semibold text-slate-900">{generatedCredentials.name}</p></div>
@@ -693,7 +693,7 @@ export default function AdminDashboard() {
             </div>
           ) : null}
 
-          <div className="mt-6 grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+          <div className="admin-mobile-layout mt-6 grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
             <AdminSidebar activeTab={activeTab} onSelect={setActiveTab} siteName={siteSettings.siteName} />
 
             <div className="grid gap-5">

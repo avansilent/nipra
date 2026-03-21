@@ -17,7 +17,7 @@ export default function AdminPanelCard({ title, description, action, children }:
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.15 }}
       transition={{ duration: 0.4 }}
-      className="relative overflow-hidden rounded-[34px] bg-white/92 p-6 shadow-[0_28px_72px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-7"
+      className="admin-mobile-panel relative overflow-hidden rounded-[34px] bg-white/92 p-6 shadow-[0_28px_72px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-7"
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/85" />
       <div className="pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-full bg-[radial-gradient(circle,rgba(226,232,240,0.8),transparent_70%)] blur-3xl" />

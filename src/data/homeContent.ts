@@ -125,19 +125,161 @@ export const defaultHomeContent: HomeContent = {
   footerTagline: "Premium learning for Class 1-12 | CBSE & Bihar Board",
 };
 
+function pickText(value: unknown, fallback: string): string {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : fallback;
+}
+
+function pickStringArray(value: unknown, fallback: string[]): string[] {
+  if (!Array.isArray(value)) {
+    return fallback;
+  }
+
+  const normalized = value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return normalized.length > 0 ? normalized : fallback;
+}
+
+function mergePrograms(value: unknown) {
+  if (!Array.isArray(value)) {
+    return defaultHomeContent.programs;
+  }
+
+  const normalized = value
+    .map((item, index) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const fallback = defaultHomeContent.programs[index] ?? defaultHomeContent.programs[0];
+      const candidate = item as Partial<(typeof defaultHomeContent.programs)[number]>;
+
+      return {
+        id: pickText(candidate.id, `${fallback.id}-${index + 1}`),
+        title: pickText(candidate.title, fallback.title),
+        subtitle: pickText(candidate.subtitle, fallback.subtitle),
+        chips: pickStringArray(candidate.chips, fallback.chips),
+        ctaLabel: pickText(candidate.ctaLabel, fallback.ctaLabel),
+        ctaHref: pickText(candidate.ctaHref, fallback.ctaHref),
+      };
+    })
+    .filter((item) => item !== null);
+
+  return normalized.length > 0 ? normalized : defaultHomeContent.programs;
+}
+
+function mergeStats(value: unknown) {
+  if (!Array.isArray(value)) {
+    return defaultHomeContent.stats;
+  }
+
+  const normalized = value
+    .map((item, index) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const fallback = defaultHomeContent.stats[index] ?? defaultHomeContent.stats[0];
+      const candidate = item as Partial<(typeof defaultHomeContent.stats)[number]>;
+
+      return {
+        id: pickText(candidate.id, `${fallback.id}-${index + 1}`),
+        label: pickText(candidate.label, fallback.label),
+        value: pickText(candidate.value, fallback.value),
+      };
+    })
+    .filter((item) => item !== null);
+
+  return normalized.length > 0 ? normalized : defaultHomeContent.stats;
+}
+
+function mergeTestimonials(value: unknown) {
+  if (!Array.isArray(value)) {
+    return defaultHomeContent.testimonials;
+  }
+
+  const normalized = value
+    .map((item, index) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const fallback = defaultHomeContent.testimonials[index] ?? defaultHomeContent.testimonials[0];
+      const candidate = item as Partial<(typeof defaultHomeContent.testimonials)[number]>;
+
+      return {
+        id: pickText(candidate.id, `${fallback.id}-${index + 1}`),
+        name: pickText(candidate.name, fallback.name),
+        role: pickText(candidate.role, fallback.role),
+        quote: pickText(candidate.quote, fallback.quote),
+      };
+    })
+    .filter((item) => item !== null);
+
+  return normalized.length > 0 ? normalized : defaultHomeContent.testimonials;
+}
+
+function mergeFaqs(value: unknown) {
+  if (!Array.isArray(value)) {
+    return defaultHomeContent.faqs;
+  }
+
+  const normalized = value
+    .map((item, index) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const fallback = defaultHomeContent.faqs[index] ?? defaultHomeContent.faqs[0];
+      const candidate = item as Partial<(typeof defaultHomeContent.faqs)[number]>;
+
+      return {
+        id: pickText(candidate.id, `${fallback.id}-${index + 1}`),
+        question: pickText(candidate.question, fallback.question),
+        answer: pickText(candidate.answer, fallback.answer),
+      };
+    })
+    .filter((item) => item !== null);
+
+  return normalized.length > 0 ? normalized : defaultHomeContent.faqs;
+}
+
 export function mergeHomeContent(partial?: Partial<HomeContent>): HomeContent {
   if (!partial) return defaultHomeContent;
 
   return {
-    ...defaultHomeContent,
-    ...partial,
-    programs: Array.isArray(partial.programs)
-      ? partial.programs
-      : defaultHomeContent.programs,
-    stats: Array.isArray(partial.stats) ? partial.stats : defaultHomeContent.stats,
-    testimonials: Array.isArray(partial.testimonials)
-      ? partial.testimonials
-      : defaultHomeContent.testimonials,
-    faqs: Array.isArray(partial.faqs) ? partial.faqs : defaultHomeContent.faqs,
+    heroBadge: pickText(partial.heroBadge, defaultHomeContent.heroBadge),
+    heroTitle: pickText(partial.heroTitle, defaultHomeContent.heroTitle),
+    heroSubtitle: pickText(partial.heroSubtitle, defaultHomeContent.heroSubtitle),
+    heroPrimaryCtaLabel: pickText(partial.heroPrimaryCtaLabel, defaultHomeContent.heroPrimaryCtaLabel),
+    heroPrimaryCtaHref: pickText(partial.heroPrimaryCtaHref, defaultHomeContent.heroPrimaryCtaHref),
+    heroSecondaryCtaLabel: pickText(partial.heroSecondaryCtaLabel, defaultHomeContent.heroSecondaryCtaLabel),
+    heroSecondaryCtaHref: pickText(partial.heroSecondaryCtaHref, defaultHomeContent.heroSecondaryCtaHref),
+    programsHeading: pickText(partial.programsHeading, defaultHomeContent.programsHeading),
+    programsDescription: pickText(partial.programsDescription, defaultHomeContent.programsDescription),
+    programs: mergePrograms(partial.programs),
+    statsHeading: pickText(partial.statsHeading, defaultHomeContent.statsHeading),
+    statsSubtitle: pickText(partial.statsSubtitle, defaultHomeContent.statsSubtitle),
+    stats: mergeStats(partial.stats),
+    testimonialsHeading: pickText(partial.testimonialsHeading, defaultHomeContent.testimonialsHeading),
+    testimonialsSubtitle: pickText(partial.testimonialsSubtitle, defaultHomeContent.testimonialsSubtitle),
+    testimonials: mergeTestimonials(partial.testimonials),
+    faqsHeading: pickText(partial.faqsHeading, defaultHomeContent.faqsHeading),
+    faqsSubtitle: pickText(partial.faqsSubtitle, defaultHomeContent.faqsSubtitle),
+    faqs: mergeFaqs(partial.faqs),
+    contactHeading: pickText(partial.contactHeading, defaultHomeContent.contactHeading),
+    contactSubtitle: pickText(partial.contactSubtitle, defaultHomeContent.contactSubtitle),
+    contactCtaLabel: pickText(partial.contactCtaLabel, defaultHomeContent.contactCtaLabel),
+    newsletterHeading: pickText(partial.newsletterHeading, defaultHomeContent.newsletterHeading),
+    newsletterSubtitle: pickText(partial.newsletterSubtitle, defaultHomeContent.newsletterSubtitle),
+    newsletterCtaLabel: pickText(partial.newsletterCtaLabel, defaultHomeContent.newsletterCtaLabel),
+    footerTagline: pickText(partial.footerTagline, defaultHomeContent.footerTagline),
   };
 }

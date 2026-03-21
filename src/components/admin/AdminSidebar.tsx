@@ -25,7 +25,7 @@ export default function AdminSidebar({ activeTab, onSelect, siteName }: AdminSid
       whileInView={{ opacity: 1, x: 0 }}
       viewport={{ once: true, amount: 0.2 }}
       transition={{ duration: 0.35 }}
-      className="relative overflow-hidden rounded-[32px] bg-white/92 p-5 shadow-[0_26px_64px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+      className="admin-mobile-sidebar relative overflow-hidden rounded-[32px] bg-white/92 p-5 shadow-[0_26px_64px_rgba(15,23,42,0.08)] backdrop-blur-xl"
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/85" />
       <div className="pointer-events-none absolute -left-6 top-20 h-24 w-24 rounded-full bg-[radial-gradient(circle,rgba(226,232,240,0.75),transparent_70%)] blur-2xl" />

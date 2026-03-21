@@ -335,18 +335,18 @@ function LoginContent() {
   };
 
   return (
-    <section className="relative overflow-hidden bg-gray-50 px-6 py-24">
+    <section className="mobile-login-shell relative overflow-hidden bg-gray-50 px-6 py-24">
       <div className="pointer-events-none absolute left-0 top-16 h-72 w-72 rounded-full bg-slate-200/55 blur-3xl" />
       <div className="pointer-events-none absolute bottom-0 right-0 h-80 w-80 rounded-full bg-stone-200/45 blur-3xl" />
-      <div className="mx-auto max-w-6xl">
-      <div className="auth-grid">
+      <div className="mobile-login-frame mx-auto max-w-6xl">
+      <div className="mobile-login-grid auth-grid">
         <motion.div
           initial="hidden"
           whileInView="show"
           viewport={viewportOnce}
           variants={sectionReveal}
           whileHover={hoverLift}
-          className="auth-panel"
+          className="mobile-login-panel auth-panel"
         >
           <motion.div variants={authItems} initial="hidden" whileInView="show" viewport={viewportOnce} className="space-y-6">
           <div className="auth-badge">
@@ -369,7 +369,7 @@ function LoginContent() {
             </p>
           </motion.div>
 
-          <motion.div variants={itemReveal} className="grid gap-3 sm:grid-cols-2">
+          <motion.div variants={itemReveal} className="mobile-login-feature-grid grid gap-3 sm:grid-cols-2">
             <div className="rounded-[22px] bg-white/75 p-4 shadow-[0_14px_30px_rgba(15,23,42,0.06)]">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Fast access</p>
               <p className="mt-2 text-sm font-semibold text-slate-900">Clean login flow with dashboard redirect</p>
@@ -395,7 +395,7 @@ function LoginContent() {
           variants={sectionReveal}
           whileHover={hoverLift}
           onSubmit={handleSubmit}
-          className="auth-card"
+          className="mobile-login-card auth-card"
         >
           <div className="auth-card-head">
             <h2>{isAdminLogin ? "Admin login" : "Student login"}</h2>
@@ -436,7 +436,7 @@ function LoginContent() {
             whileHover={buttonHover}
             whileTap={tapPress}
             type="submit"
-            className="auth-submit"
+            className="mobile-login-submit auth-submit"
             disabled={loading}
           >
             {loading ? "Signing in..." : "Continue"}
@@ -456,15 +456,15 @@ export default function Login() {
   return (
     <Suspense
       fallback={
-        <section className="relative overflow-hidden bg-gray-50 px-6 py-24">
-          <div className="mx-auto max-w-6xl">
-            <div className="grid gap-6 lg:grid-cols-2">
-              <div className="rounded-[28px] bg-white/85 p-8 shadow-[0_24px_60px_rgba(15,23,42,0.08)] ring-1 ring-white/80">
+        <section className="mobile-login-shell relative overflow-hidden bg-gray-50 px-6 py-24">
+          <div className="mobile-login-frame mx-auto max-w-6xl">
+            <div className="mobile-login-grid grid gap-6 lg:grid-cols-2">
+              <div className="mobile-login-panel rounded-[28px] bg-white/85 p-8 shadow-[0_24px_60px_rgba(15,23,42,0.08)] ring-1 ring-white/80">
                 <div className="h-5 w-32 animate-pulse rounded-full bg-slate-200" />
                 <div className="mt-4 h-12 w-3/4 animate-pulse rounded-2xl bg-slate-200" />
                 <div className="mt-3 h-24 animate-pulse rounded-3xl bg-slate-100" />
               </div>
-              <div className="rounded-[28px] bg-white/85 p-8 shadow-[0_24px_60px_rgba(15,23,42,0.08)] ring-1 ring-white/80">
+              <div className="mobile-login-card rounded-[28px] bg-white/85 p-8 shadow-[0_24px_60px_rgba(15,23,42,0.08)] ring-1 ring-white/80">
                 <div className="h-10 animate-pulse rounded-2xl bg-slate-100" />
                 <div className="mt-4 h-10 animate-pulse rounded-2xl bg-slate-100" />
                 <div className="mt-6 h-12 animate-pulse rounded-2xl bg-slate-200" />
