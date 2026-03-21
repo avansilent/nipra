@@ -1,8 +1,49 @@
 import { createBrowserClient } from "@supabase/ssr";
-import { processLock, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAuthStorageKey, getSupabaseProjectRef } from "./config";
 
 let browserClient: SupabaseClient | null | undefined;
+const browserLockTails = new Map<string, Promise<void>>();
+
+async function withBrowserLock<T>(
+  name: string,
+  acquireTimeout: number,
+  fn: () => Promise<T>
+): Promise<T> {
+  const previousTail = browserLockTails.get(name) ?? Promise.resolve();
+  let releaseLock: () => void = () => undefined;
+
+  const currentTail = new Promise<void>((resolve) => {
+    releaseLock = resolve;
+  });
+
+  browserLockTails.set(
+    name,
+    previousTail.catch(() => undefined).then(() => currentTail)
+  );
+
+  if (acquireTimeout > 0) {
+    await Promise.race([
+      previousTail.catch(() => undefined),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`Timed out waiting for browser auth lock: ${name}`));
+        }, acquireTimeout);
+      }),
+    ]);
+  } else {
+    await previousTail.catch(() => undefined);
+  }
+
+  try {
+    return await fn();
+  } finally {
+    releaseLock();
+    if (browserLockTails.get(name) === currentTail) {
+      browserLockTails.delete(name);
+    }
+  }
+}
 
 function clearLegacyAuthStorage(projectRef: string, storageKey: string) {
   if (typeof window === "undefined") {
@@ -69,7 +110,7 @@ export function createSupabaseBrowserClient(): SupabaseClient | null {
     auth: {
       storageKey,
       detectSessionInUrl: false,
-      lock: processLock,
+      lock: withBrowserLock,
       lockAcquireTimeout: 10000,
     },
     cookieOptions: {
