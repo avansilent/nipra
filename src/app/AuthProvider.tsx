@@ -11,7 +11,10 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { Session, User } from "@supabase/supabase-js";
-import { createSupabaseBrowserClient } from "../lib/supabase/browser";
+import {
+  clearSupabaseBrowserAuthStorage,
+  createSupabaseBrowserClient,
+} from "../lib/supabase/browser";
 
 type AuthRole = "admin" | "student" | null;
 
@@ -73,6 +76,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
+  const resetLocalAuthState = useCallback(() => {
+    setSession(null);
+    setUser(null);
+    setRole(null);
+    setInstituteId(null);
+    setRoleResolved(true);
+    setLoading(false);
+  }, []);
+
+  const clearBrowserSessionArtifacts = useCallback(() => {
+    clearSupabaseBrowserAuthStorage(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  }, []);
+
+  const attemptSignOut = useCallback(
+    async (scope?: "global" | "local") => {
+      if (!supabase) {
+        return;
+      }
+
+      try {
+        const signOutPromise = scope
+          ? supabase.auth.signOut({ scope })
+          : supabase.auth.signOut();
+
+        await Promise.race([
+          signOutPromise,
+          new Promise((resolve) => {
+            setTimeout(resolve, 1500);
+          }),
+        ]);
+      } catch {
+        // Ignore transport failures and continue with local cleanup.
+      }
+    },
+    [supabase]
+  );
+
+  const clearBrokenSession = useCallback(async () => {
+    if (!supabase) {
+      clearBrowserSessionArtifacts();
+      return;
+    }
+
+    try {
+      await supabase.auth.signOut({ scope: "local" });
+    } catch {
+      // Ignore cleanup failures; the goal is to stop repeated refresh attempts.
+    } finally {
+      clearBrowserSessionArtifacts();
+    }
+  }, [clearBrowserSessionArtifacts, supabase]);
+
   const resolveRole = useCallback(
     async (nextUser: User | null) => {
       if (!supabase || !nextUser) {
@@ -83,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       let profile: { role?: string | null; institute_id?: string | null } | null = null;
+      let userRow: { role?: string | null } | null = null;
       try {
         const { data } = await withTimeout(
           supabase
@@ -97,8 +153,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile = null;
       }
 
+      if (!profile?.role) {
+        try {
+          const { data } = await withTimeout(
+            supabase
+              .from("users")
+              .select("role")
+              .eq("id", nextUser.id)
+              .maybeSingle(),
+            1500
+          );
+          userRow = data;
+        } catch {
+          userRow = null;
+        }
+      }
+
       const nextRole = normalizeRole(
         profile?.role ??
+          userRow?.role ??
           nextUser.app_metadata?.role ??
           nextUser.user_metadata?.role
       );
@@ -127,21 +200,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       setRoleResolved(false);
       try {
-        let userData: { user: User | null } = { user: null };
+        let sessionData: Session | null = null;
         try {
-          const { data } = await withTimeout(supabase.auth.getUser(), 3000);
-          userData = { user: data.user ?? null };
+          const { data } = await withTimeout(supabase.auth.getSession(), 3000);
+          sessionData = data.session ?? null;
         } catch {
-          userData = { user: null };
+          await clearBrokenSession();
+          sessionData = null;
         }
 
-        const nextUser = userData.user ?? null;
+        const nextUser = sessionData?.user ?? null;
 
         if (!mounted) {
           return;
         }
 
-        setSession(null);
+        setSession(sessionData);
         setUser(nextUser);
         await resolveRole(nextUser);
       } finally {
@@ -158,13 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           setRoleResolved(false);
           setSession(nextSession);
-          let verifiedUser: User | null = null;
-          try {
-            const { data } = await withTimeout(supabase.auth.getUser(), 3000);
-            verifiedUser = data.user ?? null;
-          } catch {
-            verifiedUser = null;
-          }
+          const verifiedUser = nextSession?.user ?? null;
           setUser(verifiedUser);
           await resolveRole(verifiedUser);
         } finally {
@@ -177,7 +245,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       listener.subscription.unsubscribe();
     };
-  }, [resolveRole, supabase]);
+  }, [clearBrokenSession, resolveRole, supabase]);
 
   useEffect(() => {
     if (loading || (user && !roleResolved)) {
@@ -212,26 +280,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [loading, pathname, role, roleResolved, router, user]);
 
-  const shouldBlockScreen = loading && pathname === "/login";
-
   const logout = useCallback(async () => {
     if (!supabase) {
-      setSession(null);
-      setUser(null);
-      setRole(null);
-      setInstituteId(null);
-      router.push("/");
+      resetLocalAuthState();
+      clearBrowserSessionArtifacts();
+      router.replace("/");
+      router.refresh();
       return;
     }
 
-    await supabase.auth.signOut();
-    setSession(null);
-    setUser(null);
-    setRole(null);
-    setInstituteId(null);
-    router.push("/");
-    router.refresh();
-  }, [router, supabase]);
+    resetLocalAuthState();
+    clearBrowserSessionArtifacts();
+
+    try {
+      await attemptSignOut();
+      await attemptSignOut("local");
+    } catch {
+      await clearBrokenSession();
+    } finally {
+      resetLocalAuthState();
+      clearBrowserSessionArtifacts();
+      router.replace("/");
+      router.refresh();
+    }
+  }, [attemptSignOut, clearBrokenSession, clearBrowserSessionArtifacts, resetLocalAuthState, router, supabase]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -245,18 +317,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }),
     [instituteId, loading, logout, role, session, user]
   );
-
-  if (shouldBlockScreen) {
-    return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-[#f8fafc] text-slate-600">
-        <div className="w-64 rounded-[14px] border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="h-3 w-24 rounded bg-slate-200 animate-pulse" />
-          <div className="mt-3 h-3 w-40 rounded bg-slate-200 animate-pulse" />
-          <div className="mt-2 h-3 w-32 rounded bg-slate-200 animate-pulse" />
-        </div>
-      </div>
-    );
-  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

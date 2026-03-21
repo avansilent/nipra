@@ -1,14 +1,48 @@
 "use client";
 import Link from "next/link";
+import { motion } from "framer-motion";
+import { buttonHover, createStaggerContainer, hoverLift, itemReveal, sectionReveal, tapPress, viewportOnce } from "../../lib/motion";
+
+const sectionItems = createStaggerContainer(0.1, 0.04);
+const bookHighlights = ["Handpicked titles", "Exam-aligned reading", "Concept support"];
 
 export default function BooksPage() {
   return (
-    <section className="w-full max-w-6xl mx-auto py-16 px-6 text-center">
-      <h1 className="text-3xl md:text-5xl font-extrabold mb-4 text-[#0f172a] tracking-tight">Books</h1>
-      <p className="text-base md:text-lg text-[#475569] max-w-2xl mx-auto mb-8">
-        Browse recommended books and study material curated for your classes and exam goals.
-      </p>
-      <Link href="/courses" className="btn px-6 py-3 rounded-xl">Explore Courses</Link>
+    <section className="relative overflow-hidden bg-gray-50 px-6 py-24">
+      <div className="pointer-events-none absolute left-0 top-12 h-56 w-56 rounded-full bg-amber-100/60 blur-3xl" />
+      <div className="pointer-events-none absolute right-0 top-24 h-64 w-64 rounded-full bg-slate-200/60 blur-3xl" />
+      <div className="mx-auto max-w-6xl">
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={viewportOnce}
+          variants={sectionReveal}
+          whileHover={hoverLift}
+          className="rounded-[32px] bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(248,250,252,0.95))] p-8 text-center shadow-[0_30px_80px_rgba(15,23,42,0.12)] ring-1 ring-white/80 md:p-12"
+        >
+          <div className="mx-auto max-w-2xl space-y-4">
+            <motion.div initial="hidden" whileInView="show" viewport={viewportOnce} variants={sectionItems}>
+              <motion.span variants={itemReveal} className="inline-flex items-center rounded-full bg-slate-100 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 shadow-sm">
+                Reading Library
+              </motion.span>
+              <motion.h1 variants={itemReveal} className="text-3xl font-bold text-gray-900 md:text-4xl">Books</motion.h1>
+              <motion.p variants={itemReveal} className="text-base leading-relaxed text-gray-600 md:text-lg">
+                Browse recommended books and study material curated for your classes and exam goals.
+              </motion.p>
+              <motion.div variants={itemReveal} className="flex flex-wrap items-center justify-center gap-3 pb-2 pt-1">
+                {bookHighlights.map((item) => (
+                  <motion.span key={item} whileHover={hoverLift} className="rounded-full bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-[0_12px_26px_rgba(15,23,42,0.07)]">
+                    {item}
+                  </motion.span>
+                ))}
+              </motion.div>
+              <motion.div variants={itemReveal} whileHover={buttonHover} whileTap={tapPress} className="inline-flex">
+                <Link href="/courses" className="btn rounded-xl px-6 py-3">Explore Courses</Link>
+              </motion.div>
+            </motion.div>
+          </div>
+        </motion.div>
+      </div>
     </section>
   );
 }

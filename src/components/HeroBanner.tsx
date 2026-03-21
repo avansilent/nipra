@@ -16,10 +16,10 @@ export default function HeroBanner() {
               <Link href="/courses" className="inline-block hero-cta hero-cta-primary font-semibold rounded-md px-5 py-3 shadow">
                 Explore Programs
               </Link>
-              <Link href="/login" className="inline-block hero-cta hero-cta-student rounded-md px-4 py-2 text-sm">
+              <Link href="/login?type=student" className="inline-block hero-cta hero-cta-student rounded-md px-4 py-2 text-sm">
                 Student Login
               </Link>
-              <Link href="/admin" className="inline-block hero-cta hero-cta-admin rounded-md px-4 py-2 text-sm">
+              <Link href="/login?type=admin" className="inline-block hero-cta hero-cta-admin rounded-md px-4 py-2 text-sm">
                 Admin Login
               </Link>
             </div>

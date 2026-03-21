@@ -65,10 +65,10 @@ export default function LandingPage({ content = defaultHomeContent }: LandingPag
 
       <div className="w-full min-h-screen flex flex-col bg-background-light text-slate-900 dark:bg-background-dark dark:text-slate-100 font-display transition-colors duration-200 selection:bg-primary selection:text-white">
         <header
-          className="fixed top-0 z-50 w-full px-6 py-4 flex items-center justify-between border-b border-slate-200/60 dark:border-slate-700/60 bg-white/85 dark:bg-slate-900/85"
-          style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+          className="fixed top-0 z-50 w-full px-4 py-4 sm:px-6 flex items-center justify-between border-b border-slate-200/60 dark:border-slate-700/60 bg-white/85 dark:bg-slate-900/85"
+          style={{ backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}
         >
-          <div className="w-full flex items-center justify-between">
+          <div className="w-full flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="flex items-center justify-center h-10 w-10 overflow-hidden rounded-lg">
                 <Image
@@ -80,7 +80,7 @@ export default function LandingPage({ content = defaultHomeContent }: LandingPag
                   className="w-full h-full object-contain"
                 />
               </div>
-              <h2 className="inline-flex items-center rounded-[999px] border border-white/25 bg-white/18 px-5.5 py-2.5 text-[2.65rem] sm:text-[3.3rem] font-black leading-[1.05] tracking-[-0.09em] text-[#0f172a] shadow-[0_18px_44px_rgba(15,23,42,0.14),inset_0_1px_0_rgba(255,255,255,0.74)] backdrop-blur-2xl transition-all duration-500 ease-out hover:-translate-y-0.5 hover:scale-[1.04] hover:bg-white/24 hover:shadow-[0_24px_56px_rgba(15,23,42,0.18),inset_0_1px_0_rgba(255,255,255,0.88)] dark:border-white/15 dark:bg-white/10 dark:text-white">
+              <h2 className="luxury-pill inline-flex items-center whitespace-nowrap rounded-full px-6 py-3 text-[1.7rem] sm:text-[2.25rem] lg:text-[2.6rem] font-black leading-[1.14] tracking-[-0.04em] text-[#020617] backdrop-blur-xl transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.04] dark:text-white">
                 Nipracademy
               </h2>
             </div>
@@ -90,7 +90,7 @@ export default function LandingPage({ content = defaultHomeContent }: LandingPag
               <a className="text-slate-600 dark:text-slate-300 hover:text-primary dark:hover:text-primary-accent transition-colors text-sm font-medium" href="#pricing">Pricing</a>
             </nav>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 shrink-0">
               <button
                 aria-label="Toggle Dark Mode"
                 data-theme-toggle="true"
@@ -112,21 +112,21 @@ export default function LandingPage({ content = defaultHomeContent }: LandingPag
         </header>
 
         <main className="w-full flex-1 pt-[80px]">
-          <section className="min-h-screen flex items-center w-full px-4 py-12 md:px-8 md:py-20 lg:px-12 lg:py-24 bg-[url('https://images.unsplash.com/photo-1610484826967-09c5720778c7?q=80&w=2070&auto=format&fit=crop')] bg-no-repeat bg-cover bg-center relative">
+          <section className="min-h-screen flex items-center w-full px-5 py-12 sm:px-6 md:px-8 md:py-20 lg:px-12 lg:py-24 bg-[url('https://images.unsplash.com/photo-1610484826967-09c5720778c7?q=80&w=2070&auto=format&fit=crop')] bg-no-repeat bg-cover bg-center relative">
             <div className="absolute inset-0 bg-white/90 dark:bg-background-dark/95" />
-            <div className="relative z-10 w-full flex flex-col md:flex-row items-center justify-between gap-10">
+            <div className="relative z-10 w-full flex flex-col md:flex-row items-center justify-between gap-10 lg:gap-14">
               <div className="flex-1">
-                <div className="flex flex-col gap-6 text-center md:text-left">
-                  <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1">
-                    <span className="block size-2 rounded-full bg-primary animate-pulse" />
-                    <span className="text-xs font-bold text-primary uppercase tracking-wide">New Semester Open</span>
+                <div className="flex flex-col gap-6 pl-1 sm:pl-2 md:pl-0 text-center md:text-left">
+                  <div className="luxury-badge inline-flex w-fit items-center gap-2 rounded-full px-4 py-1.5 transition-transform duration-300 ease-out hover:-translate-y-0.5">
+                    <span className="block size-2 rounded-full bg-[#b8891d] animate-pulse" />
+                    <span className="text-xs font-bold uppercase tracking-[0.22em] text-[#8a6516]">New Semester Open</span>
                   </div>
-                  <h1 className="group relative w-fit max-w-5xl text-balance text-5xl sm:text-6xl lg:text-[6.5rem] font-black leading-[0.9] tracking-[-0.075em] transition-transform duration-500 hover:-translate-y-1">
-                    <span className="absolute -inset-x-6 -inset-y-4 rounded-[32px] bg-white/35 dark:bg-white/8 border border-white/40 dark:border-white/10 shadow-[0_30px_80px_rgba(15,23,42,0.16)] backdrop-blur-xl opacity-90" />
-                    <span className="relative block bg-gradient-to-b from-[#050816] via-[#111827] to-[#2b3547] bg-clip-text text-transparent dark:from-white dark:via-slate-100 dark:to-slate-400 drop-shadow-[0_18px_44px_rgba(15,23,42,0.2)]">
+                  <h1 className="group relative w-fit max-w-5xl text-balance text-5xl sm:text-6xl lg:text-[6.5rem] font-black leading-[0.92] tracking-[-0.06em] transition-transform duration-300 md:duration-500 hover:-translate-y-1">
+                    <span className="absolute -inset-x-4 -inset-y-3 sm:-inset-x-6 sm:-inset-y-4 rounded-[28px] sm:rounded-[32px] bg-[linear-gradient(135deg,rgba(255,248,230,0.82),rgba(255,237,194,0.42),rgba(255,255,255,0.2))] border border-[rgba(240,223,184,0.8)] shadow-[0_16px_40px_rgba(166,118,33,0.12)] sm:shadow-[0_30px_80px_rgba(166,118,33,0.16)] backdrop-blur-md sm:backdrop-blur-xl opacity-95" />
+                    <span className="relative block bg-gradient-to-b from-[#050816] via-[#111827] to-[#2b3547] bg-clip-text text-transparent dark:from-white dark:via-slate-100 dark:to-slate-400 drop-shadow-[0_10px_24px_rgba(15,23,42,0.14)] sm:drop-shadow-[0_18px_44px_rgba(15,23,42,0.2)]">
                       Learn without
                     </span>
-                    <span className="relative mt-3 inline-flex rounded-[28px] border border-[#111827]/10 bg-gradient-to-r from-[#020617] via-[#111827] to-[#334155] px-5 py-2 text-white shadow-[0_24px_60px_rgba(2,6,23,0.35)] transition-all duration-500 group-hover:scale-[1.02] group-hover:shadow-[0_30px_80px_rgba(2,6,23,0.42)] dark:border-white/10 dark:from-white dark:via-slate-100 dark:to-slate-300 dark:text-[#020617]">
+                    <span className="luxury-wordmark relative mt-3 inline-flex rounded-[24px] sm:rounded-[28px] px-5 py-2 text-white shadow-[0_14px_34px_rgba(2,6,23,0.24)] sm:shadow-[0_24px_60px_rgba(2,6,23,0.35)] transition-all duration-300 md:duration-500 group-hover:scale-[1.02] group-hover:shadow-[0_20px_48px_rgba(90,62,14,0.32)] sm:group-hover:shadow-[0_30px_80px_rgba(90,62,14,0.42)] dark:border-white/10 dark:from-white dark:via-slate-100 dark:to-slate-300 dark:text-[#020617]">
                       limits
                     </span>
                   </h1>
@@ -146,10 +146,10 @@ export default function LandingPage({ content = defaultHomeContent }: LandingPag
                 </div>
               </div>
 
-              <div className="flex-1 flex justify-center md:justify-end">
+              <div className="flex-1 flex justify-center md:justify-end w-full md:w-auto">
                 <img
                   alt="Students collaborating"
-                  className="w-full max-w-md h-auto object-cover rounded-3xl border border-white/20 dark:border-white/10 shadow-2xl shadow-indigo-500/20"
+                  className="w-full max-w-sm sm:max-w-md h-auto object-cover rounded-3xl border border-white/20 dark:border-white/10 shadow-[0_18px_44px_rgba(79,70,229,0.12)] sm:shadow-2xl sm:shadow-indigo-500/20"
                   src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIsQ45UBgvGgYnCoowgPXWyARyk4VV3ZlPjhT-N31Q6rP1PbxP7PN0HNiepWYrWSMYBTTMa6nMy4_TeOww6_n7T6i9XMLxeKVdgZAHzLXejJSfCX9vtIKBrXFjkxsMBR-df5HVi9mTNRSmURj9UW7rFfQ_7JD5ftGA-vuNSc10UJcQniBVt8jCtCthzDe8WSpGO-xwN1AaJLFWXQGXjvgGuFzGWKkNRw7upefMtJHsnO_IQ1wfYQzgq_EmD38y5CdoByh-MyPVdLQ"
                 />
               </div>

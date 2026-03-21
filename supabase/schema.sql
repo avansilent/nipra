@@ -37,7 +37,8 @@ create table if not exists public.users (
 alter table public.users add column if not exists name text;
 alter table public.users add column if not exists role text;
 alter table public.users add column if not exists created_at timestamptz;
-alter table public.users drop column if exists email;
+alter table public.users add column if not exists email text;
+alter table public.users add column if not exists login_id text;
 alter table public.users alter column role set default 'student';
 alter table public.users alter column created_at set default timezone('utc', now());
 
@@ -56,6 +57,9 @@ begin
       check (role in ('student', 'admin'));
   end if;
 end $$;
+
+create unique index if not exists idx_users_email_unique on public.users (lower(email)) where email is not null;
+create unique index if not exists idx_users_login_id_unique on public.users (lower(login_id)) where login_id is not null;
 
 create or replace function public.get_my_institute_id()
 returns uuid as $$
@@ -157,7 +161,22 @@ begin
   )
   on conflict (id) do update
     set name = excluded.name,
-        role = excluded.role;
+        role = excluded.role,
+        email = coalesce(new.email, public.users.email),
+        login_id = coalesce(
+          nullif(new.raw_user_meta_data->>'login_id', ''),
+          nullif(split_part(new.email, '@', 1), ''),
+          public.users.login_id
+        );
+
+  update public.users
+  set email = coalesce(new.email, email),
+      login_id = coalesce(
+        nullif(new.raw_user_meta_data->>'login_id', ''),
+        nullif(split_part(new.email, '@', 1), ''),
+        login_id
+      )
+  where id = new.id;
 
   return new;
 end;
@@ -198,8 +217,29 @@ create table if not exists public.courses (
   institute_id uuid references public.institutes(id) on delete set null,
   title text not null,
   description text,
+  price_text text,
+  status text not null default 'draft',
+  cta_label text not null default 'View Course',
   created_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.courses add column if not exists price_text text;
+alter table public.courses add column if not exists status text not null default 'draft';
+alter table public.courses add column if not exists cta_label text not null default 'View Course';
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'courses_status_check'
+      and conrelid = 'public.courses'::regclass
+  ) then
+    alter table public.courses
+      add constraint courses_status_check
+      check (status in ('draft', 'published', 'archived'));
+  end if;
+end $$;
 
 create table if not exists public.enrollments (
   student_id uuid not null references public.users(id) on delete cascade,

@@ -1,6 +1,14 @@
 import type { HomeContent } from "../types/home";
 
 export const defaultHomeContent: HomeContent = {
+  heroBadge: "Owner-managed learning platform",
+  heroTitle: "Learn with structure, clarity, and real momentum",
+  heroSubtitle:
+    "Board-focused learning, guided practice, and premium student support managed from one dynamic platform.",
+  heroPrimaryCtaLabel: "Explore Programs",
+  heroPrimaryCtaHref: "/courses",
+  heroSecondaryCtaLabel: "Talk to Counselors",
+  heroSecondaryCtaHref: "/#contact",
   programsHeading: "Student Programs",
   programsDescription:
     "A focused, step-by-step academic roadmap designed for students from Class 1 to Class 12, blending strong conceptual clarity with competitive readiness.",

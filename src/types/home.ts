@@ -27,6 +27,13 @@ export type Faq = {
 };
 
 export type HomeContent = {
+  heroBadge: string;
+  heroTitle: string;
+  heroSubtitle: string;
+  heroPrimaryCtaLabel: string;
+  heroPrimaryCtaHref: string;
+  heroSecondaryCtaLabel: string;
+  heroSecondaryCtaHref: string;
   programsHeading: string;
   programsDescription: string;
   programs: Program[];

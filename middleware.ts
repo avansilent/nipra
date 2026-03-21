@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { getSupabaseAuthStorageKey } from "./src/lib/supabase/config";
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
@@ -26,11 +27,16 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+  const storageKey = getSupabaseAuthStorageKey(supabaseUrl);
+
   if (!supabaseUrl || !supabaseAnonKey) {
     return response;
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookieOptions: {
+      name: storageKey,
+    },
     cookies: {
       get(name: string) {
         return request.cookies.get(name)?.value;

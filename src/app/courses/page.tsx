@@ -2,8 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import Card from "../../components/Card";
+import { buttonHover, createStaggerContainer, itemReveal, sectionReveal, tapPress, viewportOnce } from "../../lib/motion";
 import { createSupabaseBrowserClient } from "../../lib/supabase/browser";
+
+const pageHeaderItems = createStaggerContainer(0.12, 0.05);
+const coursesGrid = createStaggerContainer(0.12, 0.05);
 
 type CourseRow = {
   id: string;
@@ -84,35 +89,56 @@ export default function Courses() {
   }, [supabase]);
 
   return (
-    <section className="w-full max-w-6xl mx-auto py-20 px-6 md:px-0">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-extrabold font-poppins">My Courses</h1>
-          <p className="text-sm md:text-base text-[#64748b]">You can see only courses assigned to your account.</p>
-        </div>
-        <Link href="/student/dashboard" className="btn px-4 py-2 rounded-xl">Student Dashboard</Link>
-      </div>
+    <section className="app-page-shell">
+      <motion.div
+        initial="hidden"
+        whileInView="show"
+        viewport={viewportOnce}
+        variants={sectionReveal}
+        className="app-page-header-row"
+      >
+        <motion.div initial="hidden" whileInView="show" viewport={viewportOnce} variants={pageHeaderItems} className="app-page-header mb-0">
+          <motion.h1 variants={itemReveal} className="app-page-title font-poppins">My Courses</motion.h1>
+          <motion.p variants={itemReveal} className="app-page-subtitle">You can see only courses assigned to your account.</motion.p>
+        </motion.div>
+        <motion.div whileHover={buttonHover} whileTap={tapPress} className="inline-flex">
+          <Link href="/student/dashboard" className="btn px-4 py-2 rounded-xl">Student Dashboard</Link>
+        </motion.div>
+      </motion.div>
 
       {!ready ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={viewportOnce}
+          variants={coursesGrid}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+        >
           {Array.from({ length: 4 }).map((_, idx) => (
-            <div
+            <motion.div
               key={`course-skeleton-${idx}`}
-              className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm animate-pulse"
+              variants={itemReveal}
+              className="rounded-2xl bg-white/80 p-4 shadow-sm animate-pulse"
             >
               <div className="h-4 w-3/4 rounded bg-slate-200" />
               <div className="mt-3 h-3 w-full rounded bg-slate-200" />
               <div className="mt-2 h-3 w-2/3 rounded bg-slate-200" />
               <div className="mt-5 h-8 w-24 rounded-full bg-slate-200" />
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       ) : error ? (
         <p className="text-sm text-red-600">{error}</p>
       ) : courses.length === 0 ? (
         <p className="text-sm text-slate-500">No courses yet.</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <motion.div
+          initial="hidden"
+          whileInView="show"
+          viewport={viewportOnce}
+          variants={coursesGrid}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+        >
           {courses.map((course) => (
             <Card
               key={course.id}
@@ -121,7 +147,7 @@ export default function Courses() {
               cta="View Course"
             />
           ))}
-        </div>
+        </motion.div>
       )}
     </section>
   );

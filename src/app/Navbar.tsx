@@ -1,94 +1,137 @@
 "use client";
 import Link from "next/link";
-import Image from "next/image";
 import { motion } from "framer-motion";
 import { useAuth } from "./AuthProvider";
+import type { SiteSettings } from "../types/site";
+import { buttonHover, motionEase, tapPress } from "../lib/motion";
 
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/courses", label: "Courses" },
   { href: "/books", label: "Books" },
-  { href: "/question-papers", label: "Question Papers" },
-  { href: "/#about", label: "About" },
+  { href: "/notes", label: "Notes" },
   { href: "/#contact", label: "Contact" },
 ];
 
-export default function Navbar() {
-  const { isAuthenticated, logout } = useAuth();
+type NavbarProps = {
+  siteSettings: SiteSettings;
+};
+
+export default function Navbar({ siteSettings }: NavbarProps) {
+  const { isAuthenticated, logout, role } = useAuth();
 
   return (
     <motion.nav
       initial={{ y: -12, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.3, ease: [0.22, 0.95, 0.28, 1] }}
+      transition={{ duration: 0.45, ease: motionEase }}
       className="w-full fixed top-0 left-0 z-50"
     >
-      <div className="glass-bar border-b border-white/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex flex-wrap items-center gap-2">
-          <Link href="/" className="flex items-center gap-2 shrink-0 pr-2">
+      <div className="glass-bar">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-10 px-6 py-5 sm:px-8 lg:gap-16 lg:px-10 lg:py-6">
+          <Link href="/" className="flex shrink-0 items-center gap-3 pr-2 lg:pr-4">
             <motion.div
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.995 }}
-              className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 overflow-hidden"
+              whileHover={buttonHover}
+              whileTap={tapPress}
+              className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-white shadow-sm"
             >
-              <Image
-                src="/logo.png"
-                alt="Nipracademy"
-                width={36}
-                height={36}
-                priority
-                className="w-full h-full object-contain"
+              <img
+                src={siteSettings.logoUrl || "/logo.png"}
+                alt={siteSettings.siteName}
+                width="36"
+                height="36"
+                className="block h-8 w-8 object-contain"
               />
             </motion.div>
-            <span className="inline-flex items-center rounded-[999px] border border-white/25 bg-white/18 px-5.5 py-2.5 text-[2.05rem] sm:text-[2.6rem] font-black leading-[1.05] tracking-[-0.09em] text-[#0f172a] shadow-[0_18px_40px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.65)] backdrop-blur-2xl transition-all duration-500 ease-out hover:-translate-y-0.5 hover:scale-[1.04] hover:bg-white/26 hover:shadow-[0_24px_54px_rgba(15,23,42,0.16),inset_0_1px_0_rgba(255,255,255,0.82)]">
-              Nipracademy
+            <span className="inline-flex items-center px-1 py-1 text-[1.35rem] font-semibold tracking-[-0.05em] text-slate-900 sm:text-[1.65rem]">
+              {siteSettings.siteName}
             </span>
           </Link>
 
-          <div className="flex items-center flex-wrap gap-1.5 flex-1 justify-start">
-            {navLinks.map((link) => (
-              <motion.div
-                key={link.href}
-                whileHover={{ y: -2, scale: 1.02 }}
-                whileTap={{ scale: 0.985 }}
-                className="nav-center-link"
-              >
-                <Link href={link.href} className="nav-link-pill px-3 py-1.5 text-xs sm:text-sm font-semibold">
-                  <span className="nav-text">{link.label}</span>
-                </Link>
-              </motion.div>
-            ))}
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-5 lg:gap-8">
+            <div className="flex min-w-0 flex-1 items-center justify-center overflow-x-auto whitespace-nowrap px-4 sm:px-8 lg:px-12">
+              <div className="flex items-center gap-5 rounded-full bg-white/60 px-2 py-2 shadow-[0_10px_28px_rgba(15,23,42,0.04)] sm:gap-6 sm:px-3 lg:gap-8 lg:px-4">
+              {navLinks.map((link) => (
+                <motion.div
+                  key={link.href}
+                  whileHover={buttonHover}
+                  whileTap={tapPress}
+                  className="nav-center-link shrink-0"
+                >
+                  <Link href={link.href} className="nav-link-pill px-3 py-2.5 text-sm font-medium tracking-[0.02em] text-slate-700 hover:text-slate-900 sm:px-4 lg:px-5">
+                    <span className="nav-text">{link.label}</span>
+                  </Link>
+                </motion.div>
+              ))}
+              </div>
+            </div>
 
-            {isAuthenticated ? (
-              <button
-                type="button"
-                onClick={logout}
-                className="nav-action nav-logout-action items-center px-3.5 py-1.5 rounded-[14px] font-semibold text-xs sm:text-sm flex smooth-hover"
-              >
-                Logout
-              </button>
-            ) : (
-              <>
-                <Link href="/login?type=student" className="inline-flex">
-                  <motion.div
-                    whileHover={{ y: -2, scale: 1.02 }}
-                    whileTap={{ scale: 0.985 }}
-                    className="nav-action nav-login-student items-center px-3.5 py-1.5 rounded-[14px] font-semibold text-xs sm:text-sm flex"
+            <div className="flex shrink-0 items-center gap-3 lg:gap-5">
+              <Link href="/#contact" className="inline-flex shrink-0">
+                <motion.div
+                  whileHover={buttonHover}
+                  whileTap={tapPress}
+                  className="nav-action nav-login-admin flex items-center rounded-lg px-4 py-2 text-sm font-medium"
+                >
+                  Book Free Demo
+                </motion.div>
+              </Link>
+
+              {isAuthenticated ? (
+                <>
+                  {role === "admin" ? (
+                    <Link href="/admin/dashboard" className="inline-flex shrink-0">
+                      <motion.div
+                        whileHover={buttonHover}
+                        whileTap={tapPress}
+                        className="nav-action nav-login-admin flex items-center rounded-lg px-4 py-2 text-sm font-medium"
+                      >
+                        Admin Panel
+                      </motion.div>
+                    </Link>
+                  ) : null}
+                  {role === "student" ? (
+                    <Link href="/student/dashboard" className="inline-flex shrink-0">
+                      <motion.div
+                        whileHover={buttonHover}
+                        whileTap={tapPress}
+                        className="nav-action nav-login-student flex items-center rounded-lg px-4 py-2 text-sm font-medium"
+                      >
+                        Dashboard
+                      </motion.div>
+                    </Link>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void logout()}
+                    className="nav-action nav-logout-action flex items-center rounded-lg px-4 py-2 text-sm font-medium smooth-hover"
                   >
-                    Student Login
-                  </motion.div>
-                </Link>
-                <Link href="/login?type=admin" className="inline-flex">
-                  <motion.div
-                    whileHover={{ y: -2, scale: 1.02 }}
-                    whileTap={{ scale: 0.985 }}
-                    className="nav-action nav-login-admin items-center px-3.5 py-1.5 rounded-[14px] font-semibold text-xs sm:text-sm flex"
-                  >
-                    Admin Login
-                  </motion.div>
-                </Link>
-              </>
-            )}
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link href="/login?type=student" className="inline-flex shrink-0">
+                    <motion.div
+                      whileHover={buttonHover}
+                      whileTap={tapPress}
+                      className="nav-action nav-login-student flex items-center rounded-lg px-4 py-2 text-sm font-medium"
+                    >
+                      Student Login
+                    </motion.div>
+                  </Link>
+                  <Link href="/login?type=admin" className="inline-flex shrink-0">
+                    <motion.div
+                      whileHover={buttonHover}
+                      whileTap={tapPress}
+                      className="nav-action nav-login-admin flex items-center rounded-lg px-4 py-2 text-sm font-medium"
+                    >
+                      Admin Login
+                    </motion.div>
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
