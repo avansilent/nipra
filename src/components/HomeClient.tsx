@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { motion } from "framer-motion";
+import HeroBanner from "./HeroBanner";
 import type { HomeContent } from "../types/home";
 import type { SiteSettings } from "../types/site";
 import {
@@ -45,37 +46,7 @@ export default function HomeClient({ content, siteSettings }: HomeClientProps) {
             variants={sectionReveal}
             className="section-block"
           >
-            <motion.div variants={sectionContainer} className="mobile-home-hero-card rounded-[32px] bg-white px-8 py-16 text-center shadow-[0_24px_70px_rgba(15,23,42,0.08)] md:px-12">
-              <div className="mx-auto flex max-w-3xl flex-col items-center justify-center space-y-5">
-                <motion.span variants={itemReveal} className="inline-flex items-center rounded-full bg-slate-100 px-4 py-1.5 text-sm font-semibold text-slate-700 shadow-sm">
-                  {content.heroBadge}
-                </motion.span>
-                <motion.h1 variants={itemReveal} className="mobile-home-hero-title max-w-4xl text-4xl font-bold tracking-[-0.05em] text-slate-900 md:text-6xl">
-                  {content.heroTitle}
-                </motion.h1>
-                <motion.p variants={itemReveal} className="mobile-home-hero-copy max-w-2xl text-lg leading-relaxed text-gray-600">
-                  {content.heroSubtitle}
-                </motion.p>
-                <motion.div variants={itemReveal} className="mobile-home-hero-actions mt-4 flex flex-wrap items-center justify-center gap-4">
-                  <motion.div whileHover={buttonHover} whileTap={tapPress} className="mobile-home-hero-action inline-flex">
-                    <Link
-                    href={content.heroSecondaryCtaHref}
-                    className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-6 py-3 text-sm font-medium text-white shadow-md transition hover:scale-105 hover:bg-slate-800"
-                  >
-                    {content.heroSecondaryCtaLabel}
-                  </Link>
-                  </motion.div>
-                  <motion.div whileHover={buttonHover} whileTap={tapPress} className="mobile-home-hero-action inline-flex">
-                    <Link
-                    href={content.heroPrimaryCtaHref}
-                    className="inline-flex items-center justify-center rounded-xl bg-white px-6 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-100"
-                  >
-                    {content.heroPrimaryCtaLabel}
-                  </Link>
-                  </motion.div>
-                </motion.div>
-              </div>
-            </motion.div>
+            <HeroBanner content={content} siteSettings={siteSettings} />
           </motion.section>
 
           <motion.section
