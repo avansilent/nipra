@@ -137,23 +137,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      let profile: { role?: string | null; institute_id?: string | null } | null = null;
-      let userRow: { role?: string | null } | null = null;
-      try {
-        const { data } = await withTimeout(
-          supabase
-            .from("profiles")
-            .select("role, institute_id")
-            .eq("id", nextUser.id)
-            .maybeSingle(),
-          1500
-        );
-        profile = data;
-      } catch {
-        profile = null;
+      const metadataRole = normalizeRole(
+        nextUser.app_metadata?.role ?? nextUser.user_metadata?.role
+      );
+      const metadataInstituteId =
+        (nextUser.app_metadata?.institute_id as string | undefined) ??
+        (nextUser.user_metadata?.institute_id as string | undefined) ??
+        null;
+
+      if (metadataRole && metadataInstituteId) {
+        setRole(metadataRole);
+        setInstituteId(metadataInstituteId);
+        setRoleResolved(true);
+        return;
       }
 
-      if (!profile?.role) {
+      let profile: { role?: string | null; institute_id?: string | null } | null = null;
+      let userRow: { role?: string | null } | null = null;
+
+      if (!metadataRole || !metadataInstituteId) {
+        try {
+          const { data } = await withTimeout(
+            supabase
+              .from("profiles")
+              .select("role, institute_id")
+              .eq("id", nextUser.id)
+              .maybeSingle(),
+            1500
+          );
+          profile = data;
+        } catch {
+          profile = null;
+        }
+      }
+
+      if (!metadataRole && !profile?.role) {
         try {
           const { data } = await withTimeout(
             supabase
@@ -172,15 +190,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const nextRole = normalizeRole(
         profile?.role ??
           userRow?.role ??
-          nextUser.app_metadata?.role ??
-          nextUser.user_metadata?.role
+          metadataRole
       );
 
       setRole(nextRole);
       setInstituteId(
         profile?.institute_id ??
-          (nextUser.app_metadata?.institute_id as string | undefined) ??
-          (nextUser.user_metadata?.institute_id as string | undefined) ??
+          metadataInstituteId ??
           null
       );
       setRoleResolved(true);

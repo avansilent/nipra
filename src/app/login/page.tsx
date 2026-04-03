@@ -170,6 +170,17 @@ function LoginContent() {
       return null;
     }
 
+    const metadataRole = normalizeRole(
+      (user.app_metadata?.role as string | undefined) ??
+      (user.user_metadata?.role as string | undefined) ??
+      null
+    );
+
+    if (metadataRole) {
+      console.log("[login] Role resolved from auth metadata", metadataRole);
+      return metadataRole;
+    }
+
     console.log("[login] Step 3: fetching profile with maybeSingle()");
     let profile: { role?: string | null } | null = null;
     let profileError: { message?: string } | null = null;
@@ -226,11 +237,7 @@ function LoginContent() {
       console.log("[login] Users table lookup failed", usersError);
     }
 
-    return normalizeRole(
-      (user.app_metadata?.role as string | undefined) ??
-      (user.user_metadata?.role as string | undefined) ??
-      null
-    );
+    return metadataRole;
   };
 
   const resolveUserRole = async (): Promise<"admin" | "student" | null> => {

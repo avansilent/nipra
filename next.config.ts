@@ -16,7 +16,7 @@ const connectSrc = [
   "https://*.vercel.app",
   "https://vercel.app",
   "https://*.vercel-insights.com",
-  ...(isDevelopment ? ["http://localhost:*", "http://127.0.0.1:*", "ws://localhost:*", "ws://127.0.0.1:*"] : []),
+  ...(isDevelopment ? ["http:", "ws:", "http://localhost:*", "http://127.0.0.1:*", "ws://localhost:*", "ws://127.0.0.1:*"] : []),
 ].join(" ");
 
 const contentSecurityPolicy = [

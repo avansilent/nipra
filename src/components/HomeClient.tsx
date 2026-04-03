@@ -34,10 +34,11 @@ type HomeClientProps = {
 export default function HomeClient({ content, siteSettings }: HomeClientProps) {
   const whatsappNumber = useMemo(() => siteSettings.contactPhone.replace(/\D/g, ""), [siteSettings.contactPhone]);
   const phoneDialUrl = useMemo(() => `tel:${siteSettings.contactPhone.replace(/\s+/g, "")}`, [siteSettings.contactPhone]);
+  const resolveProgramHref = (href: string) => href;
 
   return (
-    <div className="w-full bg-slate-50">
-      <section className="mobile-home-shell bg-gray-50 px-6 py-28">
+    <div className="home-shell w-full">
+      <section className="mobile-home-shell px-6 py-28">
         <div className="mobile-home-stack mx-auto w-full max-w-6xl space-y-16">
           <motion.section
             initial="hidden"
@@ -78,11 +79,21 @@ export default function HomeClient({ content, siteSettings }: HomeClientProps) {
                         </div>
                       ))}
                     </div>
-                    <Link href={program.ctaHref} className="program-cta">
+                    <Link href={resolveProgramHref(program.ctaHref)} className="program-cta">
                       {program.ctaLabel}
                     </Link>
                   </motion.div>
                 ))}
+              </motion.div>
+
+              <motion.div variants={itemReveal} className="academy-note-banner mt-8">
+                <div>
+                  <p className="academy-note-title">Full course details are inside Courses</p>
+                  <p className="academy-note-copy">See the full fee structure, class-wise subjects, admission fees, and stream-specific details on the Courses page.</p>
+                </div>
+                <Link href="/courses" className="btn academy-note-cta rounded-full px-6 py-3 text-sm font-semibold">
+                  View Courses
+                </Link>
               </motion.div>
             </motion.div>
           </motion.section>
@@ -121,7 +132,7 @@ export default function HomeClient({ content, siteSettings }: HomeClientProps) {
             </motion.div>
             <motion.div variants={cardGrid} className="grid grid-cols-1 gap-6 md:grid-cols-3">
               {trustStats.map((stat) => (
-                <motion.div key={stat.label} variants={itemReveal} whileHover={hoverLift} className="rounded-xl bg-white p-6 text-center shadow-md transition hover:shadow-lg">
+                <motion.div key={stat.label} variants={itemReveal} whileHover={hoverLift} className="home-trust-card rounded-xl bg-white p-6 text-center shadow-md transition hover:shadow-lg">
                   <p className="text-2xl font-bold tracking-tight text-slate-900">{stat.value}</p>
                   <p className="mt-2 text-sm text-slate-600">{stat.label}</p>
                 </motion.div>
@@ -181,20 +192,20 @@ export default function HomeClient({ content, siteSettings }: HomeClientProps) {
             variants={sectionReveal}
             className="section-block"
           >
-            <section id="contact" className="mobile-home-contact bg-gray-50 px-6 py-20">
-              <div className="max-w-4xl mx-auto text-center space-y-6">
+            <section id="contact" className="mobile-home-contact home-contact-panel px-6 py-20">
+              <div className="home-contact-inner max-w-4xl mx-auto text-center space-y-6">
                 <motion.h3 variants={itemReveal} className="mobile-home-contact-title text-3xl font-bold text-gray-900">
                   {content.contactHeading}
                 </motion.h3>
                 <motion.p variants={itemReveal} className="text-gray-600">
                   {content.contactSubtitle}
                 </motion.p>
-                <motion.div variants={itemReveal} className="mobile-home-contact-actions flex justify-center gap-4 mt-6 flex-wrap">
+                <motion.div variants={itemReveal} className="home-contact-actions mobile-home-contact-actions mt-6 flex justify-center gap-4 flex-wrap">
                   <motion.a
                     whileHover={buttonHover}
                     whileTap={tapPress}
                     href={phoneDialUrl}
-                    className="mobile-home-contact-action bg-blue-600 text-white px-6 py-3 rounded-xl shadow-md hover:scale-105 transition"
+                    className="mobile-home-contact-action home-primary-action px-6 py-3 rounded-xl shadow-md transition"
                   >
                     {content.contactCtaLabel}
                   </motion.a>
@@ -202,12 +213,12 @@ export default function HomeClient({ content, siteSettings }: HomeClientProps) {
                     whileHover={buttonHover}
                     whileTap={tapPress}
                     href="/#programs"
-                    className="mobile-home-contact-action border border-gray-300 px-6 py-3 rounded-xl hover:bg-gray-100"
+                    className="mobile-home-contact-action home-secondary-action border border-gray-300 px-6 py-3 rounded-xl"
                   >
                     Explore Programs
                   </motion.a>
                 </motion.div>
-                <motion.p variants={itemReveal} className="text-sm text-gray-500 mt-4">
+                <motion.p variants={itemReveal} className="home-contact-note mt-4 text-sm text-gray-500">
                   Or call us directly: {siteSettings.contactPhone}
                 </motion.p>
               </div>
@@ -221,7 +232,7 @@ export default function HomeClient({ content, siteSettings }: HomeClientProps) {
             variants={sectionReveal}
             className="section-block"
           >
-            <motion.div variants={itemReveal} whileHover={hoverLift} className="newsletter-card rounded-2xl shadow-md">
+            <motion.div variants={itemReveal} whileHover={hoverLift} className="newsletter-card home-newsletter-card rounded-2xl shadow-md">
               <div>
                 <h3 className="section-title">{content.newsletterHeading}</h3>
                 <p className="section-subtitle">{content.newsletterSubtitle}</p>

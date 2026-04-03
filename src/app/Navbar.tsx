@@ -45,7 +45,7 @@ export default function Navbar({ siteSettings }: NavbarProps) {
   }, [pathname]);
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia("(max-width: 480px)");
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
 
     const handleViewportChange = (event: MediaQueryListEvent | MediaQueryList) => {
       setIsMobileViewport(event.matches);
@@ -58,10 +58,19 @@ export default function Navbar({ siteSettings }: NavbarProps) {
     handleViewportChange(mediaQuery);
 
     const listener = (event: MediaQueryListEvent) => handleViewportChange(event);
-    mediaQuery.addEventListener("change", listener);
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", listener);
+    } else {
+      mediaQuery.addListener(listener);
+    }
 
     return () => {
-      mediaQuery.removeEventListener("change", listener);
+      if (typeof mediaQuery.removeEventListener === "function") {
+        mediaQuery.removeEventListener("change", listener);
+      } else {
+        mediaQuery.removeListener(listener);
+      }
     };
   }, []);
 
@@ -81,7 +90,7 @@ export default function Navbar({ siteSettings }: NavbarProps) {
     <motion.nav
       initial={{ y: -12, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.45, ease: motionEase }}
+      transition={{ duration: 0.28, ease: motionEase }}
       className="w-full fixed top-0 left-0 z-50"
     >
       <div className="glass-bar">
@@ -108,27 +117,30 @@ export default function Navbar({ siteSettings }: NavbarProps) {
                   type="button"
                   aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
                   aria-expanded={mobileMenuOpen}
+                  aria-controls="mobile-navigation-menu"
                   onClick={() => setMobileMenuOpen((value) => !value)}
                   whileTap={{ scale: 0.96 }}
-                  className="mobile-menu-trigger inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/70 bg-white/85 text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.08)] backdrop-blur"
+                  className={`mobile-menu-trigger inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/80 bg-white/96 text-slate-900 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ${mobileMenuOpen ? "is-open" : ""}`}
                 >
                   <span className="sr-only">Toggle navigation</span>
-                  <span className="mobile-menu-trigger-glow" aria-hidden="true" />
-                  <span className="mobile-menu-icon" aria-hidden="true">
-                    <span className={`mobile-menu-line ${mobileMenuOpen ? "is-open" : ""}`} />
-                    <span className={`mobile-menu-line ${mobileMenuOpen ? "is-open" : ""}`} />
+                  <span className="mobile-menu-trigger-surface" aria-hidden="true" />
+                  <span className={`mobile-menu-icon ${mobileMenuOpen ? "is-open" : ""}`} aria-hidden="true">
+                    <span className="mobile-menu-line" />
+                    <span className="mobile-menu-line" />
+                    <span className="mobile-menu-line" />
                   </span>
                 </motion.button>
               </div>
 
-              <AnimatePresence>
+              <AnimatePresence initial={false}>
                 {mobileMenuOpen ? (
                   <motion.div
-                    initial={{ opacity: 0, y: -10, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                    transition={{ duration: 0.24, ease: motionEase }}
-                    className="mobile-menu-panel mt-4 overflow-hidden rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(244,247,251,0.92))] p-4 shadow-[0_24px_60px_rgba(15,23,42,0.16)] backdrop-blur-xl"
+                    id="mobile-navigation-menu"
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.14, ease: motionEase }}
+                    className="mobile-menu-panel mt-4 overflow-hidden rounded-[28px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.985),rgba(247,248,250,0.96))] p-4 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
                   >
                     <div className="space-y-2">
                       {navLinks.map((link) => (
@@ -137,7 +149,7 @@ export default function Navbar({ siteSettings }: NavbarProps) {
                           href={link.href}
                           className={`mobile-menu-link flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-medium transition ${
                             isActiveNavLink(link.href)
-                              ? "mobile-menu-link-active bg-slate-900 text-white shadow-[0_12px_28px_rgba(15,23,42,0.18)]"
+                              ? "mobile-menu-link-active text-white"
                               : "mobile-menu-link-inactive bg-white/75 text-slate-700"
                           }`}
                         >
@@ -149,7 +161,7 @@ export default function Navbar({ siteSettings }: NavbarProps) {
                         <div className="mobile-menu-actions mt-4 grid gap-3 border-t border-slate-200/70 pt-4">
                       <Link
                         href="/#contact"
-                            className="mobile-menu-action mobile-menu-action-primary inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(15,23,42,0.18)]"
+                            className="mobile-menu-action mobile-menu-action-primary inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold text-white"
                       >
                         Book Free Demo
                       </Link>

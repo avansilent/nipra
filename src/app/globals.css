@@ -2944,6 +2944,350 @@ button.btn:hover {
     padding: 1rem;
   }
 
+}
+
+
+/* ===== PUBLIC UI REFINEMENTS ===== */
+:root {
+  --apple-bg: #f5f1e8;
+  --apple-bg-soft: #fbf9f4;
+  --apple-surface: rgba(255, 255, 255, 0.78);
+  --apple-surface-strong: rgba(255, 255, 255, 0.92);
+  --apple-border: rgba(223, 214, 203, 0.58);
+  --apple-border-soft: rgba(232, 225, 214, 0.74);
+  --apple-ink: #171717;
+  --apple-muted: #64635d;
+  --apple-shadow-soft: 0 18px 44px rgba(27, 23, 18, 0.06);
+  --apple-shadow-strong: 0 28px 80px rgba(27, 23, 18, 0.1);
+  --apple-cta-from: #6b6258;
+  --apple-cta-to: #867c71;
+  --apple-cta-hover-from: #766d63;
+  --apple-cta-hover-to: #91877c;
+  --apple-cta-shadow: 0 18px 36px rgba(86, 76, 66, 0.16);
+}
+
+html,
+body {
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.84), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(229, 220, 205, 0.56), transparent 30%),
+    linear-gradient(180deg, var(--apple-bg-soft) 0%, var(--apple-bg) 100%);
+  color: var(--apple-ink);
+}
+
+.site-main-shell {
+  position: relative;
+  padding-top: clamp(6rem, 9vw, 8.75rem);
+}
+
+.home-shell,
+.mobile-home-shell,
+.mobile-public-shell,
+.app-page-shell {
+  background: transparent !important;
+}
+
+.mobile-site-footer {
+  background: linear-gradient(180deg, rgba(251, 249, 244, 0.76), rgba(245, 239, 230, 0.98)) !important;
+  border-top: 1px solid var(--apple-border-soft);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86);
+}
+
+.mobile-site-footer .inline-flex {
+  background: rgba(255, 255, 255, 0.82) !important;
+  border: 1px solid var(--apple-border);
+  box-shadow: var(--apple-shadow-soft);
+}
+
+.glass-bar {
+  background: linear-gradient(180deg, rgba(251, 249, 244, 0.84), rgba(247, 242, 234, 0.72)) !important;
+  border-bottom: 1px solid rgba(217, 208, 196, 0.7);
+  box-shadow: 0 18px 48px rgba(27, 23, 18, 0.09), inset 0 1px 0 rgba(255, 255, 255, 0.86) !important;
+  backdrop-filter: blur(20px) saturate(145%);
+}
+
+.desktop-nav-link,
+.desktop-nav-action,
+.nav-link-pill {
+  white-space: nowrap;
+}
+
+.program-section,
+.newsletter-card,
+.stat-card,
+.testimonial-card,
+.faq-card,
+.contact-card,
+.home-trust-card,
+.mobile-public-card,
+.mobile-card,
+.mobile-course-card {
+  background: linear-gradient(180deg, var(--apple-surface-strong), rgba(248, 244, 237, 0.84)) !important;
+  border: 1px solid var(--apple-border) !important;
+  box-shadow: var(--apple-shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.68) !important;
+}
+
+.program-section,
+.newsletter-card,
+.mobile-public-card {
+  border-radius: 2rem !important;
+}
+
+.program-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-height: 100%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(249, 246, 240, 0.9)) !important;
+  border: 1px solid var(--apple-border-soft) !important;
+  box-shadow: 0 18px 40px rgba(27, 23, 18, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.74) !important;
+}
+
+.program-title,
+.section-title,
+.app-page-title,
+.mobile-public-title,
+.faq-question,
+.testimonial-name,
+.stat-value {
+  color: var(--apple-ink) !important;
+}
+
+.program-description,
+.section-subtitle,
+.app-page-subtitle,
+.faq-answer,
+.testimonial-quote,
+.testimonial-role,
+.stat-label,
+.mobile-card-copy,
+.home-contact-note,
+.contact-input {
+  color: var(--apple-muted) !important;
+}
+
+.program-chip {
+  background: rgba(255, 255, 255, 0.74) !important;
+  border: 1px solid rgba(226, 218, 207, 0.74) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82), 0 8px 20px rgba(27, 23, 18, 0.03) !important;
+}
+
+.program-cta,
+.btn,
+.contact-cta,
+.mobile-page-cta,
+.card-cta-link,
+.home-primary-action {
+  min-height: 2.9rem;
+  border-radius: 999px !important;
+  background: linear-gradient(180deg, var(--apple-cta-from), var(--apple-cta-to)) !important;
+  color: #ffffff !important;
+  box-shadow: var(--apple-cta-shadow) !important;
+}
+
+.program-cta {
+  margin-top: auto;
+  align-self: flex-start;
+  padding-inline: 1.15rem;
+}
+
+.btn:hover,
+.contact-cta:hover,
+.mobile-page-cta:hover,
+.card-cta-link:hover,
+.home-primary-action:hover,
+.program-cta:hover {
+  background: linear-gradient(180deg, var(--apple-cta-hover-from), var(--apple-cta-hover-to)) !important;
+  box-shadow: 0 22px 42px rgba(86, 76, 66, 0.2) !important;
+}
+
+.card-cta-link {
+  align-items: center;
+  justify-content: center;
+  padding: 0.72rem 1.15rem;
+}
+
+.contact-input {
+  background: rgba(255, 255, 255, 0.82) !important;
+  border-color: var(--apple-border-soft) !important;
+}
+
+.contact-input:focus {
+  border-color: rgba(154, 144, 129, 0.78) !important;
+  box-shadow: 0 0 0 4px rgba(186, 174, 159, 0.18) !important;
+}
+
+.newsletter-form {
+  align-items: stretch;
+}
+
+.home-contact-panel {
+  border-radius: 2rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(247, 243, 236, 0.84)) !important;
+  border: 1px solid var(--apple-border-soft);
+  box-shadow: var(--apple-shadow-strong);
+}
+
+.home-contact-actions {
+  align-items: stretch;
+}
+
+.mobile-home-contact-action {
+  min-height: 3rem;
+}
+
+.home-secondary-action {
+  min-height: 2.9rem;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.68) !important;
+  border-color: var(--apple-border) !important;
+  color: var(--apple-ink) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 10px 24px rgba(27, 23, 18, 0.06) !important;
+}
+
+.home-secondary-action:hover {
+  background: rgba(255, 255, 255, 0.88) !important;
+  box-shadow: 0 16px 30px rgba(27, 23, 18, 0.1) !important;
+}
+
+.home-newsletter-card {
+  gap: 1.2rem;
+}
+
+.desktop-nav-action,
+.desktop-nav-link-active,
+.mobile-menu-panel,
+.mobile-menu-trigger,
+.mobile-menu-link,
+.mobile-menu-action,
+.mobile-site-footer .inline-flex,
+.mobile-whatsapp-fab {
+  border-color: var(--apple-border-soft) !important;
+}
+
+.desktop-nav-link-active,
+.mobile-menu-link-inactive,
+.mobile-menu-action-admin,
+.mobile-menu-action-student,
+.mobile-menu-action-neutral,
+.desktop-nav-action-secondary,
+.mobile-menu-panel,
+.mobile-menu-trigger {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(247, 242, 234, 0.72)) !important;
+  color: var(--apple-ink) !important;
+  box-shadow: 0 16px 34px rgba(27, 23, 18, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.78) !important;
+}
+
+.desktop-nav-action-primary,
+.mobile-menu-link-active,
+.mobile-menu-action-primary {
+  background: linear-gradient(180deg, var(--apple-cta-from), var(--apple-cta-to)) !important;
+  border: 1px solid rgba(143, 131, 117, 0.38) !important;
+  color: #ffffff !important;
+  box-shadow: 0 18px 38px rgba(86, 76, 66, 0.17) !important;
+}
+
+.desktop-nav-action-primary:hover,
+.mobile-menu-link-active:hover,
+.mobile-menu-action-primary:hover {
+  background: linear-gradient(180deg, var(--apple-cta-hover-from), var(--apple-cta-hover-to)) !important;
+  box-shadow: 0 22px 42px rgba(86, 76, 66, 0.2) !important;
+}
+
+.mobile-menu-actions {
+  border-top-color: rgba(223, 214, 203, 0.64) !important;
+}
+
+.mobile-menu-link,
+.mobile-menu-action {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 12px 26px rgba(27, 23, 18, 0.04) !important;
+}
+
+.mobile-menu-link-label,
+.desktop-nav-link .nav-text {
+  color: inherit;
+}
+
+.mobile-whatsapp-fab {
+  border-color: var(--apple-border-soft) !important;
+  background: rgba(255, 255, 255, 0.86) !important;
+  color: #1f6a53 !important;
+  box-shadow: 0 20px 44px rgba(27, 23, 18, 0.12) !important;
+}
+
+@media (min-width: 768px) and (max-width: 1180px) {
+  .desktop-nav-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .desktop-nav-row > a {
+    align-self: center;
+  }
+
+  .desktop-nav-main {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.95rem;
+  }
+
+  .desktop-nav-links {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .desktop-nav-actions {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .desktop-nav-action {
+    justify-content: center;
+    min-width: 10.5rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .site-main-shell {
+    padding-top: 5.75rem;
+  }
+
+  .mobile-home-shell {
+    padding-top: 3.25rem;
+    padding-bottom: 4.5rem;
+  }
+
+  .program-section,
+  .home-contact-panel,
+  .newsletter-card,
+  .mobile-public-card {
+    border-radius: 1.6rem !important;
+  }
+
+  .program-card,
+  .home-trust-card,
+  .mobile-card {
+    border-radius: 1.35rem !important;
+  }
+
+  .program-cta,
+  .home-primary-action,
+  .home-secondary-action,
+  .card-cta-link,
+  .contact-cta {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .newsletter-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+
   .student-mobile-stat-grid,
   .student-mobile-actions,
   .student-mobile-micro-grid,
@@ -3029,5 +3373,1064 @@ button.btn:hover {
   .mobile-site-footer-inner {
     padding-top: 2.5rem;
     padding-bottom: 2.5rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .mobile-menu-trigger {
+    width: 3.1rem;
+    height: 3.1rem;
+    border-radius: 1.15rem !important;
+    border-color: rgba(212, 201, 188, 0.82) !important;
+    background: rgba(255, 255, 255, 0.78) !important;
+    box-shadow: 0 14px 28px rgba(42, 34, 27, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.92) !important;
+    backdrop-filter: saturate(145%) blur(12px);
+    -webkit-backdrop-filter: saturate(145%) blur(12px);
+    isolation: isolate;
+    overflow: hidden;
+    will-change: transform;
+    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
+  }
+
+  .mobile-menu-trigger::before,
+  .mobile-menu-trigger::after {
+    content: none !important;
+  }
+
+  .mobile-menu-trigger.is-open {
+    border-color: rgba(188, 174, 157, 0.92) !important;
+    background: rgba(250, 246, 240, 0.92) !important;
+    box-shadow: 0 16px 32px rgba(42, 34, 27, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.92) !important;
+  }
+
+  .mobile-menu-trigger-surface {
+    position: absolute;
+    inset: 1px;
+    border-radius: inherit;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(245, 238, 229, 0.82));
+    pointer-events: none;
+  }
+
+  .mobile-menu-icon {
+    width: 18px;
+    height: 14px;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    color: #3a322b;
+  }
+
+  .mobile-menu-line {
+    top: 50%;
+    left: 0;
+    width: 18px;
+    height: 1.75px;
+    border-radius: 999px;
+    background: currentColor !important;
+    box-shadow: none;
+    transform-origin: center;
+    will-change: transform, opacity;
+    transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), opacity 140ms ease;
+  }
+
+  .mobile-menu-line:first-child {
+    top: 50%;
+    transform: translateY(-6px);
+  }
+
+  .mobile-menu-line:nth-child(2) {
+    top: 50%;
+    width: 14px;
+    left: 2px;
+    transform: translateY(0);
+  }
+
+  .mobile-menu-line:last-child {
+    top: 50%;
+    transform: translateY(6px);
+  }
+
+  .mobile-menu-icon.is-open .mobile-menu-line:first-child {
+    transform: translateY(0) rotate(45deg);
+  }
+
+  .mobile-menu-icon.is-open .mobile-menu-line:nth-child(2) {
+    opacity: 0;
+    transform: scaleX(0.35);
+  }
+
+  .mobile-menu-icon.is-open .mobile-menu-line:last-child {
+    transform: translateY(0) rotate(-45deg);
+  }
+
+  .mobile-menu-panel {
+    margin-top: 0.78rem;
+    border-color: rgba(216, 205, 193, 0.82) !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(246, 240, 232, 0.88)) !important;
+    box-shadow: 0 22px 44px rgba(42, 34, 27, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.82) !important;
+    backdrop-filter: saturate(145%) blur(14px);
+    -webkit-backdrop-filter: saturate(145%) blur(14px);
+    will-change: transform, opacity;
+    transform: translateZ(0);
+  }
+
+  .mobile-menu-link,
+  .mobile-menu-action {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78), 0 10px 20px rgba(42, 34, 27, 0.04) !important;
+  }
+
+  .mobile-menu-link-active,
+  .mobile-menu-action-primary {
+    box-shadow: 0 14px 26px rgba(86, 76, 66, 0.14) !important;
+  }
+}
+
+/* ===== ADMISSION FLOW ===== */
+.admission-shell {
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+  padding: 1.5rem 1.25rem 4rem;
+}
+
+.admission-hero,
+.admission-panel,
+.admission-summary {
+  position: relative;
+  overflow: hidden;
+  border-radius: 2rem;
+  border: 1px solid var(--apple-border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(249, 245, 238, 0.88));
+  box-shadow: var(--apple-shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+.admission-hero {
+  padding: clamp(1.5rem, 3vw, 2.4rem);
+}
+
+.admission-kicker,
+.admission-panel-kicker,
+.admission-success-kicker,
+.admission-note-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #776d61;
+}
+
+.admission-title {
+  margin-top: 0.85rem;
+  max-width: 18ch;
+  font-size: clamp(2.4rem, 5vw, 4.35rem);
+  line-height: 0.98;
+  letter-spacing: -0.06em;
+  color: var(--apple-ink);
+}
+
+.admission-copy {
+  margin-top: 1rem;
+  max-width: 42rem;
+  font-size: 1.03rem;
+  line-height: 1.9;
+  color: var(--apple-muted);
+}
+
+.admission-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin-top: 1.4rem;
+}
+
+.admission-interest-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 1rem;
+  padding: 0.78rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(223, 214, 203, 0.9);
+  background: rgba(255, 255, 255, 0.74);
+  font-size: 0.92rem;
+  color: var(--apple-muted);
+}
+
+.admission-interest-pill span {
+  color: var(--apple-ink);
+  font-weight: 600;
+}
+
+.admission-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.22fr) minmax(320px, 0.78fr);
+  gap: 1.4rem;
+  align-items: start;
+}
+
+.admission-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+}
+
+.admission-panel {
+  padding: 1.45rem;
+}
+
+.admission-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.3rem;
+  position: sticky;
+  top: 7.5rem;
+}
+
+.admission-panel-head,
+.admission-summary-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.9rem;
+}
+
+.admission-panel-title,
+.admission-summary-title,
+.admission-success-title {
+  margin-top: 0.45rem;
+  font-size: clamp(1.28rem, 2vw, 1.72rem);
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  color: var(--apple-ink);
+}
+
+.admission-panel-copy,
+.admission-summary-copy,
+.admission-success-copy,
+.admission-empty-copy,
+.admission-payment-note,
+.admission-step-copy,
+.admission-submit-note,
+.admission-course-copy,
+.admission-qr-caption {
+  color: var(--apple-muted);
+  line-height: 1.75;
+}
+
+.admission-course-grid,
+.admission-form-grid,
+.admission-credential-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.admission-course-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 1.2rem;
+}
+
+.admission-course-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.8rem;
+  min-height: 100%;
+  padding: 1.2rem;
+  text-align: left;
+  border-radius: 1.55rem;
+  border: 1px solid rgba(226, 218, 207, 0.94);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 244, 237, 0.9));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88), 0 16px 34px rgba(27, 23, 18, 0.05);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.admission-course-card.is-selected {
+  border-color: rgba(150, 137, 121, 0.92);
+  box-shadow: 0 24px 50px rgba(86, 76, 66, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transform: translateY(-2px);
+}
+
+.admission-course-topline {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.admission-course-state,
+.admission-course-price,
+.admission-summary-fee,
+.admission-course-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.48rem 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.admission-course-state,
+.admission-summary-fee {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(223, 214, 203, 0.88);
+  color: #75695c;
+}
+
+.admission-course-price,
+.admission-course-cta {
+  background: rgba(110, 101, 90, 0.08);
+  color: #6f655a;
+}
+
+.admission-course-title,
+.admission-empty-title,
+.admission-step-title {
+  color: var(--apple-ink);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.admission-course-title {
+  font-size: 1.22rem;
+}
+
+.admission-empty-state,
+.admission-summary-card,
+.admission-success-card,
+.admission-step {
+  border-radius: 1.45rem;
+  border: 1px solid rgba(226, 218, 207, 0.94);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82), 0 12px 26px rgba(27, 23, 18, 0.04);
+}
+
+.admission-empty-state,
+.admission-summary-card,
+.admission-success-card {
+  padding: 1.1rem;
+}
+
+.admission-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 1.15rem;
+}
+
+.admission-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.admission-field span,
+.admission-credential-item span {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #6f655a;
+}
+
+.admission-field input,
+.admission-field select,
+.admission-field textarea {
+  width: 100%;
+  border-radius: 1.05rem;
+  border: 1px solid rgba(223, 214, 203, 0.92);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--apple-ink);
+  padding: 0.92rem 1rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.admission-field input:focus,
+.admission-field select:focus,
+.admission-field textarea:focus {
+  outline: none;
+  border-color: rgba(148, 137, 123, 0.92);
+  box-shadow: 0 0 0 4px rgba(186, 174, 159, 0.16);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.admission-field-full,
+.admission-credential-item-full {
+  grid-column: 1 / -1;
+}
+
+.admission-divider {
+  height: 1px;
+  margin: 1.4rem 0;
+  background: linear-gradient(90deg, rgba(223, 214, 203, 0), rgba(223, 214, 203, 0.92), rgba(223, 214, 203, 0));
+}
+
+.admission-payment-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  margin-top: 1.15rem;
+}
+
+.admission-payment-copy,
+.admission-qr-card {
+  border-radius: 1.4rem;
+  border: 1px solid rgba(226, 218, 207, 0.94);
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82), 0 12px 26px rgba(27, 23, 18, 0.04);
+}
+
+.admission-payment-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  padding: 1rem;
+}
+
+.admission-inline-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.admission-copy-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.admission-qr-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-width: 13rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.admission-qr-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 8.75rem;
+  height: 8.75rem;
+  border-radius: 1.4rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 242, 234, 0.82));
+  border: 1px solid rgba(223, 214, 203, 0.94);
+  box-shadow: 0 14px 28px rgba(27, 23, 18, 0.05);
+}
+
+.admission-qr-image {
+  width: auto;
+  height: auto;
+  max-width: 7.4rem;
+  max-height: 7.4rem;
+  border-radius: 1rem;
+}
+
+.admission-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 1.2rem;
+  border: 1px solid rgba(226, 218, 207, 0.94);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--apple-muted);
+}
+
+.admission-check input {
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.2rem;
+  accent-color: #7b6f63;
+}
+
+.admission-error {
+  margin-top: 0.95rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  background: rgba(193, 82, 67, 0.08);
+  border: 1px solid rgba(193, 82, 67, 0.16);
+  color: #a54d40;
+}
+
+.admission-submit-row,
+.admission-success-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+}
+
+.admission-submit-row {
+  margin-top: 1rem;
+}
+
+.admission-submit-button {
+  min-width: 17rem;
+  justify-content: center;
+}
+
+.admission-step-list {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.admission-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.95rem;
+}
+
+.admission-step-dot {
+  flex: 0 0 auto;
+  width: 0.72rem;
+  height: 0.72rem;
+  margin-top: 0.35rem;
+  border-radius: 999px;
+  background: rgba(170, 159, 145, 0.48);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.admission-step.is-done .admission-step-dot,
+.admission-step.is-active .admission-step-dot {
+  background: linear-gradient(180deg, #6c6358, #8a7e72);
+}
+
+.admission-success-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.admission-credential-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admission-credential-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.95rem;
+  border-radius: 1.15rem;
+  border: 1px solid rgba(226, 218, 207, 0.94);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.admission-credential-item strong,
+.admission-copy-row strong {
+  font-size: 1rem;
+  color: var(--apple-ink);
+  word-break: break-word;
+}
+
+.admission-copy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  min-height: 2.4rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(223, 214, 203, 0.92);
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--apple-ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88), 0 10px 22px rgba(27, 23, 18, 0.04);
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.admission-copy-button:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 16px 28px rgba(27, 23, 18, 0.08);
+}
+
+.admission-copy-button-secondary {
+  background: rgba(110, 101, 90, 0.08);
+}
+
+@media (max-width: 1023px) {
+  .admission-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .admission-summary {
+    position: static;
+  }
+
+  .admission-payment-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .admission-shell {
+    padding: 1rem 1rem 3rem;
+  }
+
+  .admission-hero,
+  .admission-panel,
+  .admission-summary {
+    border-radius: 1.55rem;
+  }
+
+  .admission-title {
+    font-size: 2.2rem;
+    max-width: none;
+  }
+
+  .admission-copy {
+    font-size: 0.98rem;
+    line-height: 1.75;
+  }
+
+  .admission-panel,
+  .admission-summary,
+  .admission-hero {
+    padding: 1.15rem;
+  }
+
+  .admission-course-grid,
+  .admission-form-grid,
+  .admission-credential-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admission-course-card,
+  .admission-empty-state,
+  .admission-summary-card,
+  .admission-success-card,
+  .admission-step,
+  .admission-payment-copy,
+  .admission-qr-card,
+  .admission-check,
+  .admission-credential-item {
+    border-radius: 1.2rem;
+  }
+
+  .admission-hero-actions,
+  .admission-submit-row,
+  .admission-success-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admission-hero-actions > *,
+  .admission-submit-button,
+  .admission-success-actions > * {
+    width: 100%;
+  }
+
+  .admission-qr-card {
+    min-width: 0;
+  }
+
+  .admission-qr-frame {
+    width: 7.4rem;
+    height: 7.4rem;
+  }
+
+  .admission-qr-image {
+    max-width: 6.1rem;
+    max-height: 6.1rem;
+  }
+}
+
+  /* ===== ACADEMY CATALOG OVERRIDES ===== */
+  .hero-top-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.35rem;
+    padding: 0.62rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid rgba(223, 214, 203, 0.92);
+    background: rgba(255, 255, 255, 0.82);
+    color: #6f655a;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92), 0 12px 26px rgba(27, 23, 18, 0.05);
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .academy-program-shell {
+    border-radius: 2rem;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 244, 237, 0.82));
+    border: 1px solid rgba(226, 218, 207, 0.94);
+    box-shadow: 0 24px 64px rgba(27, 23, 18, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
+
+  .academy-section-kicker,
+  .academy-offer-kicker,
+  .academy-note-title,
+  .academy-course-label,
+  .academy-course-eyebrow {
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #776d61;
+  }
+
+  .academy-note-banner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: center;
+    margin-top: 1.6rem;
+    padding: 1.25rem 1.35rem;
+    border-radius: 1.6rem;
+    border: 1px solid rgba(223, 214, 203, 0.94);
+    background: linear-gradient(135deg, rgba(255, 253, 250, 0.96), rgba(245, 239, 231, 0.9));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92), 0 14px 28px rgba(27, 23, 18, 0.05);
+  }
+
+  .academy-note-title {
+    margin-bottom: 0.45rem;
+  }
+
+  .academy-note-copy,
+  .academy-course-copy,
+  .academy-offer-copy {
+    color: var(--apple-muted);
+    line-height: 1.8;
+  }
+
+  .academy-note-cta {
+    white-space: nowrap;
+  }
+
+  .academy-course-grid {
+    display: grid;
+    gap: 1.35rem;
+    margin-top: 1.6rem;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .academy-course-card {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 1.8rem;
+    border: 1px solid rgba(226, 218, 207, 0.94);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 244, 237, 0.92));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 18px 42px rgba(27, 23, 18, 0.05);
+  }
+
+  .academy-course-media,
+  .admission-course-media,
+  .admission-summary-media-frame {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .academy-course-media {
+    aspect-ratio: 1.42 / 1;
+  }
+
+  .academy-course-image,
+  .admission-course-media-image,
+  .admission-summary-media-image {
+    object-fit: cover;
+    transition: transform 320ms ease;
+  }
+
+  .academy-course-card:hover .academy-course-image,
+  .admission-course-card:hover .admission-course-media-image,
+  .admission-summary-card:hover .admission-summary-media-image {
+    transform: scale(1.04);
+  }
+
+  .academy-course-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.25rem;
+  }
+
+  .academy-course-topline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.9rem;
+  }
+
+  .academy-course-fee-stack,
+  .admission-course-price-stack,
+  .admission-summary-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  .academy-fee-pill,
+  .academy-chip,
+  .admission-course-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.48rem 0.82rem;
+    border-radius: 999px;
+    border: 1px solid rgba(223, 214, 203, 0.92);
+    background: rgba(255, 255, 255, 0.82);
+    color: #6f655a;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .academy-fee-pill-soft,
+  .admission-course-price-secondary {
+    background: rgba(112, 101, 88, 0.08);
+    border-color: rgba(214, 205, 194, 0.9);
+    color: #6f655a;
+  }
+
+  .academy-course-title {
+    font-size: 1.36rem;
+    line-height: 1.1;
+    letter-spacing: -0.04em;
+    color: var(--apple-ink);
+  }
+
+  .academy-course-detail-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+
+  .academy-chip-row,
+  .admission-course-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+  }
+
+  .academy-focus-list {
+    display: grid;
+    gap: 0.55rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .academy-focus-item {
+    position: relative;
+    padding-left: 1rem;
+    color: var(--apple-muted);
+    line-height: 1.7;
+  }
+
+  .academy-focus-item::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.72rem;
+    width: 0.38rem;
+    height: 0.38rem;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #8a7e72, #6c6358);
+  }
+
+  .academy-course-cta {
+    width: 100%;
+    margin-top: auto;
+  }
+
+  .academy-offer-grid {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1.35rem;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .academy-offer-card {
+    padding: 1.15rem 1.2rem;
+    border-radius: 1.45rem;
+    border: 1px solid rgba(226, 218, 207, 0.94);
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.84), 0 14px 30px rgba(27, 23, 18, 0.04);
+  }
+
+  .academy-offer-title {
+    margin-top: 0.5rem;
+    font-size: 1.02rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--apple-ink);
+  }
+
+  .admission-course-media {
+    width: 100%;
+    margin-top: 0.15rem;
+    border-radius: 1.2rem;
+    aspect-ratio: 1.6 / 1;
+    box-shadow: 0 14px 28px rgba(27, 23, 18, 0.06);
+  }
+
+  .admission-course-chip {
+    background: rgba(255, 255, 255, 0.76);
+  }
+
+  .admission-payment-amount {
+    font-size: 1.12rem;
+    letter-spacing: -0.03em;
+    color: var(--apple-ink);
+  }
+
+  .admission-summary-media-frame {
+    width: 100%;
+    margin-bottom: 0.95rem;
+    border-radius: 1.2rem;
+    aspect-ratio: 1.55 / 1;
+    box-shadow: 0 14px 30px rgba(27, 23, 18, 0.06);
+  }
+
+  .admission-summary-meta {
+    margin-top: 0.9rem;
+  }
+
+  @media (min-width: 768px) {
+    .academy-course-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .academy-offer-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .academy-course-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .academy-offer-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 767px) {
+    .hero-top-pill {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .academy-program-shell {
+      border-radius: 1.55rem;
+    }
+
+    .academy-note-banner {
+      grid-template-columns: 1fr;
+      padding: 1rem;
+      border-radius: 1.25rem;
+    }
+
+    .academy-note-cta,
+    .academy-course-cta {
+      width: 100%;
+    }
+
+    .academy-course-card,
+    .academy-offer-card {
+      border-radius: 1.35rem;
+    }
+
+    .academy-course-body {
+      padding: 1rem;
+    }
+
+    .academy-course-media,
+    .admission-course-media,
+    .admission-summary-media-frame {
+      border-radius: 1.05rem;
+    }
+  }
+
+/* ===== MOTION PERFORMANCE TUNING ===== */
+:root {
+  --transition-fast: 120ms;
+  --transition-snappy: 95ms;
+  --transition-smooth: 180ms;
+}
+
+.btn {
+  transition: transform 120ms var(--transition-snap), box-shadow 120ms var(--transition-snap), background-color 120ms var(--transition-snap), opacity 120ms var(--transition-snap);
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.14);
+  filter: none;
+}
+
+.btn:active {
+  transform: translateY(0) scale(0.995);
+}
+
+.glass-readable,
+.glass-bar {
+  backdrop-filter: blur(10px) saturate(118%);
+  -webkit-backdrop-filter: blur(10px) saturate(118%);
+}
+
+.glass-bar {
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.program-card,
+.stat-card,
+.testimonial-card,
+.faq-card,
+.newsletter-card,
+.academy-course-card,
+.academy-offer-card,
+.admission-panel,
+.admission-summary,
+.admission-course-card {
+  transition: transform 160ms var(--transition-snap), box-shadow 160ms var(--transition-snap), border-color 160ms var(--transition-snap), background-color 160ms var(--transition-snap);
+}
+
+@media (hover: none), (pointer: coarse) {
+  .btn:hover,
+  .program-card:hover,
+  .stat-card:hover,
+  .testimonial-card:hover,
+  .faq-card:hover,
+  .academy-course-card:hover,
+  .academy-offer-card:hover,
+  .admission-course-card:hover,
+  .hero-story-card:hover,
+  .hero-swiper-arrow:hover {
+    transform: none;
+    filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

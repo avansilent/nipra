@@ -7,6 +7,21 @@ export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
   const pathname = request.nextUrl.pathname;
 
+  const isApiRoute = pathname.startsWith("/api/");
+  const isAuthApiRoute = pathname.startsWith("/api/auth/");
+  const isProtectedApiRoute = isApiRoute && !isAuthApiRoute;
+
+  const isAdminRoute = pathname.startsWith("/admin");
+  const isStudentRoute = pathname.startsWith("/student");
+  const isAdminApiRoute = pathname.startsWith("/api/admin/");
+  const isStudentApiRoute = pathname.startsWith("/api/student/");
+
+  const requiresSession = isAdminRoute || isStudentRoute || isProtectedApiRoute;
+
+  if (!requiresSession || isAuthApiRoute) {
+    return response;
+  }
+
   const normalizeRole = (role?: string | null): "admin" | "student" | null => {
     if (role === "admin" || role === "student") {
       return role;
@@ -54,20 +69,6 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isApiRoute = pathname.startsWith("/api/");
-  const isAuthApiRoute = pathname.startsWith("/api/auth/");
-  const isProtectedApiRoute = isApiRoute && !isAuthApiRoute;
-
-  const isAdminRoute = pathname.startsWith("/admin");
-  const isStudentRoute = pathname.startsWith("/student");
-  const isAdminApiRoute = pathname.startsWith("/api/admin/");
-  const isStudentApiRoute = pathname.startsWith("/api/student/");
-
-  const requiresSession =
-    isAdminRoute ||
-    isStudentRoute ||
-    isProtectedApiRoute;
-
   if (!user && requiresSession) {
     if (isProtectedApiRoute) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -84,6 +85,10 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!user) {
+    return response;
+  }
+
+  if (isProtectedApiRoute) {
     return response;
   }
 

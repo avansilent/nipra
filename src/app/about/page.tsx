@@ -38,11 +38,11 @@ const reasons = [
 ];
 
 const courses = [
-  "Classes for 6th to 12th students",
-  "CBSE and Bihar Board preparation",
-  "Science and Mathematics foundation courses",
-  "English speaking and communication skills",
-  "Exam-oriented preparation with previous year questions",
+  "Pre-Primary (Nursery to UKG)",
+  "Primary (Class 1 to 5)",
+  "Middle School (Class 6 to 8)",
+  "Secondary Board Preparation (Class 9 and 10)",
+  "Senior Secondary Science, Commerce, and Arts streams (Class 11 and 12)",
 ];
 
 export default async function AboutPage() {
@@ -126,9 +126,12 @@ export default async function AboutPage() {
           <p className="about-card-copy">
             Start with the support, structure, and mentorship needed for meaningful academic progress. Learn in an environment designed to make students clear, consistent, and confident.
           </p>
+          <p className="about-card-copy about-copy-muted">
+            Admission begins with the one-time admission fee only. After payment, the team guides families through the batch details, monthly fee plan, and final confirmation.
+          </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <Link href="/#contact" className="btn rounded-full px-6 py-3 text-sm">Talk to Counselors</Link>
-            <Link href="/courses" className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-800 shadow-[0_12px_28px_rgba(15,23,42,0.08)]">Explore Courses</Link>
+            <Link href="/join" className="btn rounded-full px-6 py-3 text-sm">Start Admission</Link>
+            <Link href="/#contact" className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-800 shadow-[0_12px_28px_rgba(15,23,42,0.08)]">Talk to Counselors</Link>
           </div>
         </div>
       </div>
