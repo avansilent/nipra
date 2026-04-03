@@ -3485,6 +3485,48 @@ body {
   .mobile-menu-action-primary {
     box-shadow: 0 14px 26px rgba(86, 76, 66, 0.14) !important;
   }
+
+  .mobile-menu-trigger-surface {
+    background: rgba(255, 255, 255, 0.92) !important;
+  }
+
+  .mobile-menu-panel {
+    border: 1px solid rgba(216, 205, 193, 0.88) !important;
+    background: rgba(255, 251, 245, 0.98) !important;
+    box-shadow: 0 18px 38px rgba(42, 34, 27, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+    backdrop-filter: blur(12px) saturate(120%) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(120%) !important;
+  }
+
+  .mobile-menu-link,
+  .mobile-menu-action,
+  .mobile-menu-link-inactive,
+  .mobile-menu-action-admin,
+  .mobile-menu-action-student,
+  .mobile-menu-action-neutral {
+    border: 1px solid rgba(223, 214, 203, 0.88) !important;
+    background: rgba(255, 255, 255, 0.94) !important;
+    color: #1f2937 !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86), 0 8px 18px rgba(42, 34, 27, 0.05) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .mobile-menu-link::before {
+    content: none !important;
+  }
+
+  .mobile-menu-link-active,
+  .mobile-menu-action-primary {
+    border-color: rgba(125, 114, 101, 0.92) !important;
+    background: linear-gradient(180deg, #6b6258, #867c71) !important;
+    color: #ffffff !important;
+    box-shadow: 0 14px 26px rgba(86, 76, 66, 0.16) !important;
+  }
+
+  .mobile-menu-link-label {
+    color: inherit !important;
+  }
 }
 
 /* ===== ADMISSION FLOW ===== */
@@ -4141,12 +4183,16 @@ body {
   }
 
   .academy-course-media {
+    width: 100%;
     aspect-ratio: 1.42 / 1;
+    min-height: 13.5rem;
+    background: linear-gradient(180deg, rgba(244, 238, 230, 0.95), rgba(232, 225, 214, 0.82));
   }
 
   .academy-course-image,
   .admission-course-media-image,
   .admission-summary-media-image {
+    display: block;
     object-fit: cover;
     transition: transform 320ms ease;
   }
@@ -4282,6 +4328,8 @@ body {
     margin-top: 0.15rem;
     border-radius: 1.2rem;
     aspect-ratio: 1.6 / 1;
+    min-height: 12rem;
+    background: linear-gradient(180deg, rgba(244, 238, 230, 0.95), rgba(232, 225, 214, 0.82));
     box-shadow: 0 14px 28px rgba(27, 23, 18, 0.06);
   }
 
@@ -4300,6 +4348,8 @@ body {
     margin-bottom: 0.95rem;
     border-radius: 1.2rem;
     aspect-ratio: 1.55 / 1;
+    min-height: 11.5rem;
+    background: linear-gradient(180deg, rgba(244, 238, 230, 0.95), rgba(232, 225, 214, 0.82));
     box-shadow: 0 14px 30px rgba(27, 23, 18, 0.06);
   }
 
@@ -4360,6 +4410,9 @@ body {
     .academy-course-media,
     .admission-course-media,
     .admission-summary-media-frame {
+      width: 100%;
+      aspect-ratio: auto;
+      height: clamp(12rem, 48vw, 15rem);
       border-radius: 1.05rem;
     }
   }

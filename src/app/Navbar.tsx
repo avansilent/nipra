@@ -140,7 +140,7 @@ export default function Navbar({ siteSettings }: NavbarProps) {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
                     transition={{ duration: 0.14, ease: motionEase }}
-                    className="mobile-menu-panel mt-4 overflow-hidden rounded-[28px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.985),rgba(247,248,250,0.96))] p-4 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
+                    className="mobile-menu-panel mt-4 overflow-hidden rounded-[28px] p-4"
                   >
                     <div className="space-y-2">
                       {navLinks.map((link) => (
@@ -170,11 +170,7 @@ export default function Navbar({ siteSettings }: NavbarProps) {
                         <Link
                           key={action.href}
                           href={action.href}
-                          className={`mobile-menu-action inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold ${
-                            action.tone === "student"
-                              ? "mobile-menu-action-student bg-sky-50 text-sky-700 ring-1 ring-sky-100"
-                              : "mobile-menu-action-admin bg-slate-100 text-slate-800 ring-1 ring-slate-200"
-                          }`}
+                          className={`mobile-menu-action mobile-menu-action-${action.tone} inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold`}
                         >
                           {action.label}
                         </Link>
@@ -184,7 +180,7 @@ export default function Navbar({ siteSettings }: NavbarProps) {
                         <button
                           type="button"
                           onClick={() => void logout()}
-                          className="mobile-menu-action mobile-menu-action-neutral inline-flex items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-700 ring-1 ring-slate-200"
+                          className="mobile-menu-action mobile-menu-action-neutral inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold"
                         >
                           Logout
                         </button>

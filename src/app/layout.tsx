@@ -18,17 +18,26 @@ export async function generateMetadata(): Promise<Metadata> {
   const logoIcon = siteSettings.logoUrl?.trim() || "/logo.png";
 
   return {
+    applicationName: siteSettings.siteName,
     title: siteSettings.siteName,
     description: siteSettings.siteDescription,
     manifest: "/manifest.webmanifest",
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "default",
+      title: siteSettings.siteName,
+    },
     icons: {
       icon: [
+        { url: "/icon", type: "image/png", sizes: "512x512" },
         { url: logoIcon, type: "image/png" },
       ],
       shortcut: [
+        { url: "/icon", type: "image/png", sizes: "512x512" },
         { url: logoIcon, type: "image/png" },
       ],
       apple: [
+        { url: "/apple-icon", type: "image/png", sizes: "180x180" },
         { url: logoIcon, type: "image/png" },
       ],
     },

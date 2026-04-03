@@ -1,15 +1,11 @@
 "use client";
 import React from "react";
 import { motion } from "framer-motion";
-import { hoverLift, itemReveal, viewportOnce } from "../lib/motion";
+import { hoverLift } from "../lib/motion";
 
 export default function Card({ title, subtitle, cta }: { title: string; subtitle?: string; cta?: string }) {
   return (
     <motion.article
-      variants={itemReveal}
-      initial="hidden"
-      whileInView="show"
-      viewport={viewportOnce}
       whileHover={hoverLift}
       className="mobile-card group flex h-full flex-col rounded-2xl bg-white p-6 shadow-md transition duration-200 hover:shadow-xl"
     >
