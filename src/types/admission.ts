@@ -13,8 +13,17 @@ export type AdmissionCredentials = {
   password: string;
 };
 
+export type AdmissionPaymentDetails = {
+  orderId: string;
+  paymentId: string;
+  amountLabel: string;
+  method: string | null;
+  status: "verified" | "captured";
+};
+
 export type AdmissionResult = {
   studentName: string;
   courseTitle: string;
   credentials: AdmissionCredentials;
+  payment?: AdmissionPaymentDetails;
 };

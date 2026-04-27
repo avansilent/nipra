@@ -1,7 +1,8 @@
 ﻿"use client";
 import React from "react";
 import { motion } from "framer-motion";
-import { hoverLift, itemReveal, viewportOnce } from "../lib/motion";
+import { useAdaptiveMotion } from "../hooks/useAdaptiveMotion";
+import { balancedItemReveal, hoverLift, itemReveal, viewportOnce } from "../lib/motion";
 
 type Props = {
   title: string;
@@ -23,14 +24,15 @@ export default function CourseCard({
   titleClassName,
 }: Props) {
   const hours = duration ?? "Self-paced";
+  const { allowHoverMotion, allowRichMotion } = useAdaptiveMotion();
 
   return (
     <motion.article
-      variants={itemReveal}
+      variants={allowRichMotion ? itemReveal : balancedItemReveal}
       initial="hidden"
       whileInView="show"
       viewport={viewportOnce}
-      whileHover={hoverLift}
+      whileHover={allowHoverMotion ? hoverLift : undefined}
       className="mobile-course-card group relative min-h-[260px] cursor-pointer overflow-hidden rounded-2xl bg-white shadow-md transition duration-200 hover:shadow-xl"
     >
       <div className="relative aspect-[3/2] overflow-hidden bg-slate-100">

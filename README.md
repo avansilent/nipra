@@ -1,8 +1,8 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/create-next-app).
+This is a Next.js 16 app for Nipra Academy with public course admissions, Supabase-backed institute data, and Razorpay-based admission payments.
 
 ## Getting Started
 
-First, run the development server:
+Run the development server:
 
 ```bash
 npm run dev
@@ -16,7 +16,48 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/route.ts`. The page auto-updates as you edit the file.
+The app uses the App Router under `src/app`.
+
+## Razorpay Admission Setup
+
+The public admission flow creates a Razorpay order, stores the draft in `admission_payments`, opens hosted checkout, verifies the payment on the server, and only then issues student credentials.
+
+### 1. Apply the latest Supabase schema
+
+The payment ledger table and policies live in [supabase/schema.sql](supabase/schema.sql).
+
+### 2. Add environment variables
+
+Use [`.env.example`](.env.example) as the template for local setup.
+
+Required for Razorpay admissions:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_RAZORPAY_KEY_ID`
+- `RAZORPAY_KEY_ID`
+- `RAZORPAY_KEY_SECRET`
+- `RAZORPAY_WEBHOOK_SECRET`
+- `ADMISSION_SIGNING_SECRET`
+
+### 3. Configure Razorpay webhook
+
+Set the webhook URL to:
+
+- `https://your-domain.com/api/auth/payments/razorpay/webhook`
+
+Subscribe at minimum to:
+
+- `payment.captured`
+- `order.paid`
+- `payment.failed`
+
+For local webhook testing, expose `http://localhost:3000` through a tunnel such as ngrok or Cloudflare Tunnel and point Razorpay to the tunneled HTTPS URL.
+
+### 4. Run a test payment
+
+Start the app with `npm run dev`, open `/courses`, select a course, complete the admission form, and pay in Razorpay test mode. If checkout succeeds but the tab refreshes or the browser closes, the admission page now restores the pending order automatically and resumes credential issuance from the stored payment state.
 
 ## Learn More
 

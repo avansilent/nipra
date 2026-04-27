@@ -1,1 +1,1 @@
-export { default } from "../../../components/student/StudentDashboard";
+export { default } from "../../../components/student/StudentPortal";

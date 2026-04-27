@@ -255,6 +255,7 @@ create table if not exists public.notes (
   institute_id uuid references public.institutes(id) on delete set null,
   title text not null,
   file_url text not null,
+  visibility text not null default 'student' check (visibility in ('public', 'student')),
   created_at timestamptz not null default timezone('utc', now())
 );
 
@@ -264,8 +265,47 @@ create table if not exists public.materials (
   institute_id uuid references public.institutes(id) on delete set null,
   title text not null,
   file_url text not null,
+  visibility text not null default 'student' check (visibility in ('public', 'student')),
   created_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.notes add column if not exists visibility text;
+update public.notes set visibility = 'student' where visibility is null;
+alter table public.notes alter column visibility set default 'student';
+alter table public.notes alter column visibility set not null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'notes_visibility_check'
+      and conrelid = 'public.notes'::regclass
+  ) then
+    alter table public.notes
+      add constraint notes_visibility_check
+      check (visibility in ('public', 'student'));
+  end if;
+end $$;
+
+alter table public.materials add column if not exists visibility text;
+update public.materials set visibility = 'student' where visibility is null;
+alter table public.materials alter column visibility set default 'student';
+alter table public.materials alter column visibility set not null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'materials_visibility_check'
+      and conrelid = 'public.materials'::regclass
+  ) then
+    alter table public.materials
+      add constraint materials_visibility_check
+      check (visibility in ('public', 'student'));
+  end if;
+end $$;
 
 create table if not exists public.tests (
   id uuid primary key default gen_random_uuid(),
@@ -293,6 +333,51 @@ create table if not exists public.announcements (
   created_by uuid references public.users(id) on delete set null,
   created_at timestamptz not null default timezone('utc', now())
 );
+
+create table if not exists public.admission_payments (
+  id uuid primary key default gen_random_uuid(),
+  institute_id uuid references public.institutes(id) on delete set null,
+  course_id uuid references public.courses(id) on delete set null,
+  order_id text not null unique,
+  receipt text not null unique,
+  payment_id text unique,
+  signature text,
+  student_user_id uuid references public.users(id) on delete set null,
+  status text not null default 'created',
+  student_name text not null,
+  guardian_name text not null,
+  phone text not null,
+  email text,
+  board text,
+  class_level text not null,
+  address text,
+  interest text,
+  amount_paise integer not null,
+  amount_label text not null,
+  currency text not null default 'INR',
+  token_hash text not null unique,
+  payment_method text,
+  gateway_response jsonb,
+  credentials_ciphertext text,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  verified_at timestamptz,
+  completed_at timestamptz
+);
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'admission_payments_status_check'
+      and conrelid = 'public.admission_payments'::regclass
+  ) then
+    alter table public.admission_payments
+      add constraint admission_payments_status_check
+      check (status in ('created', 'verified', 'paid', 'failed', 'credentials_issued'));
+  end if;
+end $$;
 
 alter table public.courses add column if not exists institute_id uuid references public.institutes(id) on delete set null;
 alter table public.enrollments add column if not exists institute_id uuid references public.institutes(id) on delete set null;
@@ -382,6 +467,7 @@ alter table public.tests enable row level security;
 alter table public.enrollments enable row level security;
 alter table public.results enable row level security;
 alter table public.announcements enable row level security;
+alter table public.admission_payments enable row level security;
 
 drop policy if exists "Users can read own profile" on public.profiles;
 drop policy if exists "Admins can read institute profiles" on public.profiles;
@@ -465,9 +551,24 @@ create policy "Admins can delete notes" on public.notes
   using (public.is_admin() and institute_id = public.get_my_institute_id());
 
 drop policy if exists "Authenticated users can read notes" on public.notes;
-create policy "Authenticated users can read notes" on public.notes
+drop policy if exists "Users can read visible notes" on public.notes;
+create policy "Users can read visible notes" on public.notes
   for select
-  using ((select auth.uid()) is not null and institute_id = public.get_my_institute_id());
+  using (
+    visibility = 'public'
+    or (public.is_admin() and institute_id = public.get_my_institute_id())
+    or (
+      (select auth.uid()) is not null
+      and institute_id = public.get_my_institute_id()
+      and exists (
+        select 1
+        from public.enrollments
+        where student_id = (select auth.uid())
+          and course_id = public.notes.course_id
+          and institute_id = public.notes.institute_id
+      )
+    )
+  );
 
 drop policy if exists "Admins can manage materials" on public.materials;
 drop policy if exists "Admins can insert materials" on public.materials;
@@ -487,9 +588,24 @@ create policy "Admins can delete materials" on public.materials
   using (public.is_admin() and institute_id = public.get_my_institute_id());
 
 drop policy if exists "Authenticated users can read materials" on public.materials;
-create policy "Authenticated users can read materials" on public.materials
+drop policy if exists "Users can read visible materials" on public.materials;
+create policy "Users can read visible materials" on public.materials
   for select
-  using ((select auth.uid()) is not null and institute_id = public.get_my_institute_id());
+  using (
+    visibility = 'public'
+    or (public.is_admin() and institute_id = public.get_my_institute_id())
+    or (
+      (select auth.uid()) is not null
+      and institute_id = public.get_my_institute_id()
+      and exists (
+        select 1
+        from public.enrollments
+        where student_id = (select auth.uid())
+          and course_id = public.materials.course_id
+          and institute_id = public.materials.institute_id
+      )
+    )
+  );
 
 drop policy if exists "Admins can manage tests" on public.tests;
 drop policy if exists "Admins can insert tests" on public.tests;
@@ -587,6 +703,11 @@ create policy "Authenticated users can read announcements" on public.announcemen
   for select
   using ((select auth.uid()) is not null and institute_id = public.get_my_institute_id());
 
+drop policy if exists "Admins can read admission payments" on public.admission_payments;
+create policy "Admins can read admission payments" on public.admission_payments
+  for select
+  using (public.is_admin() and institute_id = public.get_my_institute_id());
+
 insert into storage.buckets (id, name, public)
 values ('notes', 'notes', false)
 on conflict (id) do update set public = excluded.public;
@@ -615,6 +736,9 @@ create index if not exists idx_materials_institute_id on public.materials(instit
 create index if not exists idx_tests_institute_id on public.tests(institute_id);
 create index if not exists idx_results_institute_id on public.results(institute_id);
 create index if not exists idx_announcements_institute_id on public.announcements(institute_id);
+create index if not exists idx_admission_payments_institute_id on public.admission_payments(institute_id);
+create index if not exists idx_admission_payments_course_id on public.admission_payments(course_id);
+create index if not exists idx_admission_payments_status on public.admission_payments(status);
 create index if not exists idx_enrollments_course_id on public.enrollments(course_id);
 create index if not exists idx_notes_course_id on public.notes(course_id);
 create index if not exists idx_materials_course_id on public.materials(course_id);

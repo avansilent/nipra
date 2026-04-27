@@ -1,14 +1,52 @@
 import { NextResponse } from "next/server";
 import { createSupabaseRouteClient } from "../../../../../lib/supabase/route";
 import { createSupabaseServiceClient } from "../../../../../lib/supabase/service";
+import { normalizeResourceVisibility } from "../../../../../lib/resourceVisibility";
 
 type RouteParams = {
   params: Promise<{ noteId: string }>;
 };
 
+const buildSignedNoteResponse = async (filePath: string, title: string) => {
+  const service = createSupabaseServiceClient();
+  const { data: signed, error: signedError } = await service.storage
+    .from("notes")
+    .createSignedUrl(filePath, 300);
+
+  if (signedError || !signed?.signedUrl) {
+    return NextResponse.json(
+      { error: signedError?.message ?? "Unable to create secure download link" },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({
+    url: signed.signedUrl,
+    title,
+  });
+};
+
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
     const { noteId } = await params;
+    const service = createSupabaseServiceClient();
+
+    const { data: note, error: noteError } = await service
+      .from("notes")
+      .select("id, title, file_url, course_id, institute_id, visibility")
+      .eq("id", noteId)
+      .maybeSingle();
+
+    if (noteError || !note) {
+      return NextResponse.json({ error: "Note not found" }, { status: 404 });
+    }
+
+    const visibility = normalizeResourceVisibility(note.visibility);
+
+    if (visibility === "public") {
+      return buildSignedNoteResponse(note.file_url, note.title);
+    }
+
     const supabase = await createSupabaseRouteClient();
 
     const {
@@ -17,16 +55,6 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { data: note, error: noteError } = await supabase
-      .from("notes")
-      .select("id, title, file_url, course_id, institute_id")
-      .eq("id", noteId)
-      .maybeSingle();
-
-    if (noteError || !note) {
-      return NextResponse.json({ error: "Note not found" }, { status: 404 });
     }
 
     const { data: profile } = await supabase
@@ -62,22 +90,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
       }
     }
 
-    const service = createSupabaseServiceClient();
-    const { data: signed, error: signedError } = await service.storage
-      .from("notes")
-      .createSignedUrl(note.file_url, 60);
-
-    if (signedError || !signed?.signedUrl) {
-      return NextResponse.json(
-        { error: signedError?.message ?? "Unable to create secure download link" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      url: signed.signedUrl,
-      title: note.title,
-    });
+    return buildSignedNoteResponse(note.file_url, note.title);
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unable to download note" },

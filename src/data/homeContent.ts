@@ -1,17 +1,17 @@
 import type { HomeContent } from "../types/home";
 
 export const defaultHomeContent: HomeContent = {
-  heroBadge: "Owner-managed learning platform",
-  heroTitle: "Learn with structure, clarity, and real momentum",
+  heroBadge: "Structured learning",
+  heroTitle: "Clear teaching. Calm progress.",
   heroSubtitle:
-    "Board-focused learning, guided practice, and premium student support managed from one dynamic platform.",
+    "A simple learning system for classes, practice, and guidance in one clean student experience.",
   heroPrimaryCtaLabel: "Explore Programs",
   heroPrimaryCtaHref: "/courses",
   heroSecondaryCtaLabel: "Talk to Counselors",
   heroSecondaryCtaHref: "/#contact",
-  programsHeading: "Student Programs",
+  programsHeading: "Programs",
   programsDescription:
-    "A focused, step-by-step academic roadmap designed for students from Class 1 to Class 12, blending strong conceptual clarity with competitive readiness.",
+    "Clear academic paths from Class 1 to 12, designed for strong basics and steady exam readiness.",
   programs: [
     {
       id: "program-foundation",
@@ -60,8 +60,8 @@ export const defaultHomeContent: HomeContent = {
       ctaHref: "/courses",
     },
   ],
-  statsHeading: "Trusted by families across boards",
-  statsSubtitle: "Measured impact with consistent outcomes and mentorship.",
+  statsHeading: "Results families can trust",
+  statsSubtitle: "Clear progress, steady guidance, and consistent outcomes.",
   stats: [
     { id: "stat-learners", label: "Learners guided", value: "25k+" },
     { id: "stat-mentors", label: "Expert mentors", value: "120+" },
@@ -116,13 +116,13 @@ export const defaultHomeContent: HomeContent = {
         "Yes. We offer guided onboarding and bridge lessons to help new students catch up quickly.",
     },
   ],
-  contactHeading: "Talk to our counselors",
-  contactSubtitle: "Get a personalized learning plan for your class and board.",
+  contactHeading: "Talk to us",
+  contactSubtitle: "Get the right class, board, and admission guidance.",
   contactCtaLabel: "Request a callback",
-  newsletterHeading: "Weekly learning insights",
-  newsletterSubtitle: "Study tips, revision plans, and board updates in your inbox.",
+  newsletterHeading: "Updates, not noise",
+  newsletterSubtitle: "Occasional study tips and important academic updates.",
   newsletterCtaLabel: "Subscribe",
-  footerTagline: "Premium learning for Class 1-12 | CBSE & Bihar Board",
+  footerTagline: "Clear learning for Class 1-12 | CBSE & Bihar Board",
 };
 
 function pickText(value: unknown, fallback: string): string {

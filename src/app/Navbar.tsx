@@ -1,15 +1,17 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+
+import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { useAuth } from "./AuthProvider";
+import { useAdaptiveMotion } from "../hooks/useAdaptiveMotion";
+import { motionEase } from "../lib/motion";
 import type { SiteSettings } from "../types/site";
-import { buttonHover, motionEase, tapPress } from "../lib/motion";
 
 const navLinks = [
   { href: "/", label: "Home" },
-  { href: "/about", label: "About Us" },
+  { href: "/about", label: "About" },
   { href: "/courses", label: "Courses" },
   { href: "/books", label: "Books" },
   { href: "/notes", label: "Notes" },
@@ -20,285 +22,209 @@ type NavbarProps = {
   siteSettings: SiteSettings;
 };
 
+type InlineLink = {
+  href: string;
+  label: string;
+};
+
+const desktopMenuShellClass =
+  "flex w-full flex-wrap items-center justify-center gap-1 rounded-[1.35rem] bg-white/78 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.84),0_14px_30px_rgba(15,23,42,0.04)] backdrop-blur-[24px] xl:w-auto xl:flex-nowrap xl:justify-start xl:rounded-full";
+
+const desktopMenuItemClass =
+  "inline-flex min-h-[2.62rem] items-center justify-center rounded-full px-4 py-2 text-[0.87rem] font-medium tracking-normal text-slate-600 transition-[background-color,color,box-shadow,transform] duration-150 lg:px-5 lg:text-[0.91rem]";
+
+const desktopMenuItemIdleClass =
+  "hover:bg-white/96 hover:text-slate-950 hover:shadow-[0_8px_18px_rgba(15,23,42,0.04)]";
+
+const desktopMenuItemActiveClass = "bg-white text-slate-950 shadow-[0_10px_20px_rgba(15,23,42,0.05)]";
+
+const mobileMenuShellClass =
+  "mobile-nav-inline-row flex flex-wrap items-stretch justify-center gap-1.5 rounded-[1.35rem] bg-white/78 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.84),0_12px_24px_rgba(15,23,42,0.04)] backdrop-blur-[20px]";
+
+const mobileMenuItemWrapClass = "min-w-0 grow basis-[9.5rem] sm:basis-auto sm:grow-0 sm:shrink-0";
+
+const mobileMenuItemClass =
+  "inline-flex w-full min-h-[2.3rem] items-center justify-center rounded-full px-3 py-2 text-center text-[0.78rem] font-medium leading-tight tracking-normal text-slate-600 transition-[background-color,color,box-shadow,transform] duration-150 whitespace-normal sm:w-auto sm:min-h-[2.45rem] sm:px-3.5 sm:text-[0.8rem] sm:leading-normal sm:whitespace-nowrap";
+
+const mobileMenuItemIdleClass =
+  "hover:bg-white/96 hover:text-slate-950 hover:shadow-[0_8px_16px_rgba(15,23,42,0.04)]";
+
+const mobileMenuItemActiveClass = "bg-white text-slate-950 shadow-[0_8px_16px_rgba(15,23,42,0.05)]";
+
 export default function Navbar({ siteSettings }: NavbarProps) {
   const { isAuthenticated, logout, role } = useAuth();
   const pathname = usePathname();
-  const [isMobileViewport, setIsMobileViewport] = useState<boolean | null>(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { allowEntranceMotion, allowHoverMotion, allowRichMotion } = useAdaptiveMotion();
 
-  const mobileActions = useMemo(() => {
+  const actionLinks = useMemo<InlineLink[]>(() => {
     if (isAuthenticated) {
       return [
-        role === "admin" ? { href: "/admin/dashboard", label: "Admin Panel", tone: "admin" as const } : null,
-        role === "student" ? { href: "/student/dashboard", label: "Dashboard", tone: "student" as const } : null,
-      ].filter(Boolean) as Array<{ href: string; label: string; tone: "admin" | "student" }>;
+        {
+          href: role === "admin" ? "/admin/dashboard" : "/student/dashboard",
+          label: role === "admin" ? "Admin" : "Student",
+        },
+      ];
     }
 
     return [
-      { href: "/login?type=student", label: "Student Login", tone: "student" as const },
-      { href: "/login?type=admin", label: "Admin Login", tone: "admin" as const },
+      { href: "/login?type=student", label: "Student Login" },
+      { href: "/login?type=admin", label: "Admin Login" },
     ];
   }, [isAuthenticated, role]);
 
-  useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [pathname]);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(max-width: 767px)");
-
-    const handleViewportChange = (event: MediaQueryListEvent | MediaQueryList) => {
-      setIsMobileViewport(event.matches);
-
-      if (!event.matches) {
-        setMobileMenuOpen(false);
-      }
-    };
-
-    handleViewportChange(mediaQuery);
-
-    const listener = (event: MediaQueryListEvent) => handleViewportChange(event);
-
-    if (typeof mediaQuery.addEventListener === "function") {
-      mediaQuery.addEventListener("change", listener);
-    } else {
-      mediaQuery.addListener(listener);
-    }
-
-    return () => {
-      if (typeof mediaQuery.removeEventListener === "function") {
-        mediaQuery.removeEventListener("change", listener);
-      } else {
-        mediaQuery.removeListener(listener);
-      }
-    };
-  }, []);
+  const inlineLinks = useMemo(() => [...navLinks, ...actionLinks], [actionLinks]);
 
   const isActiveNavLink = (href: string) => {
     if (href === "/") {
       return pathname === "/";
     }
 
-    if (href.startsWith("/#")) {
-      return pathname === "/";
+    if (href.startsWith("/#") || href.includes("?")) {
+      return false;
     }
 
     return pathname === href;
   };
 
-  return (
-    <motion.nav
-      initial={{ y: -12, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.28, ease: motionEase }}
-      className="w-full fixed top-0 left-0 z-50"
-    >
-      <div className="glass-bar">
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-0 lg:py-0">
-          {isMobileViewport ? (
-            <>
-              <div className="mobile-nav-shell flex items-center justify-between">
-                <Link href="/" className="mobile-nav-brand flex min-w-0 items-center gap-3">
-                  <div className="mobile-nav-logo flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-sm">
-                    <img
-                      src={siteSettings.logoUrl || "/logo.png"}
-                      alt={siteSettings.siteName}
-                      width="36"
-                      height="36"
-                      className="block h-8 w-8 object-contain"
-                    />
-                  </div>
-                  <span className="mobile-nav-brand-text truncate text-[1.15rem] font-semibold tracking-[-0.05em] text-slate-900">
-                    {siteSettings.siteName}
-                  </span>
-                </Link>
+  const hoverMotion = allowHoverMotion
+    ? {
+        y: 0,
+        scale: 1,
+        transition: {
+          duration: allowRichMotion ? 0.3 : 0.24,
+          ease: motionEase,
+        },
+      }
+    : undefined;
 
+  const tapMotion = allowHoverMotion
+    ? {
+        scale: 0.999,
+        transition: {
+          duration: 0.18,
+          ease: motionEase,
+        },
+      }
+    : { scale: 0.998 };
+
+  const navTransition = allowRichMotion
+    ? { duration: 0.34, ease: motionEase }
+    : { duration: 0.24, ease: motionEase };
+
+  return (
+    <motion.header
+      initial={allowEntranceMotion ? { y: -8, opacity: 0 } : false}
+      animate={allowEntranceMotion ? { y: 0, opacity: 1 } : undefined}
+      transition={allowEntranceMotion ? navTransition : undefined}
+      className="fixed inset-x-0 top-0 z-50 w-full px-3 pt-3 sm:px-4"
+    >
+      <div className="mx-auto w-full max-w-[96rem] rounded-[1.75rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.84),rgba(248,246,241,0.72))] shadow-[0_18px_38px_rgba(15,23,42,0.05)] backdrop-blur-[26px]">
+        <div className="hidden min-h-[4.3rem] gap-3 px-4 py-3 md:flex md:flex-col md:items-stretch xl:flex-row xl:items-center xl:gap-5 xl:px-5 xl:py-2.5 lg:px-6">
+          <Link href="/" className="flex min-w-0 shrink-0 items-center justify-center gap-3.5 xl:justify-start">
+            <motion.div
+              whileHover={hoverMotion}
+              whileTap={tapMotion}
+              className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[1.15rem] bg-white/94 shadow-[0_8px_18px_rgba(15,23,42,0.04)]"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={siteSettings.logoUrl || "/logo.png"}
+                alt={siteSettings.siteName}
+                width="38"
+                height="38"
+                className="block h-9 w-9 object-contain"
+              />
+            </motion.div>
+
+            <span className="truncate text-[1.22rem] font-semibold tracking-[-0.035em] text-slate-950 lg:text-[1.32rem]">
+              {siteSettings.siteName}
+            </span>
+          </Link>
+
+          <nav aria-label="Primary navigation" className="w-full min-w-0 xl:ml-auto xl:w-auto">
+            <div className={desktopMenuShellClass}>
+              {inlineLinks.map((link) => (
+                <motion.div key={link.href} whileHover={hoverMotion} whileTap={tapMotion} className="shrink-0">
+                  <Link
+                    href={link.href}
+                    className={`${desktopMenuItemClass} ${
+                      isActiveNavLink(link.href) ? desktopMenuItemActiveClass : desktopMenuItemIdleClass
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                </motion.div>
+              ))}
+
+              {isAuthenticated ? (
                 <motion.button
                   type="button"
-                  aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
-                  aria-expanded={mobileMenuOpen}
-                  aria-controls="mobile-navigation-menu"
-                  onClick={() => setMobileMenuOpen((value) => !value)}
-                  whileTap={{ scale: 0.96 }}
-                  className={`mobile-menu-trigger inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/80 bg-white/96 text-slate-900 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ${mobileMenuOpen ? "is-open" : ""}`}
+                  whileHover={hoverMotion}
+                  whileTap={tapMotion}
+                  onClick={() => void logout()}
+                  className={`${desktopMenuItemClass} ${desktopMenuItemIdleClass}`}
                 >
-                  <span className="sr-only">Toggle navigation</span>
-                  <span className="mobile-menu-trigger-surface" aria-hidden="true" />
-                  <span className={`mobile-menu-icon ${mobileMenuOpen ? "is-open" : ""}`} aria-hidden="true">
-                    <span className="mobile-menu-line" />
-                    <span className="mobile-menu-line" />
-                    <span className="mobile-menu-line" />
-                  </span>
+                  Logout
                 </motion.button>
-              </div>
-
-              <AnimatePresence initial={false}>
-                {mobileMenuOpen ? (
-                  <motion.div
-                    id="mobile-navigation-menu"
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    transition={{ duration: 0.14, ease: motionEase }}
-                    className="mobile-menu-panel mt-4 overflow-hidden rounded-[28px] p-4"
-                  >
-                    <div className="space-y-2">
-                      {navLinks.map((link) => (
-                        <Link
-                          key={link.href}
-                          href={link.href}
-                          className={`mobile-menu-link flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-medium transition ${
-                            isActiveNavLink(link.href)
-                              ? "mobile-menu-link-active text-white"
-                              : "mobile-menu-link-inactive bg-white/75 text-slate-700"
-                          }`}
-                        >
-                          <span className="mobile-menu-link-label">{link.label}</span>
-                        </Link>
-                      ))}
-                    </div>
-
-                        <div className="mobile-menu-actions mt-4 grid gap-3 border-t border-slate-200/70 pt-4">
-                      <Link
-                        href="/#contact"
-                            className="mobile-menu-action mobile-menu-action-primary inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold text-white"
-                      >
-                        Book Free Demo
-                      </Link>
-
-                      {mobileActions.map((action) => (
-                        <Link
-                          key={action.href}
-                          href={action.href}
-                          className={`mobile-menu-action mobile-menu-action-${action.tone} inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold`}
-                        >
-                          {action.label}
-                        </Link>
-                      ))}
-
-                      {isAuthenticated ? (
-                        <button
-                          type="button"
-                          onClick={() => void logout()}
-                          className="mobile-menu-action mobile-menu-action-neutral inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold"
-                        >
-                          Logout
-                        </button>
-                      ) : null}
-                    </div>
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
-            </>
-          ) : isMobileViewport === false ? (
-            <div className="desktop-nav-row mx-auto flex max-w-7xl items-center justify-between gap-8 px-6 py-5 lg:px-10 lg:py-6">
-              <Link href="/" className="flex shrink-0 items-center gap-3 pr-2 lg:pr-4">
-                <motion.div
-                  whileHover={buttonHover}
-                  whileTap={tapPress}
-                  className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-white shadow-sm"
-                >
-                  <img
-                    src={siteSettings.logoUrl || "/logo.png"}
-                    alt={siteSettings.siteName}
-                    width="36"
-                    height="36"
-                    className="block h-8 w-8 object-contain"
-                  />
-                </motion.div>
-                <span className="inline-flex items-center px-1 py-1 text-[1.35rem] font-semibold tracking-[-0.05em] text-slate-900 sm:text-[1.65rem]">
-                  {siteSettings.siteName}
-                </span>
-              </Link>
-
-              <div className="desktop-nav-main flex min-w-0 flex-1 items-center justify-end gap-6 lg:gap-8">
-                <div className="desktop-nav-links flex min-w-0 flex-1 flex-wrap items-center justify-center gap-2 px-2 lg:px-6">
-                  {navLinks.map((link) => (
-                    <motion.div
-                      key={link.href}
-                      whileHover={buttonHover}
-                      whileTap={tapPress}
-                      className="nav-center-link shrink-0"
-                    >
-                      <Link href={link.href} className={`desktop-nav-link nav-link-pill px-3 py-2.5 text-sm font-medium tracking-[0.02em] text-slate-700 hover:text-slate-900 sm:px-4 lg:px-5 ${isActiveNavLink(link.href) ? "desktop-nav-link-active" : ""}`}>
-                        <span className="nav-text">{link.label}</span>
-                      </Link>
-                    </motion.div>
-                  ))}
-                </div>
-
-                <div className="desktop-nav-actions flex shrink-0 items-center gap-3">
-                  <Link href="/#contact" className="inline-flex shrink-0">
-                    <motion.div
-                      whileHover={buttonHover}
-                      whileTap={tapPress}
-                      className="desktop-nav-action desktop-nav-action-primary flex items-center rounded-full px-4 py-2 text-sm font-medium"
-                    >
-                      Book Free Demo
-                    </motion.div>
-                  </Link>
-
-                  {isAuthenticated ? (
-                    <>
-                      {role === "admin" ? (
-                        <Link href="/admin/dashboard" className="inline-flex shrink-0">
-                          <motion.div
-                            whileHover={buttonHover}
-                            whileTap={tapPress}
-                            className="desktop-nav-action desktop-nav-action-secondary flex items-center rounded-full px-4 py-2 text-sm font-medium"
-                          >
-                            Admin Panel
-                          </motion.div>
-                        </Link>
-                      ) : null}
-                      {role === "student" ? (
-                        <Link href="/student/dashboard" className="inline-flex shrink-0">
-                          <motion.div
-                            whileHover={buttonHover}
-                            whileTap={tapPress}
-                            className="desktop-nav-action desktop-nav-action-secondary flex items-center rounded-full px-4 py-2 text-sm font-medium"
-                          >
-                            Dashboard
-                          </motion.div>
-                        </Link>
-                      ) : null}
-                      <button
-                        type="button"
-                        onClick={() => void logout()}
-                        className="desktop-nav-action desktop-nav-action-secondary flex items-center rounded-full px-4 py-2 text-sm font-medium smooth-hover"
-                      >
-                        Logout
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <Link href="/login?type=student" className="inline-flex shrink-0">
-                        <motion.div
-                          whileHover={buttonHover}
-                          whileTap={tapPress}
-                          className="desktop-nav-action desktop-nav-action-secondary flex items-center rounded-full px-4 py-2 text-sm font-medium"
-                        >
-                          Student Login
-                        </motion.div>
-                      </Link>
-                      <Link href="/login?type=admin" className="inline-flex shrink-0">
-                        <motion.div
-                          whileHover={buttonHover}
-                          whileTap={tapPress}
-                          className="desktop-nav-action desktop-nav-action-secondary flex items-center rounded-full px-4 py-2 text-sm font-medium"
-                        >
-                          Admin Login
-                        </motion.div>
-                      </Link>
-                    </>
-                  )}
-                </div>
-              </div>
+              ) : null}
             </div>
-          ) : null}
+          </nav>
+        </div>
+
+        <div className="px-3 pb-3 pt-3 md:hidden">
+          <div className="flex items-center gap-3 pb-3">
+            <Link href="/" className="flex min-w-0 items-center gap-3">
+              <motion.div
+                whileHover={hoverMotion}
+                whileTap={tapMotion}
+                className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[1.05rem] bg-white/94 shadow-[0_8px_16px_rgba(15,23,42,0.04)]"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={siteSettings.logoUrl || "/logo.png"}
+                  alt={siteSettings.siteName}
+                  width="36"
+                  height="36"
+                  className="block h-8 w-8 object-contain"
+                />
+              </motion.div>
+
+              <span className="truncate text-[1.08rem] font-semibold tracking-[-0.03em] text-slate-950">
+                {siteSettings.siteName}
+              </span>
+            </Link>
+          </div>
+
+          <nav aria-label="Mobile navigation">
+            <div className={mobileMenuShellClass}>
+              {inlineLinks.map((link) => (
+                <motion.div key={link.href} whileHover={hoverMotion} whileTap={tapMotion} className={mobileMenuItemWrapClass}>
+                  <Link
+                    href={link.href}
+                    className={`${mobileMenuItemClass} ${
+                      isActiveNavLink(link.href) ? mobileMenuItemActiveClass : mobileMenuItemIdleClass
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                </motion.div>
+              ))}
+
+              {isAuthenticated ? (
+                <motion.button
+                  type="button"
+                  whileHover={hoverMotion}
+                  whileTap={tapMotion}
+                  onClick={() => void logout()}
+                  className={`${mobileMenuItemWrapClass} ${mobileMenuItemClass} ${mobileMenuItemIdleClass}`}
+                >
+                  Logout
+                </motion.button>
+              ) : null}
+            </div>
+          </nav>
         </div>
       </div>
-    </motion.nav>
+    </motion.header>
   );
 }
-

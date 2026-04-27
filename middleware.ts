@@ -9,7 +9,8 @@ export async function middleware(request: NextRequest) {
 
   const isApiRoute = pathname.startsWith("/api/");
   const isAuthApiRoute = pathname.startsWith("/api/auth/");
-  const isProtectedApiRoute = isApiRoute && !isAuthApiRoute;
+  const isPublicResourceDownloadRoute = /^\/api\/(notes|materials)\/[^/]+\/download$/.test(pathname);
+  const isProtectedApiRoute = isApiRoute && !isAuthApiRoute && !isPublicResourceDownloadRoute;
 
   const isAdminRoute = pathname.startsWith("/admin");
   const isStudentRoute = pathname.startsWith("/student");

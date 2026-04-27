@@ -16,7 +16,7 @@ export default function QuickLinks() {
         {items.map((item) => (
           <motion.div
             key={item.href}
-            whileHover={{ scale: 1.03, y: -1 }}
+            whileHover={{ scale: 1, y: 0 }}
             whileTap={{ scale: 0.98 }}
           >
             <Link 

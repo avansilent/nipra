@@ -1,3 +1,6 @@
+export { default } from "./StudentPortal";
+/*
+
 "use client";
 
 import Link from "next/link";
@@ -387,3 +390,4 @@ export default function StudentDashboard() {
     </section>
   );
 }
+*/

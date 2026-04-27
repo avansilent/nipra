@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseRouteClient } from "../../../../../lib/supabase/route";
 import { createSupabaseServiceClient } from "../../../../../lib/supabase/service";
+import { normalizeResourceVisibility } from "../../../../../lib/resourceVisibility";
 
 const toSafeFileName = (name: string) =>
   name
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const courseId = String(formData.get("courseId") ?? "").trim();
     const noteTitle = String(formData.get("title") ?? "").trim();
+    const visibility = normalizeResourceVisibility(String(formData.get("visibility") ?? ""));
     const file = formData.get("file");
 
     if (!courseId) {
@@ -100,8 +102,9 @@ export async function POST(request: Request) {
         institute_id: instituteId,
         title: noteTitle || file.name,
         file_url: storagePath,
+        visibility,
       })
-      .select("id, title, course_id, file_url")
+      .select("id, title, course_id, file_url, visibility")
       .single();
 
     if (insertError) {

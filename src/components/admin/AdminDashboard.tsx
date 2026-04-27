@@ -1,3 +1,6 @@
+export { default } from "./AdminWorkspace";
+/*
+
 "use client";
 
 import Link from "next/link";
@@ -89,7 +92,7 @@ const inputClass =
   "w-full rounded-[24px] bg-white px-4 py-3 text-sm text-slate-900 outline-none shadow-[0_10px_26px_rgba(15,23,42,0.05)] transition focus:shadow-[0_0_0_4px_rgba(226,232,240,0.8),0_18px_36px_rgba(15,23,42,0.08)]";
 const labelClass = "mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500";
 const secondaryButtonClass =
-  "rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-900 shadow-[0_14px_30px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_38px_rgba(15,23,42,0.11)]";
+  "rounded-full bg-white px-4 py-2.5 text-[0.92rem] font-semibold text-slate-900 shadow-[0_14px_30px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_38px_rgba(15,23,42,0.11)] sm:px-5 sm:py-3 sm:text-sm";
 const subtleButtonClass =
   "rounded-full bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.06)] transition hover:-translate-y-0.5";
 const dangerButtonClass =
@@ -660,7 +663,7 @@ export default function AdminDashboard() {
               </div>
               <div className="admin-mobile-hero-actions flex flex-wrap gap-3">
                 <button type="button" onClick={() => void loadDashboard()} className={secondaryButtonClass}>Refresh</button>
-                <button type="button" onClick={() => void logout()} className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(15,23,42,0.14)] transition hover:-translate-y-0.5 hover:bg-slate-800">Logout</button>
+                <button type="button" onClick={() => void logout()} className="rounded-full bg-slate-900 px-4 py-2.5 text-[0.92rem] font-semibold text-white shadow-[0_14px_30px_rgba(15,23,42,0.14)] transition hover:-translate-y-0.5 hover:bg-slate-800 sm:px-5 sm:py-3 sm:text-sm">Logout</button>
               </div>
             </div>
             <div className="admin-mobile-overview-grid grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -827,3 +830,4 @@ export default function AdminDashboard() {
     </section>
   );
 }
+*/

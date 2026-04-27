@@ -54,10 +54,12 @@ export default function LandingPage({ content = defaultHomeContent }: LandingPag
 
   return (
     <>
+      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
       <link
         href="https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap"
         rel="stylesheet"
       />
+      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
       <link
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         rel="stylesheet"
@@ -147,6 +149,7 @@ export default function LandingPage({ content = defaultHomeContent }: LandingPag
               </div>
 
               <div className="flex-1 flex justify-center md:justify-end w-full md:w-auto">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   alt="Students collaborating"
                   className="w-full max-w-sm sm:max-w-md h-auto object-cover rounded-3xl border border-white/20 dark:border-white/10 shadow-[0_18px_44px_rgba(79,70,229,0.12)] sm:shadow-2xl sm:shadow-indigo-500/20"

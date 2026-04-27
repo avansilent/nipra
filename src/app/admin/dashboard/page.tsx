@@ -1,1 +1,1 @@
-export { default } from "../../../components/admin/AdminDashboard";
+export { default } from "../../../components/admin/AdminWorkspace";
