@@ -184,23 +184,23 @@ const emptyAnnouncementForm = (): AnnouncementFormState => ({
 });
 
 const inputClass =
-  "w-full rounded-[20px] border border-stone-200/80 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-stone-300 focus:shadow-[0_0_0_4px_rgba(231,226,219,0.7)]";
+  "w-full rounded-[22px] bg-[#f8fafd] px-4 py-3 text-sm text-slate-900 outline-none shadow-[0_10px_24px_rgba(226,232,240,0.8)] transition duration-300 focus:bg-white focus:shadow-[0_0_0_4px_rgba(186,230,253,0.55),0_14px_28px_rgba(226,232,240,0.9)]";
 const textareaClass = `${inputClass} min-h-[120px] resize-y`;
 const labelClass = "mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500";
 const hintClass = "mt-2 text-xs text-slate-500";
 const primaryButtonClass =
-  "inline-flex items-center justify-center rounded-full bg-[linear-gradient(180deg,rgba(27,32,40,1),rgba(56,65,76,1))] px-4 py-2.5 text-[0.92rem] font-semibold text-white shadow-[0_18px_38px_rgba(20,24,32,0.18)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(20,24,32,0.22)] disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:py-3 sm:text-sm";
+  "inline-flex items-center justify-center rounded-[1.45rem] bg-sky-600 px-4 py-2.5 text-[0.92rem] font-semibold text-white shadow-[0_14px_30px_rgba(56,189,248,0.24)] transition duration-300 hover:-translate-y-0.5 hover:bg-sky-700 hover:shadow-[0_18px_36px_rgba(56,189,248,0.3)] disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:py-3 sm:text-sm";
 const secondaryButtonClass =
-  "inline-flex items-center justify-center rounded-full border border-stone-200/80 bg-white px-4 py-2.5 text-[0.92rem] font-semibold text-slate-800 shadow-[0_12px_28px_rgba(36,32,28,0.06)] transition hover:-translate-y-0.5 hover:border-stone-300 disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:py-3 sm:text-sm";
+  "inline-flex items-center justify-center rounded-[1.45rem] bg-[#f6f8fb] px-4 py-2.5 text-[0.92rem] font-semibold text-slate-900 shadow-[0_10px_22px_rgba(226,232,240,0.84)] transition duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_14px_28px_rgba(226,232,240,0.92)] disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:py-3 sm:text-sm";
 const subtleButtonClass =
-  "inline-flex items-center justify-center rounded-full bg-stone-100 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex items-center justify-center rounded-[1.35rem] bg-[#f3f6fb] px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-[0_8px_18px_rgba(226,232,240,0.72)] transition duration-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-60";
 const dangerButtonClass =
-  "inline-flex items-center justify-center rounded-full border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60";
-const tableShellClass = "overflow-hidden rounded-[24px] border border-stone-200/70 bg-white/94";
+  "inline-flex items-center justify-center rounded-[1.35rem] bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 shadow-[0_10px_22px_rgba(252,165,165,0.16)] transition duration-300 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60";
+const tableShellClass = "overflow-hidden rounded-[26px] bg-white/95 shadow-[0_16px_34px_rgba(226,232,240,0.9)]";
 const tableHeaderCellClass = "px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500";
 const tableCellClass = "px-4 py-4 align-top text-sm text-slate-600";
 const nestedCardClass =
-  "rounded-[22px] border border-stone-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,245,241,0.96))] p-4 shadow-[0_12px_28px_rgba(36,32,28,0.04)]";
+  "rounded-[24px] bg-white/92 p-4 shadow-[0_14px_30px_rgba(226,232,240,0.86)]";
 
 const withTimeout = async <T,>(promise: Promise<T> | PromiseLike<T>, ms = 8000): Promise<T> => {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -263,7 +263,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 
 function EmptyState({ title, description }: { title: string; description: string }) {
   return (
-    <div className="rounded-[22px] border border-dashed border-stone-300/80 bg-stone-50/70 px-4 py-5 text-sm text-slate-600">
+    <div className="rounded-[22px] bg-[#f6f8fb] px-4 py-5 text-sm text-slate-600 shadow-[0_10px_22px_rgba(226,232,240,0.72)]">
       <p className="font-semibold text-slate-900">{title}</p>
       <p className="mt-1 leading-6">{description}</p>
     </div>
@@ -278,7 +278,7 @@ function StatusBadge({
   tone?: "neutral" | "success" | "warning" | "danger";
 }) {
   const toneClass = {
-    neutral: "bg-stone-100 text-slate-700",
+    neutral: "bg-stone-100 text-slate-900",
     success: "bg-emerald-50 text-emerald-700",
     warning: "bg-amber-50 text-amber-700",
     danger: "bg-rose-50 text-rose-700",
@@ -974,7 +974,7 @@ export default function AdminWorkspace() {
 
     const formState = kind === "note" ? noteForm : materialForm;
     if (!formState.courseId || !formState.file) {
-      setError("Select a course and a PDF file before uploading.");
+      setError(kind === "note" ? "Select a course and a PDF file before uploading." : "Select a course and a file before uploading.");
       return;
     }
 
@@ -1006,7 +1006,7 @@ export default function AdminWorkspace() {
         setMaterialPickerKey((prev) => prev + 1);
       }
 
-      setMessage(kind === "note" ? "Note uploaded." : "Book uploaded.");
+      setMessage(kind === "note" ? "Note uploaded." : "File uploaded.");
       await loadOperationalData(instituteId);
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : `Unable to upload ${kind}`);
@@ -1357,7 +1357,7 @@ export default function AdminWorkspace() {
         <div className="pointer-events-none absolute left-0 top-10 h-44 w-44 rounded-full bg-stone-200/50 blur-3xl" />
         <div className="pointer-events-none absolute right-0 top-20 h-52 w-52 rounded-full bg-slate-200/40 blur-3xl" />
         <div className="mx-auto max-w-7xl animate-pulse space-y-5">
-          <div className="rounded-[32px] border border-stone-200/70 bg-white/90 p-6 shadow-[0_24px_64px_rgba(36,32,28,0.08)]">
+          <div className="rounded-[32px] bg-white/92 p-6 shadow-[0_24px_64px_rgba(226,232,240,0.9)]">
             <div className="h-4 w-28 rounded-full bg-stone-200" />
             <div className="mt-4 h-10 w-3/4 rounded-full bg-stone-200" />
             <div className="mt-4 h-4 w-full rounded-full bg-stone-200" />
@@ -1380,7 +1380,7 @@ export default function AdminWorkspace() {
   if (role !== "admin") {
     return (
       <section className="relative w-full px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-        <div className="mx-auto max-w-3xl rounded-[32px] border border-stone-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,243,238,0.96))] p-8 shadow-[0_24px_60px_rgba(36,32,28,0.08)]">
+        <div className="mx-auto max-w-3xl rounded-[32px] bg-white/92 p-8 shadow-[0_24px_60px_rgba(226,232,240,0.9)]">
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-stone-500">Restricted Area</p>
           <h1 className="mt-4 text-3xl font-semibold tracking-[-0.05em] text-slate-950">Admin access required</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
@@ -1406,18 +1406,18 @@ export default function AdminWorkspace() {
       <div className="pointer-events-none absolute bottom-8 left-1/3 h-56 w-56 rounded-full bg-stone-100/70 blur-3xl" />
 
       <div className="mx-auto max-w-7xl space-y-5">
-        <div className="overflow-hidden rounded-[34px] border border-stone-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(245,241,236,0.96))] p-6 shadow-[0_28px_80px_rgba(36,32,28,0.08)] sm:p-7">
+        <div className="overflow-hidden rounded-[36px] bg-white/94 p-6 shadow-[0_28px_80px_rgba(226,232,240,0.94)] sm:p-7">
           <div className="grid gap-6 xl:grid-cols-[1.45fr_0.85fr] xl:items-end">
             <div>
               <div className="flex flex-wrap items-center gap-3">
-                <span className="rounded-full bg-slate-900 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white">
+                <span className="rounded-full bg-sky-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">
                   System Admin Workspace
                 </span>
-                <span className="rounded-full border border-stone-200/80 bg-white/86 px-3 py-1 text-xs font-medium text-slate-600">
+                <span className="rounded-full bg-[#f6f8fb] px-3 py-1 text-xs font-medium text-slate-600 shadow-[0_8px_18px_rgba(226,232,240,0.76)]">
                   {busy ? "Syncing live data" : "Live institute data"}
                 </span>
               </div>
-              <h1 className="mt-5 max-w-4xl text-3xl font-semibold tracking-[-0.06em] text-slate-950 sm:text-4xl lg:text-[3.2rem]">
+              <h1 className="mt-5 max-w-4xl text-3xl font-semibold tracking-[-0.06em] text-slate-700 sm:text-4xl lg:text-[3.2rem]">
                 Industrial-grade control for students, academics, resources, and website publishing.
               </h1>
               <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">
@@ -1433,7 +1433,7 @@ export default function AdminWorkspace() {
               </div>
             </div>
 
-            <div className="rounded-[28px] border border-stone-200/80 bg-white/84 p-5 shadow-[0_18px_40px_rgba(36,32,28,0.05)]">
+            <div className="rounded-[28px] bg-[#f8fafd] p-5 shadow-[0_18px_40px_rgba(226,232,240,0.9)]">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Executive Snapshot</p>
               <div className="mt-4 space-y-4 text-sm text-slate-600">
                 <div className="flex items-start justify-between gap-4">
@@ -1469,7 +1469,7 @@ export default function AdminWorkspace() {
         </div>
 
         {error || message ? (
-          <div className={`rounded-[24px] border px-5 py-4 text-sm shadow-[0_14px_32px_rgba(36,32,28,0.05)] ${error ? "border-rose-200 bg-rose-50/90 text-rose-700" : "border-emerald-200 bg-emerald-50/90 text-emerald-700"}`}>
+          <div className={`rounded-[24px] px-5 py-4 text-sm shadow-[0_14px_32px_rgba(226,232,240,0.88)] ${error ? "bg-rose-50/90 text-rose-700" : "bg-emerald-50/90 text-emerald-700"}`}>
             {error ? error : message}
           </div>
         ) : null}
@@ -1518,7 +1518,7 @@ export default function AdminWorkspace() {
                         key={module.title}
                         type="button"
                         onClick={() => setActiveTab(module.tab)}
-                        className="rounded-[24px] border border-stone-200/70 bg-white/92 p-5 text-left shadow-[0_14px_34px_rgba(36,32,28,0.05)] transition hover:-translate-y-0.5 hover:border-stone-300"
+                        className="rounded-[24px] bg-white/92 p-5 text-left shadow-[0_14px_34px_rgba(226,232,240,0.88)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(226,232,240,0.96)]"
                       >
                         <div className="flex items-center justify-between gap-4">
                           <p className="text-lg font-semibold tracking-[-0.03em] text-slate-950">{module.title}</p>
@@ -1646,7 +1646,7 @@ export default function AdminWorkspace() {
                       <div className={nestedCardClass}>
                         <p className="text-sm font-semibold text-slate-900">Bulk upload CSV</p>
                         <p className="mt-2 text-sm leading-6 text-slate-600">Required headers: name, email, loginId, password.</p>
-                        <label className="mt-4 inline-flex cursor-pointer items-center justify-center rounded-full border border-stone-200/80 bg-white px-5 py-3 text-sm font-semibold text-slate-800 shadow-[0_12px_28px_rgba(36,32,28,0.06)] transition hover:-translate-y-0.5 hover:border-stone-300">
+                        <label className="mt-4 inline-flex cursor-pointer items-center justify-center rounded-[1.45rem] bg-[#f6f8fb] px-5 py-3 text-sm font-semibold text-slate-700 shadow-[0_12px_28px_rgba(226,232,240,0.88)] transition duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_16px_34px_rgba(226,232,240,0.96)]">
                           Upload Student CSV
                           <input type="file" accept=".csv,text/csv" className="hidden" onChange={handleBulkUpload} />
                         </label>
@@ -1688,8 +1688,8 @@ export default function AdminWorkspace() {
 
                   <div className={`mt-5 ${tableShellClass}`}>
                     <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-stone-200/70 text-sm">
-                        <thead className="bg-stone-50/90">
+                      <table className="min-w-full text-sm">
+                        <thead className="bg-[#f7f9fc]">
                           <tr>
                             <th className={tableHeaderCellClass}>Student</th>
                             <th className={tableHeaderCellClass}>Email</th>
@@ -1698,9 +1698,9 @@ export default function AdminWorkspace() {
                             <th className={`${tableHeaderCellClass} text-right`}>Actions</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-stone-200/70 bg-white">
+                        <tbody className="bg-white/94">
                           {filteredStudents.map((student) => (
-                            <tr key={student.id} className="hover:bg-stone-50/70">
+                            <tr key={student.id} className="hover:bg-[#f7f9fc]">
                               <td className={tableCellClass}>
                                 <p className="font-semibold text-slate-900">{student.name}</p>
                                 <p className="mt-1 text-xs text-slate-500">Student account</p>
@@ -1903,20 +1903,20 @@ export default function AdminWorkspace() {
                     </div>
                   </AdminPanelCard>
 
-                  <AdminPanelCard eyebrow="Books Upload" title="Publish books and reference PDFs" description="Use this for books, worksheets, solved papers, or reference PDFs and decide whether they appear publicly or stay inside the portal.">
+                  <AdminPanelCard eyebrow="Books Upload" title="Publish books and reference files" description="Use this for books, worksheets, solved papers, or any study file and decide whether it appears publicly or stays inside the portal.">
                     <div className="grid gap-4">
                       <Field label="Course"><select className={inputClass} value={materialForm.courseId} onChange={(event) => setMaterialForm((prev) => ({ ...prev, courseId: event.target.value }))}><option value="">Select course</option>{courses.map((course) => (<option key={course.id} value={course.id}>{course.title}</option>))}</select></Field>
                       <Field label="Book title"><input className={inputClass} value={materialForm.title} onChange={(event) => setMaterialForm((prev) => ({ ...prev, title: event.target.value }))} placeholder="Biology Quick Reference" /></Field>
                       <Field label="Visible in"><select className={inputClass} value={materialForm.visibility} onChange={(event) => setMaterialForm((prev) => ({ ...prev, visibility: event.target.value as ResourceVisibility }))}><option value="student">Student portal only</option><option value="public">Public books page</option></select></Field>
-                      <Field label="PDF file" hint={materialForm.file ? materialForm.file.name : "Select a PDF file for secure delivery."}>
+                      <Field label="File" hint={materialForm.file ? materialForm.file.name : "Select any study file for upload and delivery."}>
                         <label className={`${secondaryButtonClass} w-full cursor-pointer`}>
-                          Choose Book PDF
-                          <input key={materialPickerKey} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(event) => setMaterialForm((prev) => ({ ...prev, file: event.target.files?.[0] ?? null }))} />
+                          Choose File
+                          <input key={materialPickerKey} type="file" className="hidden" onChange={(event) => setMaterialForm((prev) => ({ ...prev, file: event.target.files?.[0] ?? null }))} />
                         </label>
                       </Field>
                     </div>
                     <div className="mt-5 flex flex-wrap gap-3">
-                      <button type="button" onClick={() => void handleResourceUpload("material")} className={primaryButtonClass} disabled={busy}>Upload Book</button>
+                      <button type="button" onClick={() => void handleResourceUpload("material")} className={primaryButtonClass} disabled={busy}>Upload File</button>
                       <button type="button" onClick={() => { setMaterialForm(emptyResourceForm()); setMaterialPickerKey((prev) => prev + 1); }} className={subtleButtonClass}>Clear</button>
                     </div>
                   </AdminPanelCard>

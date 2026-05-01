@@ -1,39 +1,42 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "../../lib/supabase/browser";
+import { DEFAULT_LOGO_SRC } from "../../lib/branding";
 import { useAuth } from "../AuthProvider";
 
 const loginShellClassName =
   "relative overflow-hidden bg-[#f5f5f7] px-4 py-8 sm:px-6 sm:py-10 lg:flex lg:min-h-[calc(100svh-4rem)] lg:items-center lg:px-8";
 const loginViewportClassName = "mx-auto w-full max-w-6xl";
-const loginLayoutClassName = "grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(24rem,26rem)] lg:items-center lg:gap-14";
+const loginLayoutClassName = "grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(22.75rem,24.5rem)] lg:items-center lg:gap-16";
 const loginInfoPanelClassName = "order-2 space-y-8 text-center lg:order-1 lg:max-w-2xl lg:text-left";
 const loginInfoPillClassName =
-  "inline-flex items-center rounded-full bg-white/70 px-4 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-slate-500 shadow-[0_12px_26px_rgba(15,23,42,0.04)] backdrop-blur-sm";
-const loginInfoFeatureGridClassName = "grid gap-3 sm:grid-cols-3";
+  "inline-flex items-center rounded-full bg-white/74 px-4 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-slate-500 backdrop-blur-sm";
+const loginInfoFeatureGridClassName = "space-y-4";
 const loginInfoFeatureCardClassName =
-  "rounded-[1.4rem] bg-white/72 px-5 py-4 text-left shadow-[0_16px_34px_rgba(15,23,42,0.05)] backdrop-blur-sm transition-[transform,box-shadow,background-color] duration-300 hover:-translate-y-1 hover:bg-white hover:shadow-[0_22px_44px_rgba(15,23,42,0.08)]";
+  "group flex items-start gap-4 py-1 text-left transition-[transform,opacity] duration-300 hover:translate-x-1";
 const loginCardClassName =
-  "order-1 mx-auto w-full max-w-[25.5rem] rounded-[2rem] bg-white/84 p-6 shadow-[0_24px_70px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.72)] backdrop-blur-xl transition-[transform,box-shadow,background-color] duration-500 hover:-translate-y-1 hover:bg-white/92 hover:shadow-[0_32px_90px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.9)] sm:p-8 lg:order-2";
+  "order-1 mx-auto w-full max-w-[24rem] rounded-[3.2rem] bg-white/96 p-6 shadow-[0_14px_38px_rgba(241,245,249,0.96)] transition-[transform,box-shadow] duration-500 hover:-translate-y-0.5 hover:shadow-[0_18px_46px_rgba(241,245,249,0.98)] sm:p-8 lg:order-2";
 const loginBrandMarkClassName =
-  "flex h-11 w-11 items-center justify-center rounded-[1.15rem] bg-sky-50/80 text-sm font-semibold text-sky-700 shadow-[0_10px_24px_rgba(14,165,233,0.1)]";
+  "flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[1.15rem] bg-white/94 shadow-[0_8px_18px_rgba(226,232,240,0.92)]";
 const loginSegmentedControlClassName =
-  "grid grid-cols-2 gap-1 rounded-[1.15rem] bg-[#f7f7f8]/92 p-1 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.035)]";
+  "grid grid-cols-2 gap-2 rounded-[2.1rem] bg-[#fafbfd] p-1.5";
 const loginSegmentTabClassName =
-  "inline-flex min-h-11 items-center justify-center rounded-[0.95rem] px-4 text-sm font-medium transition-[background-color,color,box-shadow,border-color,transform] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
+  "inline-flex min-h-12 items-center justify-center rounded-full px-4 text-sm font-medium transition-[background-color,color,box-shadow,transform] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-100 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
 const loginInputClassName =
-  "w-full rounded-[1.1rem] bg-[#f7f7f8] px-4 py-3.5 text-[15px] text-slate-950 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.035),0_10px_24px_rgba(15,23,42,0.02)] outline-none transition-[box-shadow,background-color,transform] duration-300 placeholder:text-slate-400 hover:bg-white hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.05),0_14px_30px_rgba(15,23,42,0.04)] focus:bg-white focus:shadow-[inset_0_0_0_1px_rgba(125,211,252,0.9),0_0_0_4px_rgba(14,165,233,0.08),0_16px_34px_rgba(15,23,42,0.05)]";
-const loginCheckboxClassName =
-  "h-4 w-4 rounded border-slate-300/90 text-sky-600 focus:ring-2 focus:ring-sky-200 focus:ring-offset-0";
+  "w-full min-h-12 appearance-none rounded-full border-0 bg-[#fbfcfe] px-4 py-3 text-[15px] text-slate-600 shadow-[0_4px_12px_rgba(241,245,249,0.98)] outline-none transition-[box-shadow,background-color,transform] duration-300 placeholder:text-slate-400 hover:bg-white hover:shadow-[0_8px_18px_rgba(241,245,249,0.98)] focus:bg-white focus:shadow-[0_0_0_4px_rgba(14,165,233,0.06),0_10px_22px_rgba(224,242,254,0.92)]";
+const loginCheckboxInputClassName = "peer sr-only";
+const loginCheckboxControlClassName =
+  "flex h-5 w-5 items-center justify-center rounded-[0.95rem] bg-[#fafbfd] shadow-[0_6px_14px_rgba(241,245,249,0.96)] transition-[background-color,box-shadow,transform] duration-300 peer-checked:bg-sky-500 peer-checked:shadow-[0_10px_20px_rgba(56,189,248,0.2)] peer-focus-visible:ring-2 peer-focus-visible:ring-sky-100 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-white";
 const loginPrimaryButtonClassName =
-  "inline-flex min-h-12 w-full items-center justify-center rounded-[1.1rem] bg-sky-600 px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(2,132,199,0.16)] transition-[background-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:bg-sky-700 hover:shadow-[0_18px_34px_rgba(2,132,199,0.2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:bg-sky-400 disabled:shadow-none";
+  "inline-flex min-h-12 w-full items-center justify-center rounded-full bg-sky-500 px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(56,189,248,0.22)] transition-[background-color,box-shadow,transform] duration-300 hover:-translate-y-0.5 hover:bg-sky-600 hover:shadow-[0_14px_28px_rgba(56,189,248,0.26)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-100 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:bg-sky-300 disabled:shadow-none";
 const loginSecondaryActionClassName =
-  "text-sm font-medium text-sky-700 transition-[color,transform] duration-200 hover:translate-x-0.5 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
+  "text-sm font-medium text-sky-700 transition-[color,transform] duration-300 hover:translate-x-0.5 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
 const loginMessageClassName =
-  "rounded-[1.1rem] bg-rose-50/85 px-4 py-3 text-sm leading-6 text-rose-700 shadow-[inset_0_0_0_1px_rgba(251,191,191,0.55)]";
+  "rounded-[1.7rem] bg-rose-50/88 px-4 py-3 text-sm leading-6 text-rose-700 shadow-[0_8px_18px_rgba(254,205,211,0.4)]";
 
 const normalizeRole = (role?: string | null): "admin" | "student" | null => {
   if (role === "admin" || role === "student") {
@@ -418,7 +421,7 @@ function LoginContent() {
 
               <div className="flex items-center justify-center gap-3 text-left lg:justify-start">
                 <div className={loginBrandMarkClassName} aria-hidden="true">
-                  N
+                  <Image src={DEFAULT_LOGO_SRC} alt="" width={40} height={40} className="h-10 w-10 object-contain" />
                 </div>
                 <div>
                   <p className="text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-slate-500">Nipracademy</p>
@@ -427,7 +430,7 @@ function LoginContent() {
               </div>
 
               <div className="space-y-4">
-                <h1 className="text-[clamp(2.35rem,5vw,4.5rem)] font-semibold leading-[0.95] tracking-[-0.06em] text-slate-950">
+                <h1 className="text-[clamp(2.35rem,5vw,4.5rem)] font-semibold leading-[0.95] tracking-[-0.06em] text-slate-600">
                   Clean learning access for students and institutes.
                 </h1>
                 <p className="max-w-2xl text-[1rem] leading-8 text-slate-600">{websiteDescription}</p>
@@ -438,8 +441,11 @@ function LoginContent() {
             <div className={loginInfoFeatureGridClassName}>
               {websiteHighlights.map((item) => (
                 <div key={item.title} className={loginInfoFeatureCardClassName}>
-                  <p className="text-sm font-semibold tracking-[-0.02em] text-slate-950">{item.title}</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">{item.copy}</p>
+                  <span className="mt-2 h-2.5 w-2.5 rounded-full bg-sky-400/75" aria-hidden="true" />
+                  <div>
+                    <p className="text-sm font-semibold tracking-[-0.02em] text-slate-700">{item.title}</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{item.copy}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -449,7 +455,7 @@ function LoginContent() {
             <div className="space-y-8">
               <div className="space-y-3 text-center sm:text-left">
                 <p className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-slate-500">Secure Sign-In</p>
-                <h2 className="text-[clamp(1.9rem,4vw,2.5rem)] font-semibold tracking-[-0.045em] text-slate-950">
+                <h2 className="text-[clamp(1.9rem,4vw,2.5rem)] font-semibold tracking-[-0.045em] text-slate-600">
                   {title}
                 </h2>
                 <p className="text-sm leading-7 text-slate-600 sm:text-[0.95rem]">{supportingText}</p>
@@ -461,8 +467,8 @@ function LoginContent() {
                   aria-current={!isAdminLogin ? "page" : undefined}
                   className={`${loginSegmentTabClassName} ${
                     !isAdminLogin
-                      ? "bg-white text-slate-950 shadow-[0_12px_24px_rgba(15,23,42,0.06)]"
-                      : "text-slate-500 hover:bg-white/80 hover:text-slate-950 hover:shadow-[0_8px_18px_rgba(15,23,42,0.04)]"
+                      ? "bg-white text-slate-600 shadow-[0_4px_10px_rgba(241,245,249,0.98)]"
+                      : "text-slate-400 hover:bg-white/80 hover:text-slate-600 hover:shadow-[0_3px_8px_rgba(241,245,249,0.94)]"
                   }`}
                 >
                   Student
@@ -472,8 +478,8 @@ function LoginContent() {
                   aria-current={isAdminLogin ? "page" : undefined}
                   className={`${loginSegmentTabClassName} ${
                     isAdminLogin
-                      ? "bg-white text-slate-950 shadow-[0_12px_24px_rgba(15,23,42,0.06)]"
-                      : "text-slate-500 hover:bg-white/80 hover:text-slate-950 hover:shadow-[0_8px_18px_rgba(15,23,42,0.04)]"
+                      ? "bg-white text-slate-600 shadow-[0_4px_10px_rgba(241,245,249,0.98)]"
+                      : "text-slate-400 hover:bg-white/80 hover:text-slate-600 hover:shadow-[0_3px_8px_rgba(241,245,249,0.94)]"
                   }`}
                 >
                   Admin
@@ -481,9 +487,9 @@ function LoginContent() {
               </nav>
 
               <form onSubmit={handleSubmit} autoComplete={rememberMe ? "on" : "off"} aria-busy={loading} className="space-y-5">
-                <fieldset disabled={loading} className="space-y-5 disabled:opacity-100">
+                <fieldset disabled={loading} className="m-0 min-w-0 space-y-5 border-0 p-0 disabled:opacity-100">
                   <div className="space-y-2">
-                    <label htmlFor="identifier" className="text-sm font-medium text-slate-700">
+                    <label htmlFor="identifier" className="text-sm font-medium text-slate-600">
                       {isAdminLogin ? "Admin email or login ID" : "Student email or login ID"}
                     </label>
                     <input
@@ -503,7 +509,7 @@ function LoginContent() {
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="password" className="text-sm font-medium text-slate-700">
+                    <label htmlFor="password" className="text-sm font-medium text-slate-600">
                       Password
                     </label>
                     <input
@@ -521,13 +527,24 @@ function LoginContent() {
 
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <label className="inline-flex items-center gap-3 text-sm text-slate-600">
-                      <input
-                        type="checkbox"
-                        name="remember"
-                        checked={rememberMe}
-                        onChange={(event) => setRememberMe(event.target.checked)}
-                        className={loginCheckboxClassName}
-                      />
+                      <span className="relative flex h-5 w-5 items-center justify-center">
+                        <input
+                          type="checkbox"
+                          name="remember"
+                          checked={rememberMe}
+                          onChange={(event) => setRememberMe(event.target.checked)}
+                          className={loginCheckboxInputClassName}
+                        />
+                        <span className={`${loginCheckboxControlClassName} absolute inset-0`} aria-hidden="true" />
+                        <svg
+                          viewBox="0 0 16 16"
+                          className="pointer-events-none absolute h-3.5 w-3.5 text-white opacity-0 transition-opacity duration-200 peer-checked:opacity-100"
+                          fill="none"
+                          aria-hidden="true"
+                        >
+                          <path d="M4 8.2 6.6 10.8 12 5.4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </span>
                       <span>Remember me</span>
                     </label>
 

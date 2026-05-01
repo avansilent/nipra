@@ -57,15 +57,15 @@ type AnnouncementRow = {
 type TimelineFilter = "all" | "upcoming" | "completed" | "missed";
 
 const shellSurfaceClass =
-  "rounded-[30px] border border-stone-200/70 bg-white/96 p-5 shadow-[0_22px_56px_rgba(36,32,28,0.06)] sm:p-6";
+  "rounded-[32px] bg-white/94 p-5 shadow-[0_20px_52px_rgba(226,232,240,0.9)] sm:p-6";
 const softCardClass =
-  "rounded-[22px] border border-stone-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,245,241,0.96))] p-4 shadow-[0_12px_28px_rgba(36,32,28,0.04)]";
+  "rounded-[24px] bg-white/92 p-4 shadow-[0_14px_30px_rgba(226,232,240,0.86)]";
 const actionCardClass =
-  "rounded-[22px] border border-stone-200/70 bg-white/92 p-4 shadow-[0_12px_28px_rgba(36,32,28,0.04)] transition hover:-translate-y-0.5 hover:border-stone-300";
+  "rounded-[24px] bg-white/92 p-4 shadow-[0_14px_30px_rgba(226,232,240,0.86)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(226,232,240,0.94)]";
 const primaryButtonClass =
-  "inline-flex items-center justify-center rounded-full bg-[linear-gradient(180deg,rgba(27,32,40,1),rgba(56,65,76,1))] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_16px_34px_rgba(20,24,32,0.16)] transition hover:-translate-y-0.5";
+  "inline-flex items-center justify-center rounded-[1.4rem] bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(56,189,248,0.24)] transition duration-300 hover:-translate-y-0.5 hover:bg-sky-700 hover:shadow-[0_18px_34px_rgba(56,189,248,0.3)]";
 const secondaryButtonClass =
-  "inline-flex items-center justify-center rounded-full border border-stone-200/80 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-[0_10px_24px_rgba(36,32,28,0.05)] transition hover:-translate-y-0.5 hover:border-stone-300";
+  "inline-flex items-center justify-center rounded-[1.4rem] bg-[#f6f8fb] px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-[0_10px_22px_rgba(226,232,240,0.84)] transition duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_14px_28px_rgba(226,232,240,0.92)]";
 
 function formatDate(value?: string | null) {
   if (!value) {
@@ -109,7 +109,7 @@ function StatusBadge({
   tone?: "neutral" | "success" | "warning" | "danger";
 }) {
   const toneClass = {
-    neutral: "bg-stone-100 text-slate-700",
+    neutral: "bg-[#f4f6fa] text-slate-600",
     success: "bg-emerald-50 text-emerald-700",
     warning: "bg-amber-50 text-amber-700",
     danger: "bg-rose-50 text-rose-700",
@@ -133,7 +133,7 @@ function PortalSection({
     <section className={shellSurfaceClass}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">{title}</h2>
+          <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-700">{title}</h2>
           {description ? <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p> : null}
         </div>
         {action ? <div className="shrink-0">{action}</div> : null}
@@ -145,9 +145,9 @@ function PortalSection({
 
 function MetricCard({ label, value, helper }: { label: string; value: string | number; helper: string }) {
   return (
-    <div className="rounded-[24px] border border-stone-200/70 bg-white/94 p-4 shadow-[0_12px_28px_rgba(36,32,28,0.04)]">
+    <div className="rounded-[24px] bg-white/92 p-4 shadow-[0_14px_30px_rgba(226,232,240,0.88)]">
       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">{label}</p>
-      <p className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-slate-950">{value}</p>
+      <p className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-slate-700">{value}</p>
       <p className="mt-2 text-sm leading-6 text-slate-600">{helper}</p>
     </div>
   );
@@ -155,8 +155,8 @@ function MetricCard({ label, value, helper }: { label: string; value: string | n
 
 function EmptyState({ title, description }: { title: string; description: string }) {
   return (
-    <div className="rounded-[22px] border border-dashed border-stone-300/80 bg-stone-50/70 px-4 py-5 text-sm text-slate-600">
-      <p className="font-semibold text-slate-900">{title}</p>
+    <div className="rounded-[22px] bg-[#f6f8fb] px-4 py-5 text-sm text-slate-600 shadow-[0_10px_24px_rgba(226,232,240,0.72)]">
+      <p className="font-semibold text-slate-700">{title}</p>
       <p className="mt-1 leading-6">{description}</p>
     </div>
   );
@@ -453,7 +453,7 @@ export default function StudentPortal() {
         <div className="pointer-events-none absolute -top-10 left-0 h-48 w-48 rounded-full bg-stone-200/45 blur-3xl" />
         <div className="pointer-events-none absolute right-0 top-20 h-56 w-56 rounded-full bg-slate-200/35 blur-3xl" />
         <div className="space-y-5 animate-pulse">
-          <div className="rounded-[32px] border border-stone-200/70 bg-white/92 p-6 shadow-[0_24px_60px_rgba(36,32,28,0.08)]">
+          <div className="rounded-[32px] bg-white/92 p-6 shadow-[0_24px_60px_rgba(226,232,240,0.88)]">
             <div className="h-4 w-28 rounded-full bg-stone-200" />
             <div className="mt-4 h-10 w-2/3 rounded-full bg-stone-200" />
             <div className="mt-4 h-4 w-full rounded-full bg-stone-200" />
@@ -476,7 +476,7 @@ export default function StudentPortal() {
   if (!user || role !== "student") {
     return (
       <section className="relative mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-        <div className="rounded-[32px] border border-stone-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,243,238,0.96))] p-8 shadow-[0_24px_60px_rgba(36,32,28,0.08)]">
+        <div className="rounded-[32px] bg-white/92 p-8 shadow-[0_24px_60px_rgba(226,232,240,0.88)]">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">Student Portal</p>
           <h1 className="mt-4 text-3xl font-semibold tracking-[-0.05em] text-slate-950">Student access required</h1>
           <p className="mt-3 text-base leading-7 text-slate-600">
@@ -499,19 +499,19 @@ export default function StudentPortal() {
 
       <div className="space-y-6">
         {error ? (
-          <div className="rounded-[22px] border border-amber-200 bg-amber-50/90 px-5 py-4 text-sm text-amber-700 shadow-[0_12px_28px_rgba(36,32,28,0.04)]">
+          <div className="rounded-[22px] bg-amber-50/90 px-5 py-4 text-sm text-amber-700 shadow-[0_12px_28px_rgba(253,230,138,0.34)]">
             {error}
           </div>
         ) : null}
 
-        <div className="overflow-hidden rounded-[34px] border border-stone-200/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(245,241,236,0.96))] p-6 shadow-[0_28px_80px_rgba(36,32,28,0.08)] sm:p-7">
+        <div className="overflow-hidden rounded-[36px] bg-white/94 p-6 shadow-[0_28px_80px_rgba(226,232,240,0.92)] sm:p-7">
           <div className="grid gap-6 xl:grid-cols-[1.35fr_0.85fr] xl:items-end">
             <div>
               <div className="flex flex-wrap items-center gap-3">
-                <span className="rounded-full bg-slate-900 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white">Student Portal</span>
+                <span className="rounded-full bg-sky-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">Student Portal</span>
                 <StatusBadge tone="neutral">Live academic feed</StatusBadge>
               </div>
-              <h1 className="mt-5 max-w-4xl text-3xl font-semibold tracking-[-0.06em] text-slate-950 sm:text-4xl lg:text-[3rem]">
+              <h1 className="mt-5 max-w-4xl text-3xl font-semibold tracking-[-0.06em] text-slate-700 sm:text-4xl lg:text-[3rem]">
                 Welcome back, {firstName}. Your study system is clean, focused, and ready.
               </h1>
               <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">
@@ -524,7 +524,7 @@ export default function StudentPortal() {
               </div>
             </div>
 
-            <div className="rounded-[28px] border border-stone-200/80 bg-white/84 p-5 shadow-[0_16px_36px_rgba(36,32,28,0.05)]">
+            <div className="rounded-[28px] bg-[#f8fafd] p-5 shadow-[0_16px_36px_rgba(226,232,240,0.88)]">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Session Overview</p>
               <div className="mt-4 space-y-4 text-sm text-slate-600">
                 <div className="flex items-start justify-between gap-4">
@@ -646,7 +646,7 @@ export default function StudentPortal() {
                     value={resourceQuery}
                     onChange={(event) => setResourceQuery(event.target.value)}
                     placeholder="Search notes or books by name or course"
-                    className="w-full rounded-[20px] border border-stone-200/80 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-stone-300 focus:shadow-[0_0_0_4px_rgba(231,226,219,0.7)]"
+                    className="w-full rounded-[20px] bg-[#f8fafd] px-4 py-3 text-sm text-slate-700 outline-none shadow-[0_10px_24px_rgba(226,232,240,0.78)] transition duration-300 focus:bg-white focus:shadow-[0_0_0_4px_rgba(186,230,253,0.55),0_14px_28px_rgba(226,232,240,0.9)]"
                   />
                 </label>
               </div>
@@ -760,8 +760,8 @@ export default function StudentPortal() {
                           </div>
                           <StatusBadge tone="success">{item.marks}</StatusBadge>
                         </div>
-                        <div className="mt-4 h-2 overflow-hidden rounded-full bg-stone-200">
-                          <div className="h-2 rounded-full bg-[linear-gradient(90deg,rgba(27,32,40,1),rgba(86,96,110,1))] transition-[width] duration-500" style={{ width: `${width}%` }} />
+                        <div className="mt-4 h-2 overflow-hidden rounded-full bg-sky-50">
+                          <div className="h-2 rounded-full bg-sky-500 transition-[width] duration-500" style={{ width: `${width}%` }} />
                         </div>
                       </div>
                     );

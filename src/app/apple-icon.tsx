@@ -1,4 +1,10 @@
+/* eslint-disable @next/next/no-img-element */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { ImageResponse } from "next/og";
+
+const logoMarkPath = join(process.cwd(), "public", "logo 3.jpeg");
+const logoMarkDataUrl = `data:image/jpeg;base64,${readFileSync(logoMarkPath).toString("base64")}`;
 
 export const size = {
   width: 180,
@@ -17,15 +23,11 @@ export default function AppleIcon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(180deg, #6b6258 0%, #867c71 100%)",
-          color: "#ffffff",
+          background: "#ffffff",
           borderRadius: 40,
-          fontSize: 88,
-          fontWeight: 800,
-          letterSpacing: "-0.08em",
         }}
       >
-        N
+        <img src={logoMarkDataUrl} alt="Nipracademy" width={132} height={132} style={{ objectFit: "contain" }} />
       </div>
     ),
     size

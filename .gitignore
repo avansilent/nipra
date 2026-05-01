@@ -17,6 +17,8 @@
 /.next/
 /out/
 /.open-next/
+next-*.log
+next-*.err.log
 
 # production
 /build

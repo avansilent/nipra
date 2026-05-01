@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { DEFAULT_LOGO_SRC } from "../lib/branding";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -11,14 +12,14 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#0f172a",
     icons: [
       {
-        src: "/icon",
+        src: DEFAULT_LOGO_SRC,
         sizes: "512x512",
-        type: "image/png",
+        type: "image/jpeg",
       },
       {
-        src: "/apple-icon",
+        src: DEFAULT_LOGO_SRC,
         sizes: "192x192",
-        type: "image/png",
+        type: "image/jpeg",
       },
     ],
   };

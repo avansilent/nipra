@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -7,6 +8,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "./AuthProvider";
 import { useAdaptiveMotion } from "../hooks/useAdaptiveMotion";
 import { motionEase } from "../lib/motion";
+import { resolveLogoSrc } from "../lib/branding";
 import type { SiteSettings } from "../types/site";
 
 const navLinks = [
@@ -55,6 +57,7 @@ export default function Navbar({ siteSettings }: NavbarProps) {
   const { isAuthenticated, logout, role } = useAuth();
   const pathname = usePathname();
   const { allowEntranceMotion, allowHoverMotion, allowRichMotion } = useAdaptiveMotion();
+  const logoSrc = useMemo(() => resolveLogoSrc(siteSettings.logoUrl), [siteSettings.logoUrl]);
 
   const actionLinks = useMemo<InlineLink[]>(() => {
     if (isAuthenticated) {
@@ -126,14 +129,7 @@ export default function Navbar({ siteSettings }: NavbarProps) {
               whileTap={tapMotion}
               className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[1.15rem] bg-white/94 shadow-[0_8px_18px_rgba(15,23,42,0.04)]"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={siteSettings.logoUrl || "/logo.png"}
-                alt={siteSettings.siteName}
-                width="38"
-                height="38"
-                className="block h-9 w-9 object-contain"
-              />
+              <Image src={logoSrc} alt={siteSettings.siteName} width={40} height={40} className="block h-10 w-10 object-contain" />
             </motion.div>
 
             <span className="truncate text-[1.22rem] font-semibold tracking-[-0.035em] text-slate-950 lg:text-[1.32rem]">
@@ -177,16 +173,9 @@ export default function Navbar({ siteSettings }: NavbarProps) {
               <motion.div
                 whileHover={hoverMotion}
                 whileTap={tapMotion}
-                className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[1.05rem] bg-white/94 shadow-[0_8px_16px_rgba(15,23,42,0.04)]"
+                className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[1.15rem] bg-white/94 shadow-[0_8px_16px_rgba(15,23,42,0.04)]"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={siteSettings.logoUrl || "/logo.png"}
-                  alt={siteSettings.siteName}
-                  width="36"
-                  height="36"
-                  className="block h-8 w-8 object-contain"
-                />
+                <Image src={logoSrc} alt={siteSettings.siteName} width={40} height={40} className="block h-10 w-10 object-contain" />
               </motion.div>
 
               <span className="truncate text-[1.08rem] font-semibold tracking-[-0.03em] text-slate-950">

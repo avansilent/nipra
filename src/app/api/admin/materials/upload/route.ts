@@ -1,43 +1,19 @@
 import { NextResponse } from "next/server";
-import { createSupabaseRouteClient } from "../../../../../lib/supabase/route";
-import { createSupabaseServiceClient } from "../../../../../lib/supabase/service";
 import { normalizeResourceVisibility } from "../../../../../lib/resourceVisibility";
-
-const toSafeFileName = (name: string) =>
-  name
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9.-]/g, "")
-    .replace(/-+/g, "-")
-    .slice(0, 80);
+import {
+  getSafeFileExtension,
+  resolveAdminUploadContext,
+  toSafeFileName,
+} from "../../_shared/upload";
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createSupabaseRouteClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const uploadContext = await resolveAdminUploadContext();
+    if ("error" in uploadContext) {
+      return uploadContext.error;
     }
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role, institute_id")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    const role = profile?.role ?? null;
-    const instituteId = profile?.institute_id ?? null;
-
-    if (role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    if (!instituteId) {
-      return NextResponse.json({ error: "Institute not assigned" }, { status: 403 });
-    }
+    const { instituteId, service } = uploadContext;
 
     const formData = await request.formData();
     const courseId = String(formData.get("courseId") ?? "").trim();
@@ -49,7 +25,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Course is required" }, { status: 400 });
     }
 
-    const { data: course } = await supabase
+    const { data: course } = await service
       .from("courses")
       .select("id")
       .eq("id", courseId)
@@ -61,28 +37,21 @@ export async function POST(request: Request) {
     }
 
     if (!(file instanceof File)) {
-      return NextResponse.json({ error: "PDF file is required" }, { status: 400 });
+      return NextResponse.json({ error: "A file is required" }, { status: 400 });
     }
-
-    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-    if (!isPdf) {
-      return NextResponse.json({ error: "Only PDF files are allowed" }, { status: 400 });
-    }
-
-    const service = createSupabaseServiceClient();
 
     const { data: bucket } = await service.storage.getBucket("materials");
     if (!bucket) {
       await service.storage.createBucket("materials", { public: false });
     }
 
-    const baseName = toSafeFileName(file.name.replace(/\.pdf$/i, "") || "material");
-    const storagePath = `${courseId}/${Date.now()}-${baseName}.pdf`;
+    const baseName = toSafeFileName(file.name.replace(/\.[a-z0-9]{1,10}$/i, "") || "material");
+    const storagePath = `${courseId}/${Date.now()}-${baseName}${getSafeFileExtension(file.name)}`;
 
     const { error: uploadError } = await service.storage
       .from("materials")
       .upload(storagePath, file, {
-        contentType: "application/pdf",
+        contentType: file.type || "application/octet-stream",
         upsert: false,
       });
 
@@ -90,7 +59,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: uploadError.message }, { status: 500 });
     }
 
-    const { data: inserted, error: insertError } = await supabase
+    const { data: inserted, error: insertError } = await service
       .from("materials")
       .insert({
         course_id: courseId,

@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { Providers } from "./Providers";
 import { Inter } from "next/font/google";
 import { fetchSiteSettings } from "../lib/siteSettings";
+import { resolveLogoSrc } from "../lib/branding";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -15,7 +16,7 @@ const inter = Inter({
 
 export async function generateMetadata(): Promise<Metadata> {
   const siteSettings = await fetchSiteSettings();
-  const logoIcon = siteSettings.logoUrl?.trim() || "/logo.png";
+  const logoIcon = resolveLogoSrc(siteSettings.logoUrl);
 
   return {
     applicationName: siteSettings.siteName,
@@ -29,16 +30,16 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     icons: {
       icon: [
+        { url: logoIcon },
         { url: "/icon", type: "image/png", sizes: "512x512" },
-        { url: logoIcon, type: "image/png" },
       ],
       shortcut: [
+        { url: logoIcon },
         { url: "/icon", type: "image/png", sizes: "512x512" },
-        { url: logoIcon, type: "image/png" },
       ],
       apple: [
+        { url: logoIcon },
         { url: "/apple-icon", type: "image/png", sizes: "180x180" },
-        { url: logoIcon, type: "image/png" },
       ],
     },
   };

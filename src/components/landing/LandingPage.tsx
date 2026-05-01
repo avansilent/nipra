@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { defaultHomeContent } from "../../data/homeContent";
+import { DEFAULT_LOGO_SRC } from "../../lib/branding";
 import type { HomeContent } from "../../types/home";
 
 type LandingPageProps = {
@@ -72,14 +73,14 @@ export default function LandingPage({ content = defaultHomeContent }: LandingPag
         >
           <div className="w-full flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center h-10 w-10 overflow-hidden rounded-lg">
+              <div className="flex items-center justify-center h-11 w-11 overflow-hidden rounded-[1.15rem]">
                 <Image
-                  src="/logo.png"
+                  src={DEFAULT_LOGO_SRC}
                   alt="Nipracademy"
                   width={40}
                   height={40}
                   priority
-                  className="w-full h-full object-contain"
+                  className="h-10 w-10 object-contain"
                 />
               </div>
               <h2 className="luxury-pill inline-flex items-center whitespace-nowrap rounded-full px-6 py-3 text-[1.7rem] sm:text-[2.25rem] lg:text-[2.6rem] font-black leading-[1.14] tracking-[-0.04em] text-[#020617] backdrop-blur-xl transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.04] dark:text-white">
