@@ -2,134 +2,152 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import type { Swiper as SwiperType } from "swiper";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { Autoplay, Navigation, Pagination } from "swiper/modules";
+import { type WheelEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useAdaptiveMotion } from "../hooks/useAdaptiveMotion";
 import type { HomeContent } from "../types/home";
 import type { SiteSettings } from "../types/site";
-import "swiper/css";
-import "swiper/css/navigation";
-import "swiper/css/pagination";
 
 type HeroBannerProps = {
   content: HomeContent;
   siteSettings: SiteSettings;
 };
 
-type CarouselCard = {
+type HeroSlideAction = {
+  label: string;
+  href: string;
+  tone: "primary" | "secondary";
+  external?: boolean;
+};
+
+type HeroSlide = {
   id: string;
   eyebrow: string;
   title: string;
-  description: string[];
-  ctaLabel: string;
-  ctaHref: string;
-  footer: string;
-  signature?: string;
+  description: string;
+  footnote: string;
+  actions: HeroSlideAction[];
+  visual: "founder" | "academy" | "education";
+  points?: string[];
   imageSrc?: string;
   imageAlt?: string;
 };
 
 export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
-  const swiperRef = useRef<SwiperType | null>(null);
-  const lastWheelGestureAtRef = useRef(0);
-  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
   const [supportsFinePointer, setSupportsFinePointer] = useState(false);
   const [failedImageSrcs, setFailedImageSrcs] = useState<Record<string, boolean>>({});
-  const { allowHoverMotion, allowRichMotion, performanceMode } = useAdaptiveMotion();
+  const lastWheelGestureAtRef = useRef(0);
+  const { allowRichMotion, performanceMode } = useAdaptiveMotion();
+
+  const phoneDialUrl = useMemo(() => `tel:${siteSettings.contactPhone.replace(/\s+/g, "")}`, [siteSettings.contactPhone]);
   const isLiteMotion = performanceMode === "lite";
   const isBalancedMotion = performanceMode === "balanced";
-  const autoplayConfig = allowRichMotion
-    ? {
-        delay: isDesktopViewport ? 5200 : 4800,
-        disableOnInteraction: false,
-        pauseOnMouseEnter: allowHoverMotion,
-      }
-    : false;
+  const transitionDurationClass = isLiteMotion ? "duration-300" : isBalancedMotion ? "duration-500" : "duration-700";
 
-  const cards: CarouselCard[] = [
-    {
-      id: "founder-vision",
-      eyebrow: "Founder Story",
-      title: "Quality education that truly makes a difference in a student's life.",
-      description: [
-        "At Nipracademy, our vision is simple: provide quality education that creates real change in a student's life.",
-        "We built this institute to replace memorization with understanding, direction, confidence, and meaningful results.",
-      ],
-      ctaLabel: "About Nipracademy",
-      ctaHref: "/about",
-      footer: siteSettings.siteName,
-      signature: "Founder, Nipracademy",
-      imageSrc: "/founder.jpg.jpeg",
-      imageAlt: "Founder of Nipracademy",
-    },
-    {
-      id: "founder-philosophy",
-      eyebrow: "Guidance And Growth",
-      title: "Every student has potential. The right direction unlocks it.",
-      description: [
-        "We believe that every student has potential, but the right direction and support are essential to unlock it. At Nipracademy, we focus on building strong fundamentals, encouraging curiosity, and developing discipline.",
-        "Our goal is not just to help students score good marks, but to make them capable, confident, and future-ready.",
-      ],
-      ctaLabel: "See Courses",
-      ctaHref: "/courses",
-      footer: "Strong concepts, calm guidance, real momentum",
-      signature: "Understanding before memorization.",
-    },
-    {
-      id: "founder-commitment",
-      eyebrow: "Commitment To Families",
-      title: "Teaching, motivation, and trust working together for every student.",
-      description: [
-        "A teacher's role is not only to teach subjects but also to guide, motivate, and inspire. That is why we work closely with every student, understand their challenges, and help them grow step by step.",
-        "Nipracademy remains committed to honest teaching, continuous improvement, and student success, from the first inquiry to the student portal journey.",
-      ],
-      ctaLabel: "Start Admission",
-      ctaHref: "/join",
-      footer: "Student support for online and offline batches",
-      signature: "A structured path for students and parents.",
-    },
-  ];
+  const slides = useMemo<HeroSlide[]>(
+    () => [
+      {
+        id: "founder-vision",
+        eyebrow: "Founder Note",
+        title: "Teaching should feel clear, disciplined, and useful.",
+        description:
+          `Our founder shaped ${siteSettings.siteName} around one simple belief: students grow faster when ideas are explained clearly, practice stays steady, and guidance remains calm.`,
+        footnote: `Founder, ${siteSettings.siteName}`,
+        actions: [
+          { label: "About Nipracademy", href: "/about", tone: "primary" },
+          { label: "Talk to Counselors", href: phoneDialUrl, tone: "secondary", external: true },
+        ],
+        visual: "founder",
+        imageSrc: "/founder.jpg.jpeg",
+        imageAlt: "Founder of Nipracademy",
+      },
+      {
+        id: "about-nipra",
+        eyebrow: content.heroBadge || "Inside Nipra",
+        title: content.heroTitle || "Learn clearly. Grow steadily.",
+        description: content.heroSubtitle || "Classes, practice, and guidance in one calm student space.",
+        footnote: `Call ${siteSettings.contactPhone} for admissions and academic support.`,
+        actions: [
+          { label: content.heroPrimaryCtaLabel || "Explore Programs", href: content.heroPrimaryCtaHref || "/courses", tone: "primary" },
+          { label: content.heroSecondaryCtaLabel || "Talk to Counselors", href: content.heroSecondaryCtaHref || "/#contact", tone: "secondary" },
+        ],
+        visual: "academy",
+        points: ["Class 1 to 12 support", "Online + Offline batches", "Calm personal guidance"],
+      },
+      {
+        id: "education-view",
+        eyebrow: "Education",
+        title: "Education works best when basics stay strong and progress stays steady.",
+        description:
+          "Good education is not noise or pressure. It is concept clarity, regular revision, careful practice, and confidence that grows step by step.",
+        footnote: "Understand, practice, review, and grow with consistency.",
+        actions: [
+          { label: "View Courses", href: "/courses", tone: "primary" },
+          { label: "Start Admission", href: "/join", tone: "secondary" },
+        ],
+        visual: "education",
+        points: ["Understand", "Practice", "Review", "Grow"],
+      },
+    ],
+    [
+      content.heroBadge,
+      content.heroPrimaryCtaHref,
+      content.heroPrimaryCtaLabel,
+      content.heroSecondaryCtaHref,
+      content.heroSecondaryCtaLabel,
+      content.heroSubtitle,
+      content.heroTitle,
+      phoneDialUrl,
+      siteSettings.contactPhone,
+      siteSettings.siteName,
+    ],
+  );
 
   useEffect(() => {
-    const desktopQuery = window.matchMedia("(min-width: 1024px)");
     const finePointerQuery = window.matchMedia("(hover: hover) and (pointer: fine)");
 
     const syncViewport = () => {
-      setIsDesktopViewport(desktopQuery.matches);
       setSupportsFinePointer(finePointerQuery.matches);
     };
 
-    const addListener = (query: MediaQueryList, listener: () => void) => {
-      if (typeof query.addEventListener === "function") {
-        query.addEventListener("change", listener);
-      } else {
-        query.addListener(listener);
-      }
-    };
-
-    const removeListener = (query: MediaQueryList, listener: () => void) => {
-      if (typeof query.removeEventListener === "function") {
-        query.removeEventListener("change", listener);
-      } else {
-        query.removeListener(listener);
-      }
-    };
+    if (typeof finePointerQuery.addEventListener === "function") {
+      finePointerQuery.addEventListener("change", syncViewport);
+    } else {
+      finePointerQuery.addListener(syncViewport);
+    }
 
     syncViewport();
 
-    addListener(desktopQuery, syncViewport);
-    addListener(finePointerQuery, syncViewport);
-
     return () => {
-      removeListener(desktopQuery, syncViewport);
-      removeListener(finePointerQuery, syncViewport);
+      if (typeof finePointerQuery.removeEventListener === "function") {
+        finePointerQuery.removeEventListener("change", syncViewport);
+      } else {
+        finePointerQuery.removeListener(syncViewport);
+      }
     };
   }, []);
 
-  const handleTrackpadSwipe = (event: React.WheelEvent<HTMLDivElement>) => {
-    if (!supportsFinePointer || !swiperRef.current || event.ctrlKey || event.metaKey || event.altKey) {
+  useEffect(() => {
+    if (!allowRichMotion || slides.length <= 1) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % slides.length);
+    }, 5200);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [allowRichMotion, slides.length]);
+
+  const goToSlide = (index: number) => {
+    const slideCount = slides.length;
+    setActiveIndex((index + slideCount) % slideCount);
+  };
+
+  const handleTrackpadSwipe = (event: WheelEvent<HTMLDivElement>) => {
+    if (!supportsFinePointer || event.ctrlKey || event.metaKey || event.altKey) {
       return;
     }
 
@@ -154,742 +172,201 @@ export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
 
     lastWheelGestureAtRef.current = now;
     event.preventDefault();
+    goToSlide(activeIndex + (horizontalDelta > 0 ? 1 : -1));
+  };
 
-    if (horizontalDelta > 0) {
-      swiperRef.current.slideNext();
-      return;
+  const renderSlideAction = (slideId: string, action: HeroSlideAction) => {
+    const className =
+      action.tone === "primary"
+        ? "hero-ribbon-action inline-flex min-h-[3.1rem] items-center justify-center rounded-full bg-slate-950 px-6 text-[0.95rem] font-semibold text-white shadow-[0_14px_32px_rgba(15,23,42,0.14)] transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-slate-800"
+        : "hero-ribbon-action inline-flex min-h-[3.1rem] items-center justify-center rounded-full bg-white/78 px-6 text-[0.95rem] font-semibold text-slate-700 shadow-[0_10px_26px_rgba(15,23,42,0.05)] backdrop-blur-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-white/92";
+
+    if (action.external) {
+      return (
+        <a key={`${slideId}-${action.label}`} href={action.href} className={className}>
+          {action.label}
+        </a>
+      );
     }
 
-    swiperRef.current.slidePrev();
+    return (
+      <Link key={`${slideId}-${action.label}`} href={action.href} className={className}>
+        {action.label}
+      </Link>
+    );
+  };
+
+  const renderSlideVisual = (slide: HeroSlide) => {
+    if (slide.visual === "founder") {
+      return (
+        <div className="relative flex h-full w-full items-end justify-center min-[480px]:justify-end">
+          {!failedImageSrcs[slide.imageSrc ?? ""] && slide.imageSrc ? (
+            <Image
+              src={slide.imageSrc}
+              alt={slide.imageAlt ?? slide.title}
+              width={516}
+              height={635}
+              priority
+              sizes="(min-width: 1280px) 25rem, (min-width: 768px) 21rem, 13rem"
+              className="hero-ribbon-founder-image relative z-10 h-auto w-full max-w-[12rem] object-contain object-center md:max-w-[17rem] xl:max-w-[21rem]"
+              onError={() => {
+                setFailedImageSrcs((current) => ({
+                  ...current,
+                  [slide.imageSrc ?? ""]: true,
+                }));
+              }}
+            />
+          ) : (
+            <div className="relative z-10 flex flex-col items-center justify-center gap-4 text-center">
+              <span className="inline-flex h-[4.6rem] w-[4.6rem] items-center justify-center rounded-full bg-slate-950 text-2xl font-semibold tracking-[-0.04em] text-white">
+                N
+              </span>
+              <p className="max-w-[22ch] text-[0.98rem] leading-7 text-slate-600">Clear learning. Calm guidance. Useful practice.</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (slide.visual === "academy") {
+      return (
+        <div className="w-full max-w-[24rem] space-y-3">
+          {slide.points?.map((point, index) => (
+            <div key={point} className="grid grid-cols-[auto_1fr] items-center gap-3 rounded-[1.2rem] bg-white/72 px-4 py-3 shadow-[0_8px_24px_rgba(15,23,42,0.04)] backdrop-blur-sm">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <p className="text-[clamp(1rem,1.8vw,1.2rem)] font-semibold leading-snug tracking-[-0.035em] text-slate-950 [text-wrap:balance]">
+                {point}
+              </p>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex w-full max-w-[24rem] flex-wrap justify-center gap-3">
+        {slide.points?.map((point) => (
+          <div
+            key={point}
+            className="inline-flex min-h-[3.05rem] items-center justify-center rounded-full bg-white/76 px-5 text-[0.94rem] font-semibold tracking-[-0.02em] text-slate-900 shadow-[0_10px_22px_rgba(15,23,42,0.04)] backdrop-blur-sm"
+          >
+            {point}
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
-    <section className="hero-modern-shell">
-      <div className="hero-command-grid">
-        <div className="hero-command-panel">
-          <div className="hero-command-badges">
-            <span className="hero-command-kicker">{content.heroBadge}</span>
+    <section
+      className="hero-ribbon-shell group relative overflow-hidden rounded-[2.85rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,247,248,0.94))] px-4 pb-4 pt-16 shadow-[0_18px_48px_rgba(15,23,42,0.045)] min-[480px]:pt-14 md:p-5"
+      onWheelCapture={handleTrackpadSwipe}
+    >
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.9),transparent_72%)]" />
+
+      <div className="relative z-10 grid gap-4">
+        <div className="hero-ribbon-toolbar grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+          <div>
+            <span className="inline-flex min-h-8 items-center rounded-full bg-white/72 px-3.5 text-[0.68rem] font-bold uppercase tracking-[0.22em] text-slate-500 shadow-[0_8px_20px_rgba(15,23,42,0.04)] backdrop-blur-sm">
+              Inside Nipracademy
+            </span>
           </div>
 
-          <h1 className="hero-command-title">{content.heroTitle}</h1>
-          <p className="hero-command-copy">{content.heroSubtitle}</p>
+          <div className="hero-ribbon-nav hidden gap-2 md:flex">
+            <button
+              type="button"
+              aria-label="Previous slide"
+              onClick={() => goToSlide(activeIndex - 1)}
+              className="hero-ribbon-arrow inline-flex h-[2.8rem] w-[2.8rem] items-center justify-center rounded-full bg-white/74 text-slate-950 shadow-[0_10px_22px_rgba(15,23,42,0.05)] backdrop-blur-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-white/92"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[1.05rem] w-[1.05rem] stroke-current">
+                <path d="M14.5 5.5L8 12l6.5 6.5" fill="none" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
 
-          <div className="hero-command-actions">
-            <Link href={content.heroPrimaryCtaHref} className="hero-command-primary">
-              {content.heroPrimaryCtaLabel}
-            </Link>
-            <Link href={content.heroSecondaryCtaHref} className="hero-command-secondary">
-              {content.heroSecondaryCtaLabel}
-            </Link>
+            <button
+              type="button"
+              aria-label="Next slide"
+              onClick={() => goToSlide(activeIndex + 1)}
+              className="hero-ribbon-arrow inline-flex h-[2.8rem] w-[2.8rem] items-center justify-center rounded-full bg-white/74 text-slate-950 shadow-[0_10px_22px_rgba(15,23,42,0.05)] backdrop-blur-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-white/92"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[1.05rem] w-[1.05rem] stroke-current">
+                <path d="M9.5 5.5L16 12l-6.5 6.5" fill="none" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
           </div>
-
-          <p className="hero-command-note">
-            {siteSettings.contactPhone || "Direct counselor access"} for admissions, batches, and support.
-          </p>
         </div>
 
-        <div className="hero-story-stage group" onWheelCapture={handleTrackpadSwipe}>
-          <div className="hero-stage-head">
-            <div>
-              <p className="hero-stage-kicker">Inside Nipra</p>
-              <h2 className="hero-stage-title">A calmer look inside the learning experience.</h2>
-            </div>
+        <div className="hero-ribbon-carousel overflow-hidden">
+          <div
+            className={`flex w-full ${transitionDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] transition-transform`}
+            style={{ transform: `translateX(-${activeIndex * 100}%)` }}
+          >
+            {slides.map((slide, index) => (
+              <article key={slide.id} className="hero-ribbon-slide min-w-full">
+                <div className="hero-ribbon-card grid min-h-[18rem] gap-5 px-1 py-3 min-[480px]:grid-cols-[minmax(0,1.05fr)_minmax(9.75rem,0.95fr)] min-[480px]:items-start min-[480px]:gap-4 min-[480px]:px-2 lg:min-h-[28rem] lg:grid-cols-[minmax(0,1.05fr)_minmax(18rem,0.95fr)] lg:items-center lg:gap-12 lg:px-4">
+                  <div className="hero-ribbon-copy relative z-10 min-w-0 min-[480px]:pr-2 lg:pr-4">
+                    <div className="hero-ribbon-meta flex flex-wrap items-center gap-2.5">
+                      <span className="hero-ribbon-index inline-flex min-h-7 items-center rounded-full bg-slate-100 px-2.5 text-[0.68rem] font-bold uppercase tracking-[0.16em] text-slate-500">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                      <span className="hero-ribbon-eyebrow text-[0.7rem] font-bold uppercase tracking-[0.2em] text-slate-500">
+                        {slide.eyebrow}
+                      </span>
+                    </div>
 
-            <div className="hero-stage-nav">
-              <button
-                type="button"
-                aria-label="Previous slide"
-                className="hero-swiper-prev hero-swiper-arrow inline-flex"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[1.05rem] w-[1.05rem] stroke-current">
-                  <path d="M14.5 5.5L8 12l6.5 6.5" fill="none" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
+                    <h3 className="hero-ribbon-title mt-3.5 max-w-[12ch] text-[clamp(1.78rem,4.7vw,4.8rem)] font-bold leading-[0.95] tracking-[-0.072em] text-slate-950 [text-wrap:balance]">
+                      {slide.title}
+                    </h3>
 
-              <button
-                type="button"
-                aria-label="Next slide"
-                className="hero-swiper-next hero-swiper-arrow inline-flex"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[1.05rem] w-[1.05rem] stroke-current">
-                  <path d="M9.5 5.5L16 12l-6.5 6.5" fill="none" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-            </div>
+                    <p className="hero-ribbon-description mt-4 max-w-[52ch] text-[clamp(0.98rem,1.58vw,1.05rem)] leading-7 text-slate-600 [text-wrap:pretty]">
+                      {slide.description}
+                    </p>
+
+                    <p className="hero-ribbon-footnote mt-3 text-sm leading-6 text-slate-500">{slide.footnote}</p>
+
+                    <div className="hero-ribbon-actions mt-6 flex flex-wrap gap-2.5">
+                      {slide.actions.map((action) => renderSlideAction(slide.id, action))}
+                    </div>
+                  </div>
+
+                  <div className="hero-ribbon-visual-shell relative mt-5 flex min-h-[10rem] items-end justify-center min-[480px]:mt-0 min-[480px]:min-h-0 min-[480px]:justify-end lg:min-h-[20rem]">
+                    {renderSlideVisual(slide)}
+                  </div>
+                </div>
+              </article>
+            ))}
           </div>
 
-          <div className="hero-swiper-shell">
-            <Swiper
-              modules={[Autoplay, Navigation, Pagination]}
-              onSwiper={(swiper) => {
-                swiperRef.current = swiper;
-              }}
-              autoHeight={false}
-              spaceBetween={18}
-              slidesPerView={1}
-              speed={isLiteMotion ? 400 : isBalancedMotion ? 500 : isDesktopViewport ? 560 : 460}
-              allowTouchMove={true}
-              simulateTouch={true}
-              touchStartPreventDefault={false}
-              touchReleaseOnEdges={true}
-              threshold={isLiteMotion ? 10 : isDesktopViewport ? 12 : 8}
-              resistance={true}
-              resistanceRatio={isLiteMotion ? 0.4 : isBalancedMotion ? 0.48 : isDesktopViewport ? 0.54 : 0.48}
-              longSwipes={true}
-              longSwipesRatio={isDesktopViewport ? 0.28 : 0.22}
-              longSwipesMs={isLiteMotion ? 260 : isDesktopViewport ? 320 : 240}
-              shortSwipes={true}
-              slidesPerGroup={1}
-              centeredSlides={false}
-              followFinger={true}
-              grabCursor={supportsFinePointer && allowHoverMotion}
-              navigation={{
-                prevEl: ".hero-swiper-prev",
-                nextEl: ".hero-swiper-next",
-              }}
-              pagination={{
-                clickable: true,
-                el: ".hero-swiper-pagination",
-              }}
-              autoplay={autoplayConfig}
-              breakpoints={{
-                640: {
-                  slidesPerView: 1,
-                  spaceBetween: 18,
-                },
-                768: {
-                  slidesPerView: 1,
-                  spaceBetween: 22,
-                },
-                1024: {
-                  slidesPerView: 1,
-                  spaceBetween: 24,
-                },
-                1440: {
-                  slidesPerView: 1,
-                  spaceBetween: 28,
-                },
-              }}
-              className="hero-swiper"
-            >
-              {cards.map((card, index) => (
-                <SwiperSlide key={card.id} className="hero-story-slide h-auto pb-2">
-                  <article className="hero-story-card">
-                    <div className="hero-story-meta">
-                      <span className="hero-story-index">{String(index + 1).padStart(2, "0")}</span>
-                      <span className="hero-story-eyebrow">{card.eyebrow}</span>
-                    </div>
-
-                    <div className="hero-story-layout">
-                      <div className="hero-story-thumb-shell relative overflow-hidden">
-                        {!failedImageSrcs[card.imageSrc ?? ""] && card.imageSrc ? (
-                          <Image
-                            key={card.imageSrc}
-                            src={card.imageSrc}
-                            alt={card.imageAlt ?? card.title}
-                            fill
-                            sizes="(min-width: 1024px) 196px, (min-width: 640px) 184px, 100vw"
-                            className="object-cover object-center"
-                            priority={index === 0}
-                            onError={() => {
-                              setFailedImageSrcs((current) => ({
-                                ...current,
-                                [card.imageSrc ?? ""]: true,
-                              }));
-                            }}
-                          />
-                        ) : (
-                          <div className="hero-founder-fallback flex h-full w-full flex-col items-center justify-center px-5 text-center">
-                            <div className="hero-founder-mark flex h-16 w-16 items-center justify-center rounded-full text-xl font-semibold tracking-[-0.04em] text-white">
-                              N
-                            </div>
-                            <p className="mt-4 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                              Founder Story
-                            </p>
-                            <p className="mt-2 text-sm leading-6 text-slate-600">
-                              Clear guidance, structured learning, and a calmer student journey.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="hero-story-copy-block">
-                        <h3 className="hero-story-title">{card.title}</h3>
-
-                        <div className="hero-story-stack">
-                          {card.description.map((paragraph) => (
-                            <p key={paragraph} className="hero-story-paragraph">
-                              {paragraph}
-                            </p>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="hero-story-footer">
-                      <div className="hero-story-signoff">
-                        <p className="hero-story-signature">
-                          {card.signature ?? "A premium academic journey with clarity and guidance."}
-                        </p>
-                        <p className="hero-story-footer-note">{card.footer}</p>
-                      </div>
-
-                      <Link
-                        href={card.ctaHref}
-                        className="hero-story-cta inline-flex shrink-0 items-center justify-center rounded-full px-7 py-3.5 text-[0.98rem] font-semibold text-white transition duration-200 ease-out hover:-translate-y-0.5"
-                      >
-                        {card.ctaLabel}
-                      </Link>
-                    </div>
-                  </article>
-                </SwiperSlide>
-              ))}
-            </Swiper>
-          </div>
-
-          <div className="mt-4 flex items-center justify-center">
-            <div className="hero-swiper-pagination flex items-center justify-center" />
+          <div className="hero-ribbon-pagination-shell mt-2 flex justify-center gap-2">
+            {slides.map((slide, index) => (
+              <button
+                key={slide.id}
+                type="button"
+                aria-label={`Go to slide ${index + 1}`}
+                onClick={() => goToSlide(index)}
+                className={`h-[0.55rem] w-[0.55rem] rounded-full transition ${
+                  index === activeIndex ? "bg-slate-950" : "bg-slate-300/70"
+                }`}
+              />
+            ))}
           </div>
         </div>
       </div>
 
       <style jsx global>{`
-        .hero-modern-shell {
-          position: relative;
-          overflow: hidden;
-          border-radius: 2.8rem;
-          padding: clamp(1.1rem, 2vw, 1.6rem);
-          background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 246, 247, 0.92));
-          border: 1px solid rgba(15, 23, 42, 0.03);
-          box-shadow: 0 28px 72px rgba(15, 23, 42, 0.05);
-          isolation: isolate;
-        }
-
-        .hero-command-grid {
-          position: relative;
-          z-index: 1;
-          display: grid;
-          gap: 1.2rem;
-          align-items: stretch;
-        }
-
-        .hero-command-panel {
-          position: relative;
-          overflow: hidden;
-          border-radius: 2.5rem;
-          padding: clamp(1.6rem, 3vw, 2.5rem);
-          background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(244, 244, 246, 0.94));
-          border: 1px solid rgba(15, 23, 42, 0.035);
-          color: #0f172a;
-          box-shadow: 0 20px 48px rgba(15, 23, 42, 0.045);
-        }
-
-        .hero-command-badges,
-        .hero-command-title,
-        .hero-command-copy,
-        .hero-command-actions,
-        .hero-command-note {
-          position: relative;
-          z-index: 1;
-        }
-
-        .hero-command-badges {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.75rem;
-        }
-
-        .hero-command-kicker {
-          display: inline-flex;
-          min-height: 2.2rem;
-          align-items: center;
-          justify-content: center;
-          border-radius: 999px;
-          padding: 0 0.95rem;
-          font-size: 0.7rem;
-          font-weight: 700;
-          letter-spacing: 0.2em;
-          text-transform: uppercase;
-        }
-
-        .hero-command-kicker {
-          background: rgba(255, 255, 255, 0.84);
-          border: 1px solid rgba(15, 23, 42, 0.05);
-          color: #52525b;
-        }
-
-        .hero-command-title {
-          margin-top: 1.4rem;
-          max-width: 13ch;
-          font-size: clamp(2.7rem, 6vw, 5rem);
-          font-weight: 700;
-          line-height: 0.98;
-          letter-spacing: -0.06em;
-          text-wrap: balance;
-        }
-
-        .hero-command-copy {
-          margin-top: 1.4rem;
-          max-width: 52ch;
-          font-size: clamp(1rem, 1.6vw, 1.08rem);
-          line-height: 1.78;
-          color: #52525b;
-        }
-
-        .hero-command-actions {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.85rem;
-          margin-top: 2rem;
-        }
-
-        .hero-command-primary,
-        .hero-command-secondary {
-          display: inline-flex;
-          min-height: 3.2rem;
-          align-items: center;
-          justify-content: center;
-          border-radius: 999px;
-          padding: 0 1.35rem;
-          font-size: 0.96rem;
-          font-weight: 600;
-          transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease, color 180ms ease;
-        }
-
-        .hero-command-primary {
-          background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(242, 242, 244, 0.96));
-          border: 1px solid rgba(15, 23, 42, 0.06);
-          color: #111827;
-          box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-        }
-
-        .hero-command-primary:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 22px 46px rgba(15, 23, 42, 0.1);
-        }
-
-        .hero-command-secondary {
-          background: rgba(255, 255, 255, 0.76);
-          border: 1px solid rgba(15, 23, 42, 0.05);
-          color: #475569;
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
-          backdrop-filter: blur(12px);
-        }
-
-        .hero-command-secondary:hover {
-          transform: translateY(-1px);
-          background: rgba(255, 255, 255, 0.92);
-        }
-
-        .hero-command-note {
-          margin-top: 1.1rem;
-          max-width: 36ch;
-          font-size: 0.92rem;
-          line-height: 1.7;
-          color: #71717a;
-        }
-
-        .hero-story-stage {
-          position: relative;
-          min-width: 0;
-          overflow: hidden;
-          border-radius: 2.5rem;
-          border: 1px solid rgba(15, 23, 42, 0.03);
-          background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(247, 247, 248, 0.95));
-          padding: 1.25rem;
-          box-shadow: 0 20px 52px rgba(15, 23, 42, 0.045);
-        }
-
-        .hero-stage-head {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 1rem;
-          margin-bottom: 1rem;
-        }
-
-        .hero-stage-kicker {
-          font-size: 0.68rem;
-          font-weight: 700;
-          letter-spacing: 0.2em;
-          text-transform: uppercase;
-          color: #6b7280;
-        }
-
-        .hero-stage-title {
-          margin-top: 0.55rem;
-          max-width: 19ch;
-          font-size: clamp(1.5rem, 2.8vw, 2.2rem);
-          font-weight: 700;
-          line-height: 1.06;
-          letter-spacing: -0.045em;
-          color: #08111f;
-          text-wrap: balance;
-        }
-
-        .hero-stage-nav {
-          display: flex;
-          gap: 0.55rem;
-        }
-
-        .hero-swiper-shell,
-        .hero-swiper {
-          min-width: 0;
-        }
-
-        .hero-swiper {
-          overflow: hidden;
-        }
-
-        .hero-swiper .swiper-wrapper {
-          align-items: stretch;
-          transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-        }
-
-        .hero-swiper-arrow {
-          height: 2.75rem;
-          width: 2.75rem;
-          align-items: center;
-          justify-content: center;
-          border-radius: 999px;
-          border: 1px solid rgba(15, 23, 42, 0.06);
-          background: rgba(255, 255, 255, 0.88);
-          color: #111827;
-          box-shadow: 0 12px 24px rgba(15, 23, 42, 0.05);
-          transition: transform 180ms ease, background 180ms ease, box-shadow 180ms ease;
-        }
-
-        .hero-swiper-arrow:hover {
-          transform: translateY(-1px);
-          background: rgba(255, 255, 255, 0.98);
-          box-shadow: 0 16px 28px rgba(15, 23, 42, 0.08);
-        }
-
-        .hero-swiper-prev::after,
-        .hero-swiper-next::after {
-          display: none;
-        }
-
-        .hero-story-slide {
-          display: flex;
-          height: auto;
-        }
-
-        .hero-story-card {
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-          min-height: clamp(26rem, 34vw, 29rem);
-          overflow: hidden;
-          border-radius: 2.15rem;
-          border: 1px solid rgba(15, 23, 42, 0.03);
-          background: rgba(255, 255, 255, 0.82);
-          box-shadow: none;
-          padding: clamp(1.1rem, 2vw, 1.45rem);
-          transition: transform 220ms ease-out, box-shadow 220ms ease-out, border-color 220ms ease-out;
-          transform: translateZ(0);
-          backface-visibility: hidden;
-        }
-
-        .hero-story-card:hover {
-          transform: translateY(-1px);
-          border-color: rgba(15, 23, 42, 0.05);
-          box-shadow: 0 16px 32px rgba(15, 23, 42, 0.05);
-        }
-
-        .hero-story-meta {
-          display: flex;
-          align-items: center;
-          gap: 0.7rem;
-        }
-
-        .hero-story-index {
-          display: inline-flex;
-          min-width: 2.4rem;
-          justify-content: center;
-          border-radius: 999px;
-          background: rgba(241, 245, 249, 0.92);
-          padding: 0.45rem 0.7rem;
-          font-size: 0.72rem;
-          font-weight: 700;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-          color: #475569;
-        }
-
-        .hero-story-eyebrow {
-          font-size: 0.68rem;
-          font-weight: 700;
-          letter-spacing: 0.2em;
-          text-transform: uppercase;
-          color: #6b7280;
-        }
-
-        .hero-story-layout {
-          display: flex;
-          flex: 1;
-          flex-direction: column;
-          gap: 1.1rem;
-          margin-top: 1.25rem;
-        }
-
-        .hero-story-thumb-shell {
-          min-height: 12.5rem;
-          border-radius: 1.45rem;
-          border: 1px solid rgba(15, 23, 42, 0.03);
-          background: linear-gradient(180deg, rgba(248, 248, 249, 1), rgba(244, 245, 246, 0.94));
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
-        }
-
-        .hero-story-copy-block {
-          display: flex;
-          min-width: 0;
-          overflow: hidden;
-          flex-direction: column;
-        }
-
-        .hero-story-title {
-          max-width: 16ch;
-          font-size: clamp(1.65rem, 3vw, 2.65rem);
-          font-weight: 700;
-          line-height: 1.04;
-          letter-spacing: -0.045em;
-          color: #08111f;
-          text-wrap: balance;
-        }
-
-        .hero-story-stack {
-          display: grid;
-          gap: 0.9rem;
-          margin-top: 1rem;
-        }
-
-        .hero-story-paragraph {
-          max-width: 40ch;
-          font-size: 1rem;
-          line-height: 1.72;
-          color: #4b5563;
-        }
-
-        .hero-founder-fallback {
-          background: linear-gradient(180deg, rgba(249, 249, 250, 0.98), rgba(236, 236, 239, 0.9));
-        }
-
-        .hero-founder-mark {
-          background: linear-gradient(180deg, #ffffff, #eceff3);
-          color: #0f172a;
-          box-shadow: 0 16px 30px rgba(15, 23, 42, 0.08);
-        }
-
-        .hero-story-footer {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-          margin-top: 1.35rem;
-          padding-top: 1rem;
-          border-top: 1px solid rgba(226, 232, 240, 0.8);
-        }
-
-        .hero-story-signoff {
-          min-width: 0;
-        }
-
-        .hero-story-signature {
-          font-size: 0.98rem;
-          font-weight: 600;
-          line-height: 1.6;
-          color: #08111f;
-        }
-
-        .hero-story-footer-note {
-          margin-top: 0.3rem;
-          font-size: 0.84rem;
-          line-height: 1.6;
-          color: #6b7280;
-        }
-
-        .hero-story-cta {
-          background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(242, 242, 244, 0.96));
-          color: #111827;
-          border: 1px solid rgba(15, 23, 42, 0.06);
-          box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
-        }
-
-        .hero-story-cta:hover {
-          background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(238, 238, 241, 0.98));
-          box-shadow: 0 18px 36px rgba(15, 23, 42, 0.1);
-        }
-
-        .hero-swiper-pagination .swiper-pagination-bullet {
-          width: 0.55rem;
-          height: 0.55rem;
-          background: rgba(107, 114, 128, 0.42);
-          opacity: 1;
-          transition: all 180ms ease-out;
-        }
-
-        .hero-swiper-pagination .swiper-pagination-bullet-active {
-          width: 1.85rem;
-          border-radius: 999px;
-          background: #cbd5e1;
-        }
-
-        @media (min-width: 640px) {
-          .hero-story-layout {
-            display: grid;
-            grid-template-columns: 11rem minmax(0, 1fr);
-            align-items: start;
-          }
-
-          .hero-story-footer {
-            flex-direction: row;
-            align-items: flex-end;
-            justify-content: space-between;
-          }
-        }
-
-        @media (min-width: 1180px) {
-          .hero-command-grid {
-            grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
-          }
-        }
-
-        @media (min-width: 768px) and (max-width: 1179px) {
-          .hero-command-title,
-          .hero-command-copy,
-          .hero-command-note,
-          .hero-stage-title {
-            max-width: 100%;
-          }
-
-          .hero-story-card {
-            min-height: unset;
-          }
-        }
-
-        @media (min-width: 1440px) {
-          .hero-command-grid {
-            gap: 1rem;
-            grid-template-columns: minmax(0, 0.96fr) minmax(0, 1.04fr);
-          }
-
-          .hero-story-stage {
-            padding: 1rem;
-          }
-
-          .hero-stage-title {
-            max-width: 17ch;
-            font-size: clamp(1.45rem, 2vw, 2rem);
-          }
-
-          .hero-story-layout {
-            grid-template-columns: 10rem minmax(0, 1fr);
-            gap: 0.95rem;
-          }
-
-          .hero-story-thumb-shell {
-            min-height: 11rem;
-          }
-
-          .hero-story-title {
-            max-width: 16ch;
-            font-size: clamp(1.5rem, 2.2vw, 2.25rem);
-          }
-        }
-
-        html[data-performance-mode="balanced"] .hero-modern-shell,
-        html[data-performance-mode="balanced"] .hero-story-stage,
-        html[data-performance-mode="balanced"] .hero-story-card {
-          box-shadow: 0 16px 36px rgba(15, 23, 42, 0.04);
-        }
-
-        html[data-performance-mode="lite"] .hero-modern-shell,
-        html[data-performance-mode="lite"] .hero-command-panel,
-        html[data-performance-mode="lite"] .hero-story-stage,
-        html[data-performance-mode="lite"] .hero-story-card,
-        html[data-performance-mode="lite"] .hero-swiper-arrow {
-          box-shadow: 0 12px 24px rgba(15, 23, 42, 0.035);
-        }
-
-        @media (max-width: 767px) {
-          .hero-command-actions,
-          .hero-story-footer {
-            align-items: stretch;
-          }
-
-          .hero-command-actions > a,
-          .hero-story-cta {
+        @media (max-width: 479px) {
+          .hero-ribbon-action {
             width: 100%;
           }
-
-          .hero-stage-head {
-            flex-direction: column;
-          }
-
-          .hero-stage-nav {
-            align-self: flex-start;
-          }
-
-          .hero-story-layout {
-            gap: 1rem;
-          }
         }
 
-        @media (max-width: 639px) {
-          .hero-modern-shell,
-          .hero-command-panel,
-          .hero-story-stage {
-            border-radius: 1.55rem;
-          }
-
-          .hero-command-title {
-            max-width: 11ch;
-            font-size: clamp(2.15rem, 12vw, 3rem);
-            letter-spacing: -0.04em;
-          }
-
-          .hero-stage-title,
-          .hero-story-title {
-            max-width: 100%;
-          }
-
-          .hero-story-title {
-            font-size: clamp(1.4rem, 8vw, 2rem);
-          }
-
-          .hero-command-actions {
-            flex-direction: column;
-          }
-
-          .hero-command-primary,
-          .hero-command-secondary,
-          .hero-story-cta {
-            width: 100%;
-          }
-
-          .hero-swiper-arrow {
-            height: 2.45rem;
-            width: 2.45rem;
-          }
-
-          .hero-story-card {
-            min-height: unset;
-          }
-
-          .hero-story-thumb-shell {
-            min-height: 11.25rem;
-          }
-
-          .hero-story-meta {
-            flex-wrap: wrap;
-          }
-
-          .hero-story-footer-note,
-          .hero-story-signature,
-          .hero-story-paragraph,
-          .hero-command-copy,
-          .hero-command-note {
-            max-width: 100%;
+        @media (prefers-reduced-motion: reduce) {
+          .hero-ribbon-action,
+          .hero-ribbon-arrow {
+            transition: none;
           }
         }
       `}</style>

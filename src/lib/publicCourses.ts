@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { createSupabaseServiceClient } from "./supabase/service";
+import { academyCatalog, findAcademyCatalogCourse } from "../data/academyCatalog";
 import type { AdmissionCourse } from "../types/admission";
 
 type CourseRow = {
@@ -10,6 +11,31 @@ type CourseRow = {
   price_text: string | null;
   cta_label: string | null;
 };
+
+const catalogOrder = new Map(academyCatalog.map((course, index) => [course.id, index]));
+
+function sortPublishedCourses(courses: AdmissionCourse[]) {
+  return [...courses].sort((left, right) => {
+    const leftCatalogId = findAcademyCatalogCourse(left.title)?.id;
+    const rightCatalogId = findAcademyCatalogCourse(right.title)?.id;
+    const leftOrder = leftCatalogId ? catalogOrder.get(leftCatalogId) : undefined;
+    const rightOrder = rightCatalogId ? catalogOrder.get(rightCatalogId) : undefined;
+
+    if (typeof leftOrder === "number" && typeof rightOrder === "number" && leftOrder !== rightOrder) {
+      return leftOrder - rightOrder;
+    }
+
+    if (typeof leftOrder === "number") {
+      return -1;
+    }
+
+    if (typeof rightOrder === "number") {
+      return 1;
+    }
+
+    return left.title.localeCompare(right.title, "en", { sensitivity: "base" });
+  });
+}
 
 const loadPublishedCourses = unstable_cache(
   async (): Promise<AdmissionCourse[]> => {
@@ -23,14 +49,13 @@ const loadPublishedCourses = unstable_cache(
         .from("courses")
         .select("id, institute_id, title, description, price_text, cta_label")
         .eq("status", "published")
-        .not("institute_id", "is", null)
-        .order("created_at", { ascending: true });
+        .not("institute_id", "is", null);
 
       if (error) {
         return [];
       }
 
-      return ((data ?? []) as CourseRow[]).flatMap((course) => {
+      const publishedCourses = ((data ?? []) as CourseRow[]).flatMap((course) => {
         if (!course.institute_id) {
           return [];
         }
@@ -46,6 +71,8 @@ const loadPublishedCourses = unstable_cache(
           },
         ];
       });
+
+      return sortPublishedCourses(publishedCourses);
     } catch {
       return [];
     }

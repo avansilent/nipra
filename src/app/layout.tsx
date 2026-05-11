@@ -157,7 +157,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   <span className="text-slate-900">{siteSettings.siteName}</span>
                 </div>
                 <p className="mt-3 text-sm leading-relaxed text-slate-600">{siteSettings.footerNotice}</p>
-                <p className="mt-2 text-xs text-slate-500">Â© {new Date().getFullYear()} {siteSettings.siteName}. All rights reserved.</p>
+                <p className="mt-2 text-xs text-slate-500">&copy; {new Date().getFullYear()} {siteSettings.siteName}. All rights reserved.</p>
               </div>
             </footer>
           </div>

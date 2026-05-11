@@ -7,6 +7,30 @@ create table if not exists public.institutes (
   created_at timestamptz not null default timezone('utc', now())
 );
 
+alter table public.institutes add column if not exists name text;
+alter table public.institutes add column if not exists subdomain text;
+alter table public.institutes add column if not exists created_at timestamptz;
+alter table public.institutes alter column created_at set default timezone('utc', now());
+
+update public.institutes
+set subdomain = coalesce(
+  nullif(trim(both '-' from regexp_replace(lower(coalesce(name, 'institute')), '[^a-z0-9]+', '-', 'g')), ''),
+  concat('institute-', left(replace(id::text, '-', ''), 8))
+)
+where coalesce(trim(subdomain), '') = '';
+
+update public.institutes
+set subdomain = concat(subdomain, '-', left(replace(id::text, '-', ''), 8))
+where subdomain in (
+  select subdomain
+  from public.institutes
+  where coalesce(trim(subdomain), '') <> ''
+  group by subdomain
+  having count(*) > 1
+);
+
+create unique index if not exists idx_institutes_subdomain_unique on public.institutes (subdomain);
+
 alter table public.institutes enable row level security;
 
 drop policy if exists "Authenticated can read institutes" on public.institutes;
@@ -195,6 +219,10 @@ create table if not exists public.site_content (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
+alter table public.site_content add column if not exists updated_at timestamptz;
+update public.site_content set updated_at = timezone('utc', now()) where updated_at is null;
+alter table public.site_content alter column updated_at set default timezone('utc', now());
+
 alter table public.site_content enable row level security;
 
 drop policy if exists "Public can read site content" on public.site_content;
@@ -223,9 +251,13 @@ create table if not exists public.courses (
   created_at timestamptz not null default timezone('utc', now())
 );
 
+alter table public.courses add column if not exists description text;
 alter table public.courses add column if not exists price_text text;
 alter table public.courses add column if not exists status text not null default 'draft';
 alter table public.courses add column if not exists cta_label text not null default 'View Course';
+alter table public.courses add column if not exists created_at timestamptz;
+update public.courses set created_at = timezone('utc', now()) where created_at is null;
+alter table public.courses alter column created_at set default timezone('utc', now());
 
 do $$
 begin
@@ -249,6 +281,11 @@ create table if not exists public.enrollments (
   primary key (student_id, course_id)
 );
 
+alter table public.enrollments add column if not exists enrolled_at timestamptz;
+update public.enrollments set enrolled_at = timezone('utc', now()) where enrolled_at is null;
+alter table public.enrollments alter column enrolled_at set default timezone('utc', now());
+alter table public.enrollments alter column enrolled_at set not null;
+
 create table if not exists public.notes (
   id uuid primary key default gen_random_uuid(),
   course_id uuid not null references public.courses(id) on delete cascade,
@@ -259,6 +296,12 @@ create table if not exists public.notes (
   created_at timestamptz not null default timezone('utc', now())
 );
 
+alter table public.notes add column if not exists title text;
+alter table public.notes add column if not exists file_url text;
+alter table public.notes add column if not exists created_at timestamptz;
+update public.notes set created_at = timezone('utc', now()) where created_at is null;
+alter table public.notes alter column created_at set default timezone('utc', now());
+
 create table if not exists public.materials (
   id uuid primary key default gen_random_uuid(),
   course_id uuid not null references public.courses(id) on delete cascade,
@@ -268,6 +311,12 @@ create table if not exists public.materials (
   visibility text not null default 'student' check (visibility in ('public', 'student')),
   created_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.materials add column if not exists title text;
+alter table public.materials add column if not exists file_url text;
+alter table public.materials add column if not exists created_at timestamptz;
+update public.materials set created_at = timezone('utc', now()) where created_at is null;
+alter table public.materials alter column created_at set default timezone('utc', now());
 
 alter table public.notes add column if not exists visibility text;
 update public.notes set visibility = 'student' where visibility is null;
@@ -316,6 +365,12 @@ create table if not exists public.tests (
   created_at timestamptz not null default timezone('utc', now())
 );
 
+alter table public.tests add column if not exists title text;
+alter table public.tests add column if not exists test_date date;
+alter table public.tests add column if not exists created_at timestamptz;
+update public.tests set created_at = timezone('utc', now()) where created_at is null;
+alter table public.tests alter column created_at set default timezone('utc', now());
+
 create table if not exists public.results (
   student_id uuid not null references public.users(id) on delete cascade,
   test_id uuid not null references public.tests(id) on delete cascade,
@@ -325,6 +380,11 @@ create table if not exists public.results (
   primary key (student_id, test_id)
 );
 
+alter table public.results add column if not exists marks numeric(6,2);
+alter table public.results add column if not exists recorded_at timestamptz;
+update public.results set recorded_at = timezone('utc', now()) where recorded_at is null;
+alter table public.results alter column recorded_at set default timezone('utc', now());
+
 create table if not exists public.announcements (
   id uuid primary key default gen_random_uuid(),
   institute_id uuid references public.institutes(id) on delete set null,
@@ -333,6 +393,13 @@ create table if not exists public.announcements (
   created_by uuid references public.users(id) on delete set null,
   created_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.announcements add column if not exists title text;
+alter table public.announcements add column if not exists body text;
+alter table public.announcements add column if not exists created_by uuid references public.users(id) on delete set null;
+alter table public.announcements add column if not exists created_at timestamptz;
+update public.announcements set created_at = timezone('utc', now()) where created_at is null;
+alter table public.announcements alter column created_at set default timezone('utc', now());
 
 create table if not exists public.admission_payments (
   id uuid primary key default gen_random_uuid(),

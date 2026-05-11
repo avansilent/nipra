@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAdaptiveMotion } from "../hooks/useAdaptiveMotion";
 import { academyAdmissionNote, findAcademyCatalogCourse } from "../data/academyCatalog";
@@ -363,7 +363,7 @@ export default function JoinAdmissionFlow({
   const [success, setSuccess] = useState<AdmissionResult | null>(null);
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
-  const [resumeChecked, setResumeChecked] = useState(false);
+  const resumeCheckRef = useRef(false);
   const { allowHoverMotion, allowRichMotion } = useAdaptiveMotion();
 
   const selectedCourse = useMemo(
@@ -407,27 +407,28 @@ export default function JoinAdmissionFlow({
   const normalizedPhone = useMemo(() => form.phone.replace(/\D/g, ""), [form.phone]);
 
   useEffect(() => {
-    if (resumeChecked) {
+    if (resumeCheckRef.current) {
       return;
     }
 
-    setResumeChecked(true);
-    const pendingSession = readPendingAdmissionSession();
-    if (!pendingSession) {
-      return;
-    }
-
-    if (pendingSession.courseId && courses.some((course) => course.id === pendingSession.courseId)) {
-      setSelectedCourseId((currentCourseId) =>
-        currentCourseId === pendingSession.courseId ? currentCourseId : pendingSession.courseId
-      );
-    }
-
-    setActiveOrderId(pendingSession.orderId);
+    resumeCheckRef.current = true;
 
     let cancelled = false;
 
     const restorePendingPayment = async () => {
+      const pendingSession = readPendingAdmissionSession();
+      if (!pendingSession) {
+        return;
+      }
+
+      if (pendingSession.courseId && courses.some((course) => course.id === pendingSession.courseId)) {
+        setSelectedCourseId((currentCourseId) =>
+          currentCourseId === pendingSession.courseId ? currentCourseId : pendingSession.courseId
+        );
+      }
+
+      setActiveOrderId(pendingSession.orderId);
+
       try {
         const response = await fetch("/api/auth/payments/razorpay/status", {
           method: "POST",
@@ -482,7 +483,7 @@ export default function JoinAdmissionFlow({
     return () => {
       cancelled = true;
     };
-  }, [courses, resumeChecked]);
+  }, [courses]);
 
   const isFormReady =
     Boolean(selectedCourseId) &&

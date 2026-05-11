@@ -6,6 +6,7 @@ const scriptSrc = [
   "'self'",
   "'unsafe-inline'",
   "https://*.vercel-insights.com",
+  "https://checkout.razorpay.com",
   ...(isDevelopment ? ["'unsafe-eval'"] : []),
 ].join(" ");
 
@@ -16,6 +17,9 @@ const connectSrc = [
   "https://*.vercel.app",
   "https://vercel.app",
   "https://*.vercel-insights.com",
+  "https://*.razorpay.com",
+  "https://api.razorpay.com",
+  "https://checkout.razorpay.com",
   ...(isDevelopment ? ["http:", "ws:", "http://localhost:*", "http://127.0.0.1:*", "ws://localhost:*", "ws://127.0.0.1:*"] : []),
 ].join(" ");
 
@@ -27,9 +31,9 @@ const contentSecurityPolicy = [
   `script-src ${scriptSrc}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com data:",
-  "img-src 'self' data: blob: https://*.supabase.co https://*.vercel.app https://vercel.app",
+  "img-src 'self' data: blob: https://*.supabase.co https://*.vercel.app https://vercel.app https://*.razorpay.com",
   `connect-src ${connectSrc}`,
-  "frame-src 'self' https://*.supabase.co",
+  "frame-src 'self' https://*.supabase.co https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com",
   "form-action 'self' https://*.supabase.co",
 ].join("; ");
 

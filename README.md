@@ -41,6 +41,10 @@ Required for Razorpay admissions:
 - `RAZORPAY_WEBHOOK_SECRET`
 - `ADMISSION_SIGNING_SECRET`
 
+`SUPABASE_SERVICE_ROLE_KEY` is also required locally for login-ID resolution and for public course/resource queries that read published data server-side.
+
+If you are upgrading an existing Supabase project instead of starting fresh, re-apply [supabase/schema.sql](supabase/schema.sql). The latest schema expects `public.institutes.subdomain` to exist for auth-user creation and institute lookups.
+
 ### 3. Configure Razorpay webhook
 
 Set the webhook URL to:

@@ -155,6 +155,8 @@ function getRazorpayKeyId() {
   return process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || "";
 }
 
+const razorpayKeyIdEnvName = "NEXT_PUBLIC_RAZORPAY_KEY_ID or RAZORPAY_KEY_ID";
+
 function getRazorpaySecret() {
   return process.env.RAZORPAY_KEY_SECRET || "";
 }
@@ -310,7 +312,7 @@ export function verifyRazorpayWebhookSignature(body: string, signature: string) 
 }
 
 export function getRazorpayClient() {
-  const keyId = requireSecret(getRazorpayKeyId(), "RAZORPAY_KEY_ID");
+  const keyId = requireSecret(getRazorpayKeyId(), razorpayKeyIdEnvName);
   const keySecret = requireSecret(getRazorpaySecret(), "RAZORPAY_KEY_SECRET");
   return new Razorpay({ key_id: keyId, key_secret: keySecret });
 }
@@ -550,7 +552,7 @@ export function createAdmissionOrderReceipt() {
 }
 
 export function getPublicRazorpayKeyId() {
-  return requireSecret(getRazorpayKeyId(), "RAZORPAY_KEY_ID");
+  return requireSecret(getRazorpayKeyId(), razorpayKeyIdEnvName);
 }
 
 async function loadCapturedRazorpayPayment(orderId: string, paymentId: string) {

@@ -64,12 +64,16 @@ const withTimeout = async <T,>(
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const hasSupabaseConfig = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<AuthRole>(null);
-  const [roleResolved, setRoleResolved] = useState(false);
+  const [roleResolved, setRoleResolved] = useState(() => !hasSupabaseConfig);
   const [instituteId, setInstituteId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => hasSupabaseConfig);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -206,7 +210,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!supabase) {
-      setLoading(false);
       return;
     }
 

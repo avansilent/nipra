@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 import type { HomeContent } from "../types/home";
-import { defaultHomeContent, mergeHomeContent } from "../data/homeContent";
+import { defaultHomeContent, isLegacyHomeContent, mergeHomeContent } from "../data/homeContent";
 import { createSupabaseServerClient } from "./supabase/server";
 
 export const homeContentCacheTag = "home-content";
@@ -23,7 +23,13 @@ const loadHomeContent = unstable_cache(
       return defaultHomeContent;
     }
 
-    return mergeHomeContent(data.data as Partial<HomeContent>);
+    const storedContent = data.data as Partial<HomeContent>;
+
+    if (isLegacyHomeContent(storedContent)) {
+      return defaultHomeContent;
+    }
+
+    return mergeHomeContent(storedContent);
   },
   [homeContentCacheTag],
   {

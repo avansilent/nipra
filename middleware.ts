@@ -30,16 +30,6 @@ export async function middleware(request: NextRequest) {
     return null;
   };
 
-  type SupabaseCookieOptions = {
-    domain?: string;
-    expires?: Date;
-    httpOnly?: boolean;
-    maxAge?: number;
-    path?: string;
-    sameSite?: "lax" | "strict" | "none";
-    secure?: boolean;
-  };
-
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -49,19 +39,24 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
+  type CookieToSet = {
+    name: string;
+    value: string;
+    options?: Parameters<typeof response.cookies.set>[2];
+  };
+
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookieOptions: {
       name: storageKey,
     },
     cookies: {
-      get(name: string) {
-        return request.cookies.get(name)?.value;
+      getAll() {
+        return request.cookies.getAll();
       },
-      set(name: string, value: string, options: SupabaseCookieOptions) {
-        response.cookies.set({ name, value, ...options });
-      },
-      remove(name: string, options: SupabaseCookieOptions) {
-        response.cookies.set({ name, value: "", ...options, maxAge: 0 });
+      setAll(cookiesToSet: CookieToSet[]) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          response.cookies.set(name, value, options);
+        });
       },
     },
   });

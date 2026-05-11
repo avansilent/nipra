@@ -22,13 +22,6 @@ import {
 const sectionContainer = createStaggerContainer(0.1, 0.04);
 const cardGrid = createStaggerContainer(0.08, 0.02);
 
-const trustStats = [
-  { label: "Students Enrolled", value: "25,000+" },
-  { label: "Selections", value: "3,200+" },
-  { label: "Years Experience", value: "12+" },
-  { label: "Success Rate", value: "93%" },
-];
-
 type HomeClientProps = {
   content: HomeContent;
   siteSettings: SiteSettings;
@@ -100,55 +93,13 @@ export default function HomeClient({ content, siteSettings }: HomeClientProps) {
 
               <motion.div variants={itemVariants} className="academy-note-banner mt-8">
                 <div>
-                  <p className="academy-note-title">See the full course view</p>
-                  <p className="academy-note-copy">Fees, subjects, and admission details are all in one clean course page.</p>
+                  <p className="academy-note-title">Course details in one place</p>
+                  <p className="academy-note-copy">See fees, subjects, and admission details on the course page.</p>
                 </div>
                 <Link href="/courses" className="btn academy-note-cta rounded-full px-6 py-3 text-sm font-semibold">
                   View Courses
                 </Link>
               </motion.div>
-            </motion.div>
-          </motion.section>
-
-          <motion.section
-            initial="hidden"
-            whileInView="show"
-            viewport={viewportOnce}
-            variants={sectionVariants}
-            className="section-block"
-          >
-            <motion.div variants={sectionContainer} className="section-head text-center">
-              <h3 className="section-title">{content.statsHeading}</h3>
-              <p className="section-subtitle mx-auto">{content.statsSubtitle}</p>
-            </motion.div>
-            <motion.div variants={cardGrid} className="stats-grid mt-10">
-              {content.stats.map((item) => (
-                <motion.div key={item.id} variants={itemVariants} whileHover={hoverMotion} className="stat-card">
-                  <div className="stat-value">{item.value}</div>
-                  <div className="stat-label">{item.label}</div>
-                </motion.div>
-              ))}
-            </motion.div>
-          </motion.section>
-
-          <motion.section
-            initial="hidden"
-            whileInView="show"
-            viewport={viewportOnce}
-            variants={sectionVariants}
-            className="section-block"
-          >
-            <motion.div variants={sectionContainer} className="section-head text-center">
-              <h3 className="section-title">Why families choose Nipra</h3>
-              <p className="section-subtitle mx-auto">Clear teaching, steady support, and a calmer student experience.</p>
-            </motion.div>
-            <motion.div variants={cardGrid} className="grid grid-cols-1 gap-6 md:grid-cols-3">
-              {trustStats.map((stat) => (
-                <motion.div key={stat.label} variants={itemVariants} whileHover={hoverMotion} className="home-trust-card rounded-[1.75rem] bg-white/92 p-7 text-center shadow-[0_20px_48px_rgba(15,23,42,0.06)] transition hover:shadow-[0_24px_54px_rgba(15,23,42,0.08)]">
-                  <p className="text-2xl font-bold tracking-tight text-slate-900">{stat.value}</p>
-                  <p className="mt-2 text-sm text-slate-600">{stat.label}</p>
-                </motion.div>
-              ))}
             </motion.div>
           </motion.section>
 

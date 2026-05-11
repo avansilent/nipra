@@ -93,8 +93,6 @@ type ResultSelectRow = {
   test_id: string;
   marks: number;
   recorded_at?: string;
-  student: { name: string } | Array<{ name: string }> | null;
-  test: { title: string; test_date: string } | Array<{ title: string; test_date: string }> | null;
 };
 
 type AnnouncementRow = {
@@ -293,6 +291,7 @@ export default function AdminWorkspace() {
 
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
   const [pageLoading, setPageLoading] = useState(true);
+  const [workspaceSnapshotAt, setWorkspaceSnapshotAt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -416,7 +415,7 @@ export default function AdminWorkspace() {
       withTimeout(
         supabase
           .from("results")
-          .select("student_id, test_id, marks, recorded_at, student:student_id(name), test:test_id(title, test_date)")
+          .select("student_id, test_id, marks, recorded_at")
           .eq("institute_id", tenantId)
           .order("recorded_at", { ascending: false })
       ),
@@ -451,17 +450,42 @@ export default function AdminWorkspace() {
 
     setNotes((noteRows ?? []) as ResourceRow[]);
     setMaterials((materialRows ?? []) as ResourceRow[]);
-    setTests((testRows ?? []) as TestRow[]);
-    setResults(((resultRows ?? []) as ResultSelectRow[]).map((row) => {
-      const student = singleRelation(row.student);
-      const test = singleRelation(row.test);
+    const normalizedTests = (testRows ?? []) as TestRow[];
+    const normalizedResults = (resultRows ?? []) as ResultSelectRow[];
+
+    setTests(normalizedTests);
+
+    const studentIds = Array.from(new Set(normalizedResults.map((row) => row.student_id).filter(Boolean)));
+    let studentNames = new Map<string, string>();
+
+    if (studentIds.length > 0) {
+      const { data: studentRows, error: studentRowsError } = await withTimeout(
+        supabase
+          .from("users")
+          .select("id, name")
+          .in("id", studentIds)
+      );
+
+      if (studentRowsError) {
+        throw new Error(studentRowsError.message);
+      }
+
+      studentNames = new Map(
+        ((studentRows ?? []) as Array<{ id: string; name: string | null }>).map((student) => [student.id, student.name ?? student.id])
+      );
+    }
+
+    const testsById = new Map(normalizedTests.map((test) => [test.id, test]));
+
+    setResults(normalizedResults.map((row) => {
+      const test = testsById.get(row.test_id);
 
       return {
         student_id: row.student_id,
         test_id: row.test_id,
         marks: Number(row.marks ?? 0),
         recorded_at: row.recorded_at,
-        student_name: student?.name ?? row.student_id,
+        student_name: studentNames.get(row.student_id) ?? row.student_id,
         test_title: test?.title ?? row.test_id,
         test_date: test?.test_date ?? null,
       };
@@ -484,6 +508,8 @@ export default function AdminWorkspace() {
       return;
     }
 
+    const snapshotAt = Date.now();
+
     setPageLoading(true);
     clearFeedback();
 
@@ -492,37 +518,44 @@ export default function AdminWorkspace() {
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load admin workspace");
     } finally {
+      setWorkspaceSnapshotAt(snapshotAt);
       setPageLoading(false);
     }
   }, [clearFeedback, instituteId, loadContent, loadCourses, loadOperationalData, loadStudents]);
 
+  const missingInstituteError =
+    !authLoading && role === "admin" && !instituteId
+      ? "This admin account is missing an institute assignment. Please update the admin profile in Supabase."
+      : null;
+  const workspaceError = error ?? missingInstituteError;
+
   useEffect(() => {
-    if (authLoading) {
+    if (authLoading || role !== "admin" || !instituteId) {
       return;
     }
 
-    if (role !== "admin") {
-      setPageLoading(false);
-      return;
-    }
+    const loadTimer = window.setTimeout(() => {
+      void loadWorkspace();
+    }, 0);
 
-    if (!instituteId) {
-      setError("This admin account is missing an institute assignment. Please update the admin profile in Supabase.");
-      setPageLoading(false);
-      return;
-    }
-
-    void loadWorkspace();
+    return () => {
+      window.clearTimeout(loadTimer);
+    };
   }, [authLoading, instituteId, loadWorkspace, role]);
+
+  const recentStudentCutoff =
+    workspaceSnapshotAt > 0
+      ? workspaceSnapshotAt - 1000 * 60 * 60 * 24 * 30
+      : Number.NEGATIVE_INFINITY;
+  const upcomingTestCutoff = workspaceSnapshotAt > 0 ? workspaceSnapshotAt : 0;
 
   const filteredStudents = useMemo(() => {
     const search = deferredStudentSearch.trim().toLowerCase();
-    const recentCutoff = Date.now() - 1000 * 60 * 60 * 24 * 30;
 
     return students.filter((student) => {
       if (studentFilter === "recent") {
         const createdAt = student.created_at ? new Date(student.created_at).getTime() : 0;
-        if (!createdAt || createdAt < recentCutoff) {
+        if (!createdAt || createdAt < recentStudentCutoff) {
           return false;
         }
       }
@@ -536,27 +569,25 @@ export default function AdminWorkspace() {
         .toLowerCase()
         .includes(search);
     });
-  }, [deferredStudentSearch, studentFilter, students]);
+  }, [deferredStudentSearch, recentStudentCutoff, studentFilter, students]);
 
   const recentStudentCount = useMemo(() => {
-    const recentCutoff = Date.now() - 1000 * 60 * 60 * 24 * 30;
     return students.filter((student) => {
       const createdAt = student.created_at ? new Date(student.created_at).getTime() : 0;
-      return Boolean(createdAt && createdAt >= recentCutoff);
+      return Boolean(createdAt && createdAt >= recentStudentCutoff);
     }).length;
-  }, [students]);
+  }, [recentStudentCutoff, students]);
 
   const publishedCourseCount = courses.filter((course) => course.status === "published").length;
   const draftCourseCount = courses.filter((course) => course.status === "draft").length;
   const archivedCourseCount = courses.filter((course) => course.status === "archived").length;
   const unassignedCourseCount = courses.filter((course) => !enrollments.some((entry) => entry.course_id === course.id)).length;
   const totalResources = notes.length + materials.length;
-  const upcomingTestsCount = tests.filter((test) => new Date(test.test_date) >= new Date()).length;
+  const upcomingTestsCount = tests.filter((test) => new Date(test.test_date).getTime() >= upcomingTestCutoff).length;
   const thisWeekTestCount = tests.filter((test) => {
     const value = new Date(test.test_date).getTime();
-    const start = Date.now();
-    const end = start + 1000 * 60 * 60 * 24 * 7;
-    return value >= start && value <= end;
+    const end = upcomingTestCutoff + 1000 * 60 * 60 * 24 * 7;
+    return value >= upcomingTestCutoff && value <= end;
   }).length;
   const latestAnnouncement = announcements[0] ?? null;
 
@@ -1325,7 +1356,7 @@ export default function AdminWorkspace() {
     }));
   };
 
-  const saveSiteContent = async (key: "home" | "settings", data: HomeContent | SiteSettings) => {
+  async function saveSiteContent(key: "home" | "settings", data: HomeContent | SiteSettings) {
     clearFeedback();
     setBusy(true);
     try {
@@ -1349,9 +1380,11 @@ export default function AdminWorkspace() {
     } finally {
       setBusy(false);
     }
-  };
+  }
 
-  if (authLoading || pageLoading) {
+  const showLoadingState = authLoading || (role === "admin" && Boolean(instituteId) && pageLoading);
+
+  if (showLoadingState) {
     return (
       <section className="relative w-full px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
         <div className="pointer-events-none absolute left-0 top-10 h-44 w-44 rounded-full bg-stone-200/50 blur-3xl" />
@@ -1468,9 +1501,9 @@ export default function AdminWorkspace() {
           </div>
         </div>
 
-        {error || message ? (
-          <div className={`rounded-[24px] px-5 py-4 text-sm shadow-[0_14px_32px_rgba(226,232,240,0.88)] ${error ? "bg-rose-50/90 text-rose-700" : "bg-emerald-50/90 text-emerald-700"}`}>
-            {error ? error : message}
+        {workspaceError || message ? (
+          <div className={`rounded-[24px] px-5 py-4 text-sm shadow-[0_14px_32px_rgba(226,232,240,0.88)] ${workspaceError ? "bg-rose-50/90 text-rose-700" : "bg-emerald-50/90 text-emerald-700"}`}>
+            {workspaceError ? workspaceError : message}
           </div>
         ) : null}
 

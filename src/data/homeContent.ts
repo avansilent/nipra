@@ -1,129 +1,135 @@
 import type { HomeContent } from "../types/home";
 
 export const defaultHomeContent: HomeContent = {
-  heroBadge: "Structured learning",
-  heroTitle: "Clear teaching. Calm progress.",
+  heroBadge: "Simple learning",
+  heroTitle: "Learn clearly. Grow steadily.",
   heroSubtitle:
-    "A simple learning system for classes, practice, and guidance in one clean student experience.",
+    "Classes, practice, and guidance in one calm student space.",
   heroPrimaryCtaLabel: "Explore Programs",
   heroPrimaryCtaHref: "/courses",
   heroSecondaryCtaLabel: "Talk to Counselors",
   heroSecondaryCtaHref: "/#contact",
   programsHeading: "Programs",
   programsDescription:
-    "Clear academic paths from Class 1 to 12, designed for strong basics and steady exam readiness.",
+    "Simple paths from Class 1 to 12 with clear practice and support.",
   programs: [
     {
       id: "program-foundation",
-      title: "Classes 1-5 (Foundation Level)",
+      title: "Classes 1-5",
       subtitle: "Focus",
       chips: [
-        "Concept building, basics, reading and comprehension",
-        "Mental math and confidence building",
+        "Basics, reading, and number sense",
+        "Confidence through daily practice",
       ],
-      ctaLabel: "Explore Foundation",
+      ctaLabel: "View Foundation",
       ctaHref: "/courses",
     },
     {
       id: "program-middle",
-      title: "Classes 6-8 (Middle Level)",
+      title: "Classes 6-8",
       subtitle: "Focus",
       chips: [
-        "Organized modules and interactive teaching",
-        "Practice homework with feedback loops",
+        "Clear lessons and guided homework",
+        "Regular feedback and progress checks",
       ],
-      ctaLabel: "Explore Middle",
+      ctaLabel: "View Middle",
       ctaHref: "/courses",
     },
     {
       id: "program-board",
-      title: "Classes 9-10 (Board Readiness)",
+      title: "Classes 9-10",
       subtitle: "Focus",
       chips: [
-        "Board preparation with a competitive approach",
-        "Complete syllabus revision and board-pattern tests",
-        "Time management and answer writing practice",
+        "Board-focused classes and revision",
+        "Tests, writing practice, and time strategy",
       ],
-      ctaLabel: "Explore Board Prep",
+      ctaLabel: "View Board Prep",
       ctaHref: "/courses",
     },
     {
       id: "program-senior",
-      title: "Senior Secondary (Classes 11-12)",
-      subtitle: "Target students",
+      title: "Classes 11-12",
+      subtitle: "Streams",
       chips: [
-        "Science, Commerce, and Humanities streams",
-        "CBSE and Bihar Board students",
-        "Foundation for competitive exams (JEE, NEET, CA, SET, and more)",
+        "Science, Commerce, and Humanities",
+        "Boards plus competitive foundation",
       ],
-      ctaLabel: "Explore Senior Secondary",
+      ctaLabel: "View Senior Secondary",
       ctaHref: "/courses",
     },
   ],
-  statsHeading: "Results families can trust",
-  statsSubtitle: "Clear progress, steady guidance, and consistent outcomes.",
+  statsHeading: "Results that stay clear",
+  statsSubtitle: "Strong guidance and steady outcomes.",
   stats: [
     { id: "stat-learners", label: "Learners guided", value: "25k+" },
     { id: "stat-mentors", label: "Expert mentors", value: "120+" },
     { id: "stat-sessions", label: "Interactive sessions", value: "1.8k+" },
     { id: "stat-success", label: "Success rate", value: "93%" },
   ],
-  testimonialsHeading: "Student success stories",
+  testimonialsHeading: "What students say",
   testimonialsSubtitle:
-    "Real feedback from learners who improved grades and confidence.",
+    "Short feedback from students learning with us.",
   testimonials: [
     {
       id: "testimonial-aarav",
       name: "Aarav Singh",
       role: "Class 10, CBSE",
       quote:
-        "The board prep plan kept me focused and confident. The practice tests felt exactly like the real exam.",
+        "The board plan kept me focused. Mock tests made the exam feel familiar.",
     },
     {
       id: "testimonial-meera",
       name: "Meera Raj",
       role: "Class 8, Bihar Board",
       quote:
-        "Concepts are explained clearly and the practice homework keeps me consistent every week.",
-    },
-    {
-      id: "testimonial-kunal",
-      name: "Kunal Verma",
-      role: "Class 12, Science",
-      quote:
-        "Great balance between board studies and competitive foundation. The mentors are very supportive.",
+        "Classes are clear and the homework keeps me regular every week.",
     },
   ],
-  faqsHeading: "Frequently asked questions",
-  faqsSubtitle: "Everything you need to know before you enroll.",
+  faqsHeading: "Quick answers",
+  faqsSubtitle: "The basics before you join.",
   faqs: [
     {
       id: "faq-boards",
       question: "Which boards are supported?",
       answer:
-        "CBSE and Bihar Board students are covered across all programs with aligned curriculum and assessments.",
-    },
-    {
-      id: "faq-competitive",
-      question: "How do you help with competitive readiness?",
-      answer:
-        "We blend conceptual mastery with timed practice, mock tests, and exam-style problem sets.",
+        "CBSE and Bihar Board students are covered across all programs.",
     },
     {
       id: "faq-join",
       question: "Can students join mid-session?",
       answer:
-        "Yes. We offer guided onboarding and bridge lessons to help new students catch up quickly.",
+        "Yes. We help new students settle in with guided support.",
     },
   ],
   contactHeading: "Talk to us",
-  contactSubtitle: "Get the right class, board, and admission guidance.",
+  contactSubtitle: "Get quick help with class, board, and admission.",
   contactCtaLabel: "Request a callback",
-  newsletterHeading: "Updates, not noise",
-  newsletterSubtitle: "Occasional study tips and important academic updates.",
+  newsletterHeading: "Stay updated",
+  newsletterSubtitle: "Only important academic updates.",
   newsletterCtaLabel: "Subscribe",
-  footerTagline: "Clear learning for Class 1-12 | CBSE & Bihar Board",
+  footerTagline: "Calm learning for Class 1-12",
 };
+
+const legacyHomeContentMarkers = {
+  heroTitle: "Clear teaching. Calm progress.",
+  programsDescription:
+    "Clear academic paths from Class 1 to 12, designed for strong basics and steady exam readiness.",
+  testimonialsHeading: "Student success stories",
+  faqsHeading: "Frequently asked questions",
+} as const;
+
+export function isLegacyHomeContent(value: Partial<HomeContent> | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+
+  return (
+    value.heroTitle === legacyHomeContentMarkers.heroTitle &&
+    value.programsDescription === legacyHomeContentMarkers.programsDescription &&
+    value.testimonialsHeading === legacyHomeContentMarkers.testimonialsHeading &&
+    value.faqsHeading === legacyHomeContentMarkers.faqsHeading
+  );
+}
 
 function pickText(value: unknown, fallback: string): string {
   if (typeof value !== "string") {
