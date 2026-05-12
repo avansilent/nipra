@@ -216,6 +216,17 @@ async function loadRazorpayCheckoutScript() {
   return razorpayScriptPromise;
 }
 
+function formatPaymentSetupErrorMessage(error: unknown, contactPhone: string) {
+  const fallbackMessage = "Unable to start secure checkout right now.";
+  const message = error instanceof Error ? error.message : fallbackMessage;
+
+  if (/NEXT_PUBLIC_RAZORPAY_KEY_ID|RAZORPAY_KEY_ID|RAZORPAY_KEY_SECRET|environment configuration/i.test(message)) {
+    return `Secure Razorpay checkout is being configured right now. Call ${contactPhone} and the team can complete the admission manually until payment is restored.`;
+  }
+
+  return message;
+}
+
 function readPendingAdmissionSession() {
   if (typeof window === "undefined") {
     return null;
@@ -389,7 +400,7 @@ export default function JoinAdmissionFlow({
   const shellClassName = embedded ? "admission-shell admission-shell-embedded" : "admission-shell";
   const paymentSecurityCardClassName =
     embedded
-      ? "overflow-hidden rounded-[1.65rem] border border-slate-200/75 bg-white p-5 text-slate-950 shadow-[0_12px_24px_rgba(15,23,42,0.04)]"
+      ? "overflow-hidden rounded-[1.7rem] border border-slate-200/55 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] p-5 text-slate-950 shadow-[0_16px_34px_rgba(15,23,42,0.05)]"
       : "overflow-hidden rounded-[1.65rem] border border-slate-200/75 bg-white p-5 text-slate-950 shadow-[0_14px_28px_rgba(15,23,42,0.05)]";
   const paymentSubmitButtonClassName =
     embedded
@@ -748,7 +759,7 @@ export default function JoinAdmissionFlow({
     } catch (paymentError) {
       setPaymentPhase("failed");
       setSuccess(null);
-      setError(paymentError instanceof Error ? paymentError.message : "Unable to start secure checkout right now.");
+      setError(formatPaymentSetupErrorMessage(paymentError, siteSettings.contactPhone));
     }
   };
 
@@ -944,17 +955,17 @@ export default function JoinAdmissionFlow({
               </div>
 
               {embedded && selectedCourse ? (
-                <div className="mb-5 rounded-[1.45rem] border border-slate-200/75 bg-slate-50/80 p-4">
+                <div className="mb-5 rounded-[1.5rem] border border-slate-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.9))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.88),0_14px_30px_rgba(15,23,42,0.035)]">
                   <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500">Selected course</p>
-                  <div className="mt-3 flex flex-wrap gap-2.5">
-                    <span className="inline-flex rounded-full border border-slate-200/80 bg-white px-3.5 py-2 text-sm font-semibold text-slate-900">
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="inline-flex rounded-full border border-slate-200/60 bg-white px-3.5 py-2 text-sm font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
                       {selectedCourse.title}
                     </span>
-                    <span className="inline-flex rounded-full border border-slate-200/80 bg-white px-3.5 py-2 text-sm font-medium text-slate-700">
+                    <span className="inline-flex rounded-full border border-slate-200/60 bg-white/90 px-3.5 py-2 text-sm font-medium text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
                       Admission {selectedAdmissionFee}
                     </span>
                     {selectedMonthlyFee ? (
-                      <span className="inline-flex rounded-full border border-slate-200/80 bg-white px-3.5 py-2 text-sm font-medium text-slate-600">
+                      <span className="inline-flex rounded-full border border-slate-200/60 bg-white/90 px-3.5 py-2 text-sm font-medium text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
                         {selectedMonthlyFee}
                       </span>
                     ) : null}
@@ -1006,7 +1017,7 @@ export default function JoinAdmissionFlow({
                 </label>
               </div>
 
-              <details className="mt-4 rounded-[1.45rem] border border-slate-200/75 bg-slate-50/80 p-4 text-sm text-slate-600">
+              <details className="mt-4 rounded-[1.45rem] border border-slate-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.9))] p-4 text-sm text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
                 <summary className="cursor-pointer list-none font-semibold text-slate-700">
                   Add optional details
                 </summary>
@@ -1068,24 +1079,24 @@ export default function JoinAdmissionFlow({
                   </span>
                 </div>
 
-                <div className="mt-5 overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-white">
-                  <div className="flex items-start justify-between gap-4 px-4 py-3.5 text-sm">
+                <div className="mt-5 grid gap-2.5 rounded-[1.35rem] border border-slate-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.92))] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                  <div className="flex flex-col items-start gap-2 rounded-[1rem] bg-slate-50/85 px-4 py-3.5 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                     <span className="text-slate-500">Course</span>
-                    <strong className="max-w-[16rem] text-right font-semibold text-slate-950">{selectedCourse?.title ?? "Choose a course first"}</strong>
+                    <strong className="max-w-[16rem] font-semibold text-slate-950 sm:text-right">{selectedCourse?.title ?? "Choose a course first"}</strong>
                   </div>
-                  <div className="flex items-start justify-between gap-4 border-t border-slate-200/80 px-4 py-3.5 text-sm">
+                  <div className="flex flex-col items-start gap-2 rounded-[1rem] bg-slate-50/85 px-4 py-3.5 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                     <span className="text-slate-500">Admission fee</span>
-                    <strong className="text-right font-semibold text-slate-950">{selectedAdmissionFee}</strong>
+                    <strong className="font-semibold text-slate-950 sm:text-right">{selectedAdmissionFee}</strong>
                   </div>
                   {selectedMonthlyFee ? (
-                    <div className="flex items-start justify-between gap-4 border-t border-slate-200/80 px-4 py-3.5 text-sm">
+                    <div className="flex flex-col items-start gap-2 rounded-[1rem] bg-slate-50/85 px-4 py-3.5 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                       <span className="text-slate-500">Monthly fee</span>
-                      <strong className="text-right font-semibold text-slate-950">{selectedMonthlyFee}</strong>
+                      <strong className="font-semibold text-slate-950 sm:text-right">{selectedMonthlyFee}</strong>
                     </div>
                   ) : null}
-                  <div className="flex items-start justify-between gap-4 border-t border-slate-200/80 px-4 py-3.5 text-sm">
+                  <div className="flex flex-col items-start gap-2 rounded-[1rem] bg-slate-50/85 px-4 py-3.5 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                     <span className="text-slate-500">Payment methods</span>
-                    <strong className="text-right font-semibold text-slate-950">UPI, cards, net banking</strong>
+                    <strong className="font-semibold text-slate-950 sm:text-right">UPI, cards, net banking</strong>
                   </div>
                 </div>
 

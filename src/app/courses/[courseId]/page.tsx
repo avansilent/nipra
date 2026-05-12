@@ -30,18 +30,18 @@ export default async function CourseDetailPage({ params }: CourseDetailPageProps
 
   return (
     <section className="app-page-shell course-detail-shell">
-      <div className="mx-auto max-w-5xl space-y-7 lg:space-y-8">
+      <div className="mx-auto max-w-5xl space-y-6 lg:space-y-7">
         <section className="course-detail-panel rounded-[2.2rem] p-6 sm:p-8">
           <Link
             href="/courses"
-            className="inline-flex items-center rounded-full border border-slate-200/70 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:text-slate-950"
+            className="course-detail-back-link inline-flex items-center rounded-full border border-slate-200/70 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:text-slate-950"
           >
             Back to all courses
           </Link>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.02fr)_minmax(16rem,0.98fr)] lg:items-start">
             <div className="min-w-0">
-              <p className="inline-flex items-center rounded-full bg-white/94 px-4 py-2 text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-slate-600 shadow-[0_10px_18px_rgba(15,23,42,0.03)]">
+              <p className="course-detail-context-pill inline-flex items-center rounded-full bg-white/94 px-4 py-2 text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-slate-600 shadow-[0_10px_18px_rgba(15,23,42,0.03)]">
                 {academySession} • {academyLocation}
               </p>
 
@@ -108,7 +108,7 @@ export default async function CourseDetailPage({ params }: CourseDetailPageProps
                   ))}
                 </div>
               </div>
-              <p className="mt-5 rounded-[1.3rem] bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-600 overflow-wrap-anywhere">
+              <p className="course-detail-note-card mt-5 rounded-[1.3rem] bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-600 overflow-wrap-anywhere">
                 {admissionCourse
                   ? "This course is ready for direct secure admission. Open the application below, fill the essential details, and pay through Razorpay. Student access is created only after verification."
                   : academyAdmissionNote}

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { type WheelEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type PointerEvent as ReactPointerEvent, type WheelEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useAdaptiveMotion } from "../hooks/useAdaptiveMotion";
 import type { HomeContent } from "../types/home";
 import type { SiteSettings } from "../types/site";
@@ -109,6 +109,14 @@ export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
   const [supportsFinePointer, setSupportsFinePointer] = useState(false);
   const [failedImageSrcs, setFailedImageSrcs] = useState<Record<string, boolean>>({});
   const lastWheelGestureAtRef = useRef(0);
+  const dragGestureRef = useRef({
+    pointerId: -1,
+    startX: 0,
+    startY: 0,
+    deltaX: 0,
+    dragging: false,
+    blocked: false,
+  });
   const { allowRichMotion, performanceMode } = useAdaptiveMotion();
 
   const phoneDialUrl = useMemo(() => `tel:${siteSettings.contactPhone.replace(/\s+/g, "")}`, [siteSettings.contactPhone]);
@@ -239,6 +247,21 @@ export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
 
   const activeSlide = slides[activeIndex];
 
+  const resetDragGesture = () => {
+    dragGestureRef.current = {
+      pointerId: -1,
+      startX: 0,
+      startY: 0,
+      deltaX: 0,
+      dragging: false,
+      blocked: false,
+    };
+  };
+
+  const shouldIgnoreDragTarget = (target: EventTarget | null) => {
+    return target instanceof Element && Boolean(target.closest("a, button, input, textarea, select, summary, label"));
+  };
+
   const handleTrackpadSwipe = (event: WheelEvent<HTMLDivElement>) => {
     if (!supportsFinePointer || event.ctrlKey || event.metaKey || event.altKey) {
       return;
@@ -266,6 +289,73 @@ export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
     lastWheelGestureAtRef.current = now;
     event.preventDefault();
     goToSlide(activeIndex + (horizontalDelta > 0 ? 1 : -1));
+  };
+
+  const handlePointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+
+    dragGestureRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      deltaX: 0,
+      dragging: false,
+      blocked: shouldIgnoreDragTarget(event.target),
+    };
+
+    if (!dragGestureRef.current.blocked) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLElement>) => {
+    const currentGesture = dragGestureRef.current;
+    if (currentGesture.pointerId !== event.pointerId || currentGesture.blocked) {
+      return;
+    }
+
+    const deltaX = event.clientX - currentGesture.startX;
+    const deltaY = event.clientY - currentGesture.startY;
+    const activationDelta = isLiteMotion ? 18 : isBalancedMotion ? 14 : 12;
+
+    if (!currentGesture.dragging) {
+      if (Math.abs(deltaX) < activationDelta && Math.abs(deltaY) < activationDelta) {
+        return;
+      }
+
+      if (Math.abs(deltaX) <= Math.abs(deltaY)) {
+        currentGesture.blocked = true;
+        return;
+      }
+
+      currentGesture.dragging = true;
+    }
+
+    currentGesture.deltaX = deltaX;
+    event.preventDefault();
+  };
+
+  const handlePointerUp = (event: ReactPointerEvent<HTMLElement>) => {
+    const currentGesture = dragGestureRef.current;
+    if (currentGesture.pointerId !== event.pointerId) {
+      return;
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    if (currentGesture.dragging) {
+      const swipeThreshold = isLiteMotion ? 44 : isBalancedMotion ? 38 : 32;
+
+      if (Math.abs(currentGesture.deltaX) >= swipeThreshold) {
+        goToSlide(activeIndex + (currentGesture.deltaX < 0 ? 1 : -1));
+      }
+    }
+
+    resetDragGesture();
   };
 
   const renderSlideAction = (slide: HeroSlide, action: HeroSlideAction) => {
@@ -390,7 +480,11 @@ export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
     <section
       className="hero-ribbon-shell group relative overflow-hidden rounded-[2rem] border bg-white/96 px-5 pb-3 pt-3 shadow-[0_14px_30px_rgba(15,23,42,0.04)] sm:rounded-[2.2rem] sm:px-6 sm:pb-4 sm:pt-4 lg:rounded-[2.6rem] lg:px-10 lg:pb-4 lg:pt-4"
       onWheelCapture={handleTrackpadSwipe}
-      style={{ borderColor: "rgba(255,255,255,0.5)" }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      style={{ borderColor: "rgba(255,255,255,0.5)", touchAction: "pan-y pinch-zoom" }}
     >
       <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-white/72" />
 

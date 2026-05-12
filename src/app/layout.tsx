@@ -158,6 +158,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 </div>
                 <p className="mt-3 text-sm leading-relaxed text-slate-600">{siteSettings.footerNotice}</p>
                 <p className="mt-2 text-xs text-slate-500">&copy; {new Date().getFullYear()} {siteSettings.siteName}. All rights reserved.</p>
+                <p className="mt-3 text-[0.68rem] font-medium uppercase tracking-[0.18em] text-slate-400">
+                  Version 12th Update
+                </p>
+                <p className="mt-1 text-xs text-slate-500">Powered by Dark Astra</p>
               </div>
             </footer>
           </div>

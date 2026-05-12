@@ -1,4 +1,6 @@
+import fs from "node:fs";
 import crypto from "node:crypto";
+import path from "node:path";
 import Razorpay from "razorpay";
 import { findAcademyCatalogCourse } from "../../data/academyCatalog";
 import { createStudentEmail, createTempPassword, sanitizeLoginId } from "../admin/route";
@@ -151,22 +153,63 @@ function getServiceClient() {
   return createSupabaseServiceClient();
 }
 
+let runtimeEnvFileCache: Map<string, string> | null = null;
+
+function getRuntimeEnvValue(name: string) {
+  const runtimeValue = process.env[name];
+  if (typeof runtimeValue === "string" && runtimeValue.trim()) {
+    return runtimeValue.trim();
+  }
+
+  if (!runtimeEnvFileCache) {
+    runtimeEnvFileCache = new Map<string, string>();
+
+    for (const fileName of [".env.local", ".env"]) {
+      const filePath = path.join(/* turbopackIgnore: true */ process.cwd(), fileName);
+      if (!fs.existsSync(filePath)) {
+        continue;
+      }
+
+      const fileText = fs.readFileSync(filePath, "utf8");
+      for (const rawLine of fileText.split(/\r?\n/)) {
+        const line = rawLine.trim();
+        if (!line || line.startsWith("#")) {
+          continue;
+        }
+
+        const separatorIndex = line.indexOf("=");
+        if (separatorIndex <= 0) {
+          continue;
+        }
+
+        const key = line.slice(0, separatorIndex).trim();
+        const value = line.slice(separatorIndex + 1).trim().replace(/^['"]|['"]$/g, "");
+        if (key && value && !runtimeEnvFileCache.has(key)) {
+          runtimeEnvFileCache.set(key, value);
+        }
+      }
+    }
+  }
+
+  return runtimeEnvFileCache.get(name) ?? "";
+}
+
 function getRazorpayKeyId() {
-  return process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || "";
+  return getRuntimeEnvValue("NEXT_PUBLIC_RAZORPAY_KEY_ID") || getRuntimeEnvValue("RAZORPAY_KEY_ID") || "";
 }
 
 const razorpayKeyIdEnvName = "NEXT_PUBLIC_RAZORPAY_KEY_ID or RAZORPAY_KEY_ID";
 
 function getRazorpaySecret() {
-  return process.env.RAZORPAY_KEY_SECRET || "";
+  return getRuntimeEnvValue("RAZORPAY_KEY_SECRET") || "";
 }
 
 function getWebhookSecret() {
-  return process.env.RAZORPAY_WEBHOOK_SECRET || "";
+  return getRuntimeEnvValue("RAZORPAY_WEBHOOK_SECRET") || "";
 }
 
 function getAdmissionSigningSecret() {
-  return process.env.ADMISSION_SIGNING_SECRET || getRazorpaySecret() || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  return getRuntimeEnvValue("ADMISSION_SIGNING_SECRET") || getRazorpaySecret() || getRuntimeEnvValue("SUPABASE_SERVICE_ROLE_KEY") || "";
 }
 
 function requireSecret(value: string, name: string) {

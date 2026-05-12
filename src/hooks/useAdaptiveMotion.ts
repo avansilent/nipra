@@ -11,6 +11,12 @@ type AdaptiveMotionState = {
   supportsFinePointer: boolean;
 };
 
+const initialAdaptiveMotionState: AdaptiveMotionState = {
+  performanceMode: "full",
+  canHover: false,
+  supportsFinePointer: false,
+};
+
 const resolvePerformanceMode = (): PerformanceMode => {
   if (typeof document !== "undefined") {
     const mode = document.documentElement.dataset.performanceMode;
@@ -71,7 +77,7 @@ const isSameAdaptiveMotionState = (current: AdaptiveMotionState, next: AdaptiveM
 
 export function useAdaptiveMotion() {
   const reducedMotion = useReducedMotion();
-  const [adaptiveMotionState, setAdaptiveMotionState] = useState<AdaptiveMotionState>(() => resolveAdaptiveMotionState());
+  const [adaptiveMotionState, setAdaptiveMotionState] = useState<AdaptiveMotionState>(initialAdaptiveMotionState);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {

@@ -30,12 +30,13 @@ type HomeClientProps = {
 export default function HomeClient({ content, siteSettings }: HomeClientProps) {
   const whatsappNumber = useMemo(() => siteSettings.contactPhone.replace(/\D/g, ""), [siteSettings.contactPhone]);
   const phoneDialUrl = useMemo(() => `tel:${siteSettings.contactPhone.replace(/\s+/g, "")}`, [siteSettings.contactPhone]);
-  const { allowHoverMotion, allowRichMotion } = useAdaptiveMotion();
+  const { allowEntranceMotion, allowHoverMotion, allowRichMotion } = useAdaptiveMotion();
   const sectionVariants = allowRichMotion ? sectionReveal : balancedSectionReveal;
   const itemVariants = allowRichMotion ? itemReveal : balancedItemReveal;
   const hoverMotion = allowHoverMotion ? hoverLift : undefined;
   const buttonMotion = allowHoverMotion ? buttonHover : undefined;
   const resolveProgramHref = (href: string) => href;
+  const initialSectionState = allowEntranceMotion ? "hidden" : false;
 
   return (
     <div className="home-shell w-full">
@@ -46,7 +47,7 @@ export default function HomeClient({ content, siteSettings }: HomeClientProps) {
       <section className="mobile-home-shell px-6 py-24">
         <div className="mobile-home-stack relative mx-auto w-full max-w-6xl space-y-24 md:space-y-28">
           <motion.section
-            initial="hidden"
+            initial={initialSectionState}
             whileInView="show"
             viewport={viewportOnce}
             variants={sectionVariants}
@@ -57,7 +58,7 @@ export default function HomeClient({ content, siteSettings }: HomeClientProps) {
 
           <motion.section
             id="programs"
-            initial="hidden"
+            initial={initialSectionState}
             whileInView="show"
             viewport={viewportOnce}
             variants={sectionVariants}
@@ -104,7 +105,7 @@ export default function HomeClient({ content, siteSettings }: HomeClientProps) {
           </motion.section>
 
           <motion.section
-            initial="hidden"
+            initial={initialSectionState}
             whileInView="show"
             viewport={viewportOnce}
             variants={sectionVariants}
@@ -128,7 +129,7 @@ export default function HomeClient({ content, siteSettings }: HomeClientProps) {
           </motion.section>
 
           <motion.section
-            initial="hidden"
+            initial={initialSectionState}
             whileInView="show"
             viewport={viewportOnce}
             variants={sectionVariants}
@@ -149,7 +150,7 @@ export default function HomeClient({ content, siteSettings }: HomeClientProps) {
           </motion.section>
 
           <motion.section
-            initial="hidden"
+            initial={initialSectionState}
             whileInView="show"
             viewport={viewportOnce}
             variants={sectionVariants}
@@ -189,7 +190,7 @@ export default function HomeClient({ content, siteSettings }: HomeClientProps) {
           </motion.section>
 
           <motion.section
-            initial="hidden"
+            initial={initialSectionState}
             whileInView="show"
             viewport={viewportOnce}
             variants={sectionVariants}
@@ -208,7 +209,7 @@ export default function HomeClient({ content, siteSettings }: HomeClientProps) {
               </div>
             </motion.div>
           </motion.section>
-
+            initial={initialSectionState}
         </div>
       </section>
 

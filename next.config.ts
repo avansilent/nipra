@@ -6,6 +6,7 @@ const scriptSrc = [
   "'self'",
   "'unsafe-inline'",
   "https://*.vercel-insights.com",
+  "https://*.razorpay.com",
   "https://checkout.razorpay.com",
   ...(isDevelopment ? ["'unsafe-eval'"] : []),
 ].join(" ");

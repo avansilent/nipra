@@ -43,7 +43,7 @@ export default function CoursesExperience({ contactPhone, admissionOpenCourseIds
 
   return (
     <section className="app-page-shell courses-page-shell">
-      <div className="mx-auto max-w-6xl space-y-8 lg:space-y-10">
+      <div className="mx-auto max-w-6xl space-y-7 lg:space-y-8">
         <motion.section
           initial="hidden"
           whileInView="show"
@@ -52,7 +52,7 @@ export default function CoursesExperience({ contactPhone, admissionOpenCourseIds
           className="courses-hero-panel rounded-[2rem] p-6 sm:p-8"
         >
           <motion.div variants={itemVariants} className="max-w-5xl min-w-0 space-y-6">
-            <p className="inline-flex items-center rounded-full border border-slate-200/70 bg-white px-4 py-2 text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-slate-600">
+            <p className="courses-context-pill inline-flex items-center rounded-full border border-slate-200/70 bg-white px-4 py-2 text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-slate-600">
               {academySession} • {academyLocation}
             </p>
 
@@ -109,7 +109,7 @@ export default function CoursesExperience({ contactPhone, admissionOpenCourseIds
                 tabIndex={-1}
                 className="courses-catalog-card group flex h-full min-w-0 flex-col rounded-[1.85rem] p-5"
               >
-                <Link href={`/courses/${course.id}#admission`} className="flex h-full min-w-0 flex-col">
+                <Link href={`/courses/${course.id}#admission`} className="course-card-link flex h-full min-w-0 flex-col">
                   <div className="relative aspect-[16/10] overflow-hidden rounded-[1.4rem] bg-slate-100/70">
                     <Image
                       src={course.imageSrc}
