@@ -50,7 +50,7 @@ export default function HomeClient({ content, siteSettings }: HomeClientProps) {
             whileInView="show"
             viewport={viewportOnce}
             variants={sectionVariants}
-            className="section-block"
+            className="section-block home-hero-section"
           >
             <HeroBanner content={content} siteSettings={siteSettings} />
           </motion.section>
@@ -61,7 +61,7 @@ export default function HomeClient({ content, siteSettings }: HomeClientProps) {
             whileInView="show"
             viewport={viewportOnce}
             variants={sectionVariants}
-            className="section-block"
+            className="section-block home-section-after-hero"
           >
             <motion.div variants={sectionContainer} className="program-section">
               <motion.h2 variants={itemVariants} className="program-heading text-center">

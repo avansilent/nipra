@@ -38,6 +38,7 @@ const contentSecurityPolicy = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  devIndicators: false,
   async headers() {
     return [
       {

@@ -19,17 +19,89 @@ type HeroSlideAction = {
   external?: boolean;
 };
 
+type HeroSlideAccent = "rose" | "amber" | "sky";
+
 type HeroSlide = {
   id: string;
+  accent: HeroSlideAccent;
   eyebrow: string;
+  statusLabel: string;
   title: string;
   description: string;
   footnote: string;
   actions: HeroSlideAction[];
   visual: "founder" | "academy" | "education";
-  points?: string[];
+  signalItems: string[];
+  highlights?: string[];
+  sideLabel?: string;
   imageSrc?: string;
   imageAlt?: string;
+};
+
+const accentStyles: Record<HeroSlideAccent, {
+  statusText: string;
+  statusBadgeClassName: string;
+  dotClassName: string;
+  lineClassName: string;
+  glowClassName: string;
+  surfaceTintClassName: string;
+  premiumWashClassName: string;
+  primaryButtonClassName: string;
+  secondaryBorderClassName: string;
+  surfaceGradient: string;
+  premiumWashGradient: string;
+  badgeGradient: string;
+  chipGradient: string;
+  rowIndexClassName: string;
+}> = {
+  rose: {
+    statusText: "text-rose-600",
+    statusBadgeClassName: "shadow-[0_8px_18px_rgba(244,63,94,0.08)]",
+    dotClassName: "bg-gradient-to-r from-rose-500 to-orange-400",
+    lineClassName: "from-rose-500/80 via-orange-300/60 to-transparent",
+    glowClassName: "bg-[radial-gradient(circle,rgba(244,63,94,0.18),rgba(251,146,60,0.08),transparent_72%)]",
+    surfaceTintClassName: "from-rose-100/78 via-white/78 to-orange-50/48",
+    premiumWashClassName: "from-rose-500/14 via-red-400/8 to-orange-300/10",
+    primaryButtonClassName: "from-rose-600 via-red-500 to-orange-400",
+    secondaryBorderClassName: "border-rose-200/70 text-rose-700 hover:border-rose-300/80 hover:text-rose-800",
+    surfaceGradient: "linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(255,245,247,0.96) 38%, rgba(255,243,238,0.94) 100%)",
+    premiumWashGradient: "linear-gradient(90deg, rgba(225,29,72,0.2), rgba(244,63,94,0.08), rgba(251,146,60,0.14))",
+    badgeGradient: "linear-gradient(135deg, rgba(255,241,242,0.98), rgba(255,255,255,0.96), rgba(255,247,237,0.94))",
+    chipGradient: "linear-gradient(145deg, rgba(255,255,255,0.92), rgba(255,244,246,0.88), rgba(255,247,237,0.84))",
+    rowIndexClassName: "text-rose-500",
+  },
+  amber: {
+    statusText: "text-amber-600",
+    statusBadgeClassName: "shadow-[0_8px_18px_rgba(245,158,11,0.08)]",
+    dotClassName: "bg-gradient-to-r from-amber-500 to-orange-400",
+    lineClassName: "from-amber-500/80 via-orange-300/60 to-transparent",
+    glowClassName: "bg-[radial-gradient(circle,rgba(245,158,11,0.18),rgba(251,191,36,0.08),transparent_72%)]",
+    surfaceTintClassName: "from-amber-100/72 via-white/78 to-orange-50/46",
+    premiumWashClassName: "from-amber-400/14 via-orange-300/8 to-yellow-300/10",
+    primaryButtonClassName: "from-amber-500 via-orange-400 to-amber-300",
+    secondaryBorderClassName: "border-amber-200/75 text-amber-700 hover:border-amber-300/85 hover:text-amber-800",
+    surfaceGradient: "linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(255,249,236,0.96) 38%, rgba(255,244,229,0.94) 100%)",
+    premiumWashGradient: "linear-gradient(90deg, rgba(245,158,11,0.2), rgba(251,146,60,0.08), rgba(250,204,21,0.14))",
+    badgeGradient: "linear-gradient(135deg, rgba(255,251,235,0.98), rgba(255,255,255,0.96), rgba(255,247,237,0.94))",
+    chipGradient: "linear-gradient(145deg, rgba(255,255,255,0.92), rgba(255,249,236,0.88), rgba(255,243,224,0.84))",
+    rowIndexClassName: "text-amber-500",
+  },
+  sky: {
+    statusText: "text-sky-600",
+    statusBadgeClassName: "shadow-[0_8px_18px_rgba(14,165,233,0.08)]",
+    dotClassName: "bg-gradient-to-r from-sky-500 to-emerald-400",
+    lineClassName: "from-sky-500/80 via-emerald-300/60 to-transparent",
+    glowClassName: "bg-[radial-gradient(circle,rgba(14,165,233,0.16),rgba(52,211,153,0.08),transparent_72%)]",
+    surfaceTintClassName: "from-sky-100/74 via-white/78 to-emerald-50/40",
+    premiumWashClassName: "from-sky-400/14 via-cyan-300/8 to-emerald-300/10",
+    primaryButtonClassName: "from-sky-600 via-cyan-500 to-emerald-400",
+    secondaryBorderClassName: "border-sky-200/75 text-sky-700 hover:border-sky-300/85 hover:text-sky-800",
+    surfaceGradient: "linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(239,248,255,0.96) 38%, rgba(236,253,245,0.94) 100%)",
+    premiumWashGradient: "linear-gradient(90deg, rgba(14,165,233,0.2), rgba(34,211,238,0.08), rgba(52,211,153,0.14))",
+    badgeGradient: "linear-gradient(135deg, rgba(240,249,255,0.98), rgba(255,255,255,0.96), rgba(236,253,245,0.94))",
+    chipGradient: "linear-gradient(145deg, rgba(255,255,255,0.92), rgba(240,249,255,0.88), rgba(236,253,245,0.84))",
+    rowIndexClassName: "text-sky-500",
+  },
 };
 
 export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
@@ -48,7 +120,9 @@ export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
     () => [
       {
         id: "founder-vision",
+        accent: "rose",
         eyebrow: "Founder Note",
+        statusLabel: "Founder Words",
         title: "Teaching should feel clear, disciplined, and useful.",
         description:
           `Our founder shaped ${siteSettings.siteName} around one simple belief: students grow faster when ideas are explained clearly, practice stays steady, and guidance remains calm.`,
@@ -58,12 +132,15 @@ export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
           { label: "Talk to Counselors", href: phoneDialUrl, tone: "secondary", external: true },
         ],
         visual: "founder",
+        signalItems: ["Clear guidance", "Steady practice"],
         imageSrc: "/founder.jpg.jpeg",
         imageAlt: "Founder of Nipracademy",
       },
       {
         id: "about-nipra",
+        accent: "amber",
         eyebrow: content.heroBadge || "Inside Nipra",
+        statusLabel: "Live Classes",
         title: content.heroTitle || "Learn clearly. Grow steadily.",
         description: content.heroSubtitle || "Classes, practice, and guidance in one calm student space.",
         footnote: `Call ${siteSettings.contactPhone} for admissions and academic support.`,
@@ -72,11 +149,19 @@ export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
           { label: content.heroSecondaryCtaLabel || "Talk to Counselors", href: content.heroSecondaryCtaHref || "/#contact", tone: "secondary" },
         ],
         visual: "academy",
-        points: ["Class 1 to 12 support", "Online + Offline batches", "Calm personal guidance"],
+        signalItems: ["Online + Offline", "Admissions Open", "Class 1 to 12"],
+        sideLabel: "How learning feels",
+        highlights: [
+          "Live classes with clear explanation, revision, and doubt support.",
+          "A calm structure for school study, tests, and regular progress.",
+          "Personal guidance that stays useful across every batch.",
+        ],
       },
       {
         id: "education-view",
+        accent: "sky",
         eyebrow: "Education",
+        statusLabel: "Learning Rhythm",
         title: "Education works best when basics stay strong and progress stays steady.",
         description:
           "Good education is not noise or pressure. It is concept clarity, regular revision, careful practice, and confidence that grows step by step.",
@@ -86,7 +171,13 @@ export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
           { label: "Start Admission", href: "/join", tone: "secondary" },
         ],
         visual: "education",
-        points: ["Understand", "Practice", "Review", "Grow"],
+        signalItems: ["Concept Clarity", "Board Focus", "Regular Practice"],
+        sideLabel: "What students build",
+        highlights: [
+          "Understand concepts before memorizing them.",
+          "Practice steadily with written work and revision.",
+          "Grow through discipline, feedback, and consistency.",
+        ],
       },
     ],
     [
@@ -146,6 +237,8 @@ export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
     setActiveIndex((index + slideCount) % slideCount);
   };
 
+  const activeSlide = slides[activeIndex];
+
   const handleTrackpadSwipe = (event: WheelEvent<HTMLDivElement>) => {
     if (!supportsFinePointer || event.ctrlKey || event.metaKey || event.altKey) {
       return;
@@ -175,31 +268,73 @@ export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
     goToSlide(activeIndex + (horizontalDelta > 0 ? 1 : -1));
   };
 
-  const renderSlideAction = (slideId: string, action: HeroSlideAction) => {
+  const renderSlideAction = (slide: HeroSlide, action: HeroSlideAction) => {
     const className =
       action.tone === "primary"
-        ? "hero-ribbon-action inline-flex min-h-[3.1rem] items-center justify-center rounded-full bg-slate-950 px-6 text-[0.95rem] font-semibold text-white shadow-[0_14px_32px_rgba(15,23,42,0.14)] transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-slate-800"
-        : "hero-ribbon-action inline-flex min-h-[3.1rem] items-center justify-center rounded-full bg-white/78 px-6 text-[0.95rem] font-semibold text-slate-700 shadow-[0_10px_26px_rgba(15,23,42,0.05)] backdrop-blur-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-white/92";
+        ? `hero-ribbon-action inline-flex min-h-[2.55rem] items-center justify-center rounded-full px-4 text-[0.88rem] font-semibold shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition duration-200 ease-out hover:-translate-y-0.5 ${accentStyles[slide.accent].statusText}`
+        : "hero-ribbon-action inline-flex min-h-[2.55rem] items-center justify-center rounded-full bg-white/72 px-4 text-[0.88rem] font-semibold text-slate-700 shadow-[0_6px_14px_rgba(15,23,42,0.04)] transition duration-200 ease-out hover:-translate-y-0.5";
+
+    const buttonStyle = action.tone === "primary" ? { backgroundImage: accentStyles[slide.accent].badgeGradient } : undefined;
 
     if (action.external) {
       return (
-        <a key={`${slideId}-${action.label}`} href={action.href} className={className}>
+        <a key={`${slide.id}-${action.label}`} href={action.href} className={className} style={buttonStyle}>
           {action.label}
         </a>
       );
     }
 
     return (
-      <Link key={`${slideId}-${action.label}`} href={action.href} className={className}>
+      <Link key={`${slide.id}-${action.label}`} href={action.href} className={className} style={buttonStyle}>
         {action.label}
       </Link>
     );
   };
 
-  const renderSlideVisual = (slide: HeroSlide) => {
+  const renderSignalItems = (slide: HeroSlide) => (
+    <div className="mt-2 hidden flex-wrap gap-x-2.5 gap-y-1 text-[0.62rem] font-semibold uppercase tracking-[0.16em] text-slate-500 md:flex">
+      {slide.signalItems.map((item, index) => (
+        <span key={item} className="inline-flex items-center gap-2">
+          <span className={`h-2 w-2 rounded-full ${index === 0 ? accentStyles[slide.accent].dotClassName : "bg-slate-300"}`} />
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+
+  const renderTitleContent = (slide: HeroSlide) => {
+    const highlightClassName = `inline-block rounded-[0.72em] px-[0.28em] py-[0.06em] ${accentStyles[slide.accent].statusText}`;
+    const highlightStyle = { backgroundImage: accentStyles[slide.accent].badgeGradient };
+
+    if (slide.id === "founder-vision") {
+      return (
+        <>
+          Teaching should feel <span className={highlightClassName} style={highlightStyle}>clear,</span> disciplined, and{" "}
+          <span className={highlightClassName} style={highlightStyle}>useful.</span>
+        </>
+      );
+    }
+
+    if (slide.id === "about-nipra") {
+      return (
+        <>
+          <span className={highlightClassName} style={highlightStyle}>Learn</span> clearly. <span className={highlightClassName} style={highlightStyle}>Grow steadily.</span>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <span className={highlightClassName} style={highlightStyle}>Education</span> works best when basics stay strong and <span className={highlightClassName} style={highlightStyle}>progress</span> stays steady.
+      </>
+    );
+  };
+
+  const renderSlideVisual = (slide: HeroSlide, compact = false) => {
     if (slide.visual === "founder") {
       return (
-        <div className="relative flex h-full w-full items-end justify-center min-[480px]:justify-end">
+        <div className="relative flex h-full w-full items-end justify-center lg:justify-end">
+          <div className={`pointer-events-none absolute inset-x-[10%] bottom-[8%] h-[70%] rounded-full blur-3xl ${accentStyles[slide.accent].glowClassName}`} />
           {!failedImageSrcs[slide.imageSrc ?? ""] && slide.imageSrc ? (
             <Image
               src={slide.imageSrc}
@@ -208,7 +343,11 @@ export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
               height={635}
               priority
               sizes="(min-width: 1280px) 25rem, (min-width: 768px) 21rem, 13rem"
-              className="hero-ribbon-founder-image relative z-10 h-auto w-full max-w-[12rem] object-contain object-center md:max-w-[17rem] xl:max-w-[21rem]"
+              className={`hero-ribbon-founder-image relative z-10 h-auto w-full object-contain object-center ${
+                compact
+                        ? "max-w-[5.85rem] sm:max-w-[6.4rem]"
+                    : "max-w-[12.15rem] sm:max-w-[13.35rem] md:max-w-[16.2rem] xl:max-w-[19.2rem]"
+              }`}
               onError={() => {
                 setFailedImageSrcs((current) => ({
                   ...current,
@@ -228,74 +367,56 @@ export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
       );
     }
 
-    if (slide.visual === "academy") {
-      return (
-        <div className="w-full max-w-[24rem] space-y-3">
-          {slide.points?.map((point, index) => (
-            <div key={point} className="grid grid-cols-[auto_1fr] items-center gap-3 rounded-[1.2rem] bg-white/72 px-4 py-3 shadow-[0_8px_24px_rgba(15,23,42,0.04)] backdrop-blur-sm">
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-slate-500">
+    return (
+      <div className="relative w-full max-w-[18.5rem] pl-0 lg:pl-1">
+        <p className="relative mt-1 text-[0.6rem] font-semibold uppercase tracking-[0.22em] text-slate-400">
+          {slide.sideLabel}
+        </p>
+        <div className="relative mt-2 grid gap-2">
+          {slide.highlights?.slice(0, 2).map((highlight, index) => (
+            <div key={highlight} className="grid grid-cols-[auto_1fr] gap-2.5">
+              <span className={`text-[0.62rem] font-bold uppercase tracking-[0.16em] ${accentStyles[slide.accent].rowIndexClassName}`}>
                 {String(index + 1).padStart(2, "0")}
               </span>
-              <p className="text-[clamp(1rem,1.8vw,1.2rem)] font-semibold leading-snug tracking-[-0.035em] text-slate-950 [text-wrap:balance]">
-                {point}
-              </p>
+              <p className="text-[0.82rem] leading-5 text-slate-600">{highlight}</p>
             </div>
           ))}
         </div>
-      );
-    }
-
-    return (
-      <div className="flex w-full max-w-[24rem] flex-wrap justify-center gap-3">
-        {slide.points?.map((point) => (
-          <div
-            key={point}
-            className="inline-flex min-h-[3.05rem] items-center justify-center rounded-full bg-white/76 px-5 text-[0.94rem] font-semibold tracking-[-0.02em] text-slate-900 shadow-[0_10px_22px_rgba(15,23,42,0.04)] backdrop-blur-sm"
-          >
-            {point}
-          </div>
-        ))}
       </div>
     );
   };
 
   return (
     <section
-      className="hero-ribbon-shell group relative overflow-hidden rounded-[2.85rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,247,248,0.94))] px-4 pb-4 pt-16 shadow-[0_18px_48px_rgba(15,23,42,0.045)] min-[480px]:pt-14 md:p-5"
+      className="hero-ribbon-shell group relative overflow-hidden rounded-[2rem] border bg-white/96 px-5 pb-3 pt-3 shadow-[0_14px_30px_rgba(15,23,42,0.04)] sm:rounded-[2.2rem] sm:px-6 sm:pb-4 sm:pt-4 lg:rounded-[2.6rem] lg:px-10 lg:pb-4 lg:pt-4"
       onWheelCapture={handleTrackpadSwipe}
+      style={{ borderColor: "rgba(255,255,255,0.5)" }}
     >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.9),transparent_72%)]" />
+      <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-white/72" />
 
-      <div className="relative z-10 grid gap-4">
-        <div className="hero-ribbon-toolbar grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-          <div>
-            <span className="inline-flex min-h-8 items-center rounded-full bg-white/72 px-3.5 text-[0.68rem] font-bold uppercase tracking-[0.22em] text-slate-500 shadow-[0_8px_20px_rgba(15,23,42,0.04)] backdrop-blur-sm">
-              Inside Nipracademy
+      <div className="relative z-10 grid gap-2.5">
+        <div className="hero-ribbon-toolbar flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-slate-500">
+            Inside Nipracademy
+          </p>
+
+          <div className="flex items-center gap-3">
+            <span className="text-[0.72rem] font-semibold uppercase tracking-[0.2em] text-slate-400">
+              {String(activeIndex + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}
             </span>
-          </div>
-
-          <div className="hero-ribbon-nav hidden gap-2 md:flex">
-            <button
-              type="button"
-              aria-label="Previous slide"
-              onClick={() => goToSlide(activeIndex - 1)}
-              className="hero-ribbon-arrow inline-flex h-[2.8rem] w-[2.8rem] items-center justify-center rounded-full bg-white/74 text-slate-950 shadow-[0_10px_22px_rgba(15,23,42,0.05)] backdrop-blur-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-white/92"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[1.05rem] w-[1.05rem] stroke-current">
-                <path d="M14.5 5.5L8 12l6.5 6.5" fill="none" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-
-            <button
-              type="button"
-              aria-label="Next slide"
-              onClick={() => goToSlide(activeIndex + 1)}
-              className="hero-ribbon-arrow inline-flex h-[2.8rem] w-[2.8rem] items-center justify-center rounded-full bg-white/74 text-slate-950 shadow-[0_10px_22px_rgba(15,23,42,0.05)] backdrop-blur-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-white/92"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[1.05rem] w-[1.05rem] stroke-current">
-                <path d="M9.5 5.5L16 12l-6.5 6.5" fill="none" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
+            <div className="hero-ribbon-pagination-shell flex items-center gap-2">
+              {slides.map((slide, index) => (
+                <button
+                  key={slide.id}
+                  type="button"
+                  aria-label={`Go to slide ${index + 1}`}
+                  onClick={() => goToSlide(index)}
+                  className={`hero-ribbon-pagination-button h-[0.28rem] rounded-full transition ${
+                    index === activeIndex ? "w-8 bg-slate-950" : "w-3 bg-slate-300"
+                  }`}
+                />
+              ))}
+            </div>
           </div>
         </div>
 
@@ -306,66 +427,99 @@ export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
           >
             {slides.map((slide, index) => (
               <article key={slide.id} className="hero-ribbon-slide min-w-full">
-                <div className="hero-ribbon-card grid min-h-[18rem] gap-5 px-1 py-3 min-[480px]:grid-cols-[minmax(0,1.05fr)_minmax(9.75rem,0.95fr)] min-[480px]:items-start min-[480px]:gap-4 min-[480px]:px-2 lg:min-h-[28rem] lg:grid-cols-[minmax(0,1.05fr)_minmax(18rem,0.95fr)] lg:items-center lg:gap-12 lg:px-4">
-                  <div className="hero-ribbon-copy relative z-10 min-w-0 min-[480px]:pr-2 lg:pr-4">
-                    <div className="hero-ribbon-meta flex flex-wrap items-center gap-2.5">
-                      <span className="hero-ribbon-index inline-flex min-h-7 items-center rounded-full bg-slate-100 px-2.5 text-[0.68rem] font-bold uppercase tracking-[0.16em] text-slate-500">
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
-                      <span className="hero-ribbon-eyebrow text-[0.7rem] font-bold uppercase tracking-[0.2em] text-slate-500">
-                        {slide.eyebrow}
+                <div className="hero-ribbon-card grid min-h-0 gap-2.5 py-0 lg:grid-cols-[minmax(0,1.04fr)_minmax(15rem,0.96fr)] lg:items-center lg:gap-4.5">
+                  <div className="hero-ribbon-copy relative z-10 min-w-0 lg:pr-2">
+                    <div className="hero-ribbon-meta flex flex-wrap items-center gap-3">
+                      <span
+                        className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[0.69rem] font-semibold uppercase tracking-[0.2em] ${accentStyles[slide.accent].statusText} ${accentStyles[slide.accent].statusBadgeClassName}`}
+                        style={{ backgroundImage: accentStyles[slide.accent].badgeGradient }}
+                      >
+                        <span className={`h-2.5 w-2.5 rounded-full ${accentStyles[slide.accent].dotClassName}`} />
+                        {slide.statusLabel}
                       </span>
                     </div>
 
-                    <h3 className="hero-ribbon-title mt-3.5 max-w-[12ch] text-[clamp(1.78rem,4.7vw,4.8rem)] font-bold leading-[0.95] tracking-[-0.072em] text-slate-950 [text-wrap:balance]">
-                      {slide.title}
-                    </h3>
+                    {slide.visual === "founder" ? (
+                      <>
+                        <div className="mt-1 grid grid-cols-[minmax(0,1fr)_5.35rem] items-end gap-0.5 lg:hidden">
+                          <h3 className="hero-ribbon-title max-w-none text-[clamp(1.7rem,6.2vw,2.06rem)] font-bold leading-[0.9] tracking-[-0.082em] text-slate-950 [text-wrap:balance]">
+                            {renderTitleContent(slide)}
+                          </h3>
+                          <div className="flex justify-end">
+                            {renderSlideVisual(slide, true)}
+                          </div>
+                        </div>
 
-                    <p className="hero-ribbon-description mt-4 max-w-[52ch] text-[clamp(0.98rem,1.58vw,1.05rem)] leading-7 text-slate-600 [text-wrap:pretty]">
+                        <h3 className="hero-ribbon-title mt-1.5 hidden max-w-[9ch] text-[clamp(2.38rem,4.2vw,3.85rem)] font-bold leading-[0.9] tracking-[-0.078em] text-slate-950 [text-wrap:balance] lg:block">
+                          {renderTitleContent(slide)}
+                        </h3>
+                      </>
+                    ) : (
+                      <h3 className="hero-ribbon-title mt-1.5 max-w-none text-[clamp(1.56rem,5.25vw,2.1rem)] font-bold leading-[0.9] tracking-[-0.078em] text-slate-950 [text-wrap:balance] lg:max-w-[9.5ch] lg:text-[clamp(2.24rem,3.9vw,3.65rem)] lg:leading-[0.9]">
+                        {renderTitleContent(slide)}
+                      </h3>
+                    )}
+
+                    <p className="hero-ribbon-description mt-1 max-w-[54ch] text-[0.8rem] leading-[1.28] text-slate-600 [text-wrap:pretty] lg:text-[0.92rem] lg:leading-[1.42]">
                       {slide.description}
                     </p>
 
-                    <p className="hero-ribbon-footnote mt-3 text-sm leading-6 text-slate-500">{slide.footnote}</p>
+                    {renderSignalItems(slide)}
 
-                    <div className="hero-ribbon-actions mt-6 flex flex-wrap gap-2.5">
-                      {slide.actions.map((action) => renderSlideAction(slide.id, action))}
+                    <p className="hero-ribbon-footnote hidden text-[0.8rem] leading-[1.1rem] text-slate-500 md:mt-2 md:block">{slide.footnote}</p>
+
+                    <div className="hero-ribbon-actions mt-1.5 flex flex-col gap-1.5 sm:flex-row sm:flex-wrap">
+                      {slide.actions.map((action) => renderSlideAction(slide, action))}
                     </div>
                   </div>
 
-                  <div className="hero-ribbon-visual-shell relative mt-5 flex min-h-[10rem] items-end justify-center min-[480px]:mt-0 min-[480px]:min-h-0 min-[480px]:justify-end lg:min-h-[20rem]">
-                    {renderSlideVisual(slide)}
-                  </div>
+                  {slide.visual === "founder" ? (
+                    <div className="hero-ribbon-visual-shell relative hidden min-h-[13.75rem] items-end justify-end lg:flex">
+                      {renderSlideVisual(slide)}
+                    </div>
+                  ) : (
+                    <div className="hero-ribbon-visual-shell relative hidden min-h-[7rem] items-end justify-center lg:flex lg:min-h-[10.75rem] lg:justify-end">
+                      {renderSlideVisual(slide)}
+                    </div>
+                  )}
                 </div>
               </article>
-            ))}
-          </div>
-
-          <div className="hero-ribbon-pagination-shell mt-2 flex justify-center gap-2">
-            {slides.map((slide, index) => (
-              <button
-                key={slide.id}
-                type="button"
-                aria-label={`Go to slide ${index + 1}`}
-                onClick={() => goToSlide(index)}
-                className={`h-[0.55rem] w-[0.55rem] rounded-full transition ${
-                  index === activeIndex ? "bg-slate-950" : "bg-slate-300/70"
-                }`}
-              />
             ))}
           </div>
         </div>
       </div>
 
       <style jsx global>{`
-        @media (max-width: 479px) {
+        @media (max-width: 639px) {
+          .hero-ribbon-actions {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            align-items: stretch;
+          }
+
           .hero-ribbon-action {
             width: 100%;
+            min-height: 2.4rem !important;
+            padding-inline: 0.75rem !important;
+            font-size: 0.8rem !important;
+            text-align: center;
           }
+        }
+
+        .hero-ribbon-pagination-button,
+        .hero-ribbon-pagination-button:hover,
+        .hero-ribbon-pagination-button:active,
+        .hero-ribbon-pagination-button:focus-visible {
+          box-shadow: none !important;
+          border: none !important;
+          padding: 0 !important;
+          min-height: 0 !important;
+          background-image: none !important;
         }
 
         @media (prefers-reduced-motion: reduce) {
           .hero-ribbon-action,
-          .hero-ribbon-arrow {
+          .hero-ribbon-pagination-button {
             transition: none;
           }
         }

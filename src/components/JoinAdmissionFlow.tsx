@@ -446,11 +446,27 @@ export default function JoinAdmissionFlow({
           return;
         }
 
+        if (response.status === 410) {
+          clearPendingAdmissionSession(pendingSession.orderId);
+          setActiveOrderId(null);
+          setPaymentPhase("idle");
+          setError(null);
+          return;
+        }
+
         if (!response.ok) {
           throw new Error(payload.error ?? "Unable to restore the pending payment right now.");
         }
 
         if (payload.ready === false) {
+          if (payload.status === "expired") {
+            clearPendingAdmissionSession(pendingSession.orderId);
+            setActiveOrderId(null);
+            setPaymentPhase("idle");
+            setError(null);
+            return;
+          }
+
           if (payload.status === "failed") {
             setPaymentPhase("failed");
             setError("The last payment attempt did not complete. You can retry securely.");
@@ -737,7 +753,7 @@ export default function JoinAdmissionFlow({
   };
 
   return (
-    <section className={embedded ? "relative" : "app-page-shell relative overflow-hidden"}>
+    <section className={embedded ? "relative" : "app-page-shell admission-page-shell relative overflow-hidden"}>
       {!embedded ? (
         <>
           <div className="pointer-events-none absolute inset-x-0 top-0 h-[24rem] bg-[radial-gradient(circle_at_top,rgba(148,163,184,0.14),transparent_58%)]" />

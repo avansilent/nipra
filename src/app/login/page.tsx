@@ -1,42 +1,29 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "../../lib/supabase/browser";
-import { DEFAULT_LOGO_SRC } from "../../lib/branding";
 import { useAuth } from "../AuthProvider";
 
 const loginShellClassName =
-  "relative overflow-hidden bg-[#f5f5f7] px-4 py-8 sm:px-6 sm:py-10 lg:flex lg:min-h-[calc(100svh-4rem)] lg:items-center lg:px-8";
-const loginViewportClassName = "mx-auto w-full max-w-6xl";
-const loginLayoutClassName = "grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(22.75rem,24.5rem)] lg:items-center lg:gap-16";
-const loginInfoPanelClassName = "order-2 space-y-8 text-center lg:order-1 lg:max-w-2xl lg:text-left";
-const loginInfoPillClassName =
-  "inline-flex items-center rounded-full bg-white/74 px-4 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-slate-500 backdrop-blur-sm";
-const loginInfoFeatureGridClassName = "space-y-4";
-const loginInfoFeatureCardClassName =
-  "group flex items-start gap-4 py-1 text-left transition-[transform,opacity] duration-300 hover:translate-x-1";
+  "relative overflow-hidden bg-[#f5f5f7] px-4 py-4 sm:px-6 sm:py-6 lg:flex lg:min-h-[calc(100svh-4rem)] lg:items-center lg:px-8";
+const loginViewportClassName = "mx-auto w-full max-w-[25.5rem]";
+const loginLayoutClassName = "flex justify-center";
 const loginCardClassName =
-  "order-1 mx-auto w-full max-w-[24rem] rounded-[3.2rem] bg-white/96 p-6 shadow-[0_14px_38px_rgba(241,245,249,0.96)] transition-[transform,box-shadow] duration-500 hover:-translate-y-0.5 hover:shadow-[0_18px_46px_rgba(241,245,249,0.98)] sm:p-8 lg:order-2";
-const loginBrandMarkClassName =
-  "flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[1.15rem] bg-white/94 shadow-[0_8px_18px_rgba(226,232,240,0.92)]";
+  "mx-auto w-full max-w-[25.5rem] rounded-[2rem] bg-white/98 p-5 shadow-[0_18px_42px_rgba(15,23,42,0.05)] sm:p-6";
 const loginSegmentedControlClassName =
-  "grid grid-cols-2 gap-2 rounded-[2.1rem] bg-[#fafbfd] p-1.5";
+  "grid grid-cols-2 gap-1.5 rounded-[1.15rem] bg-[#eef2f6] p-1";
 const loginSegmentTabClassName =
-  "inline-flex min-h-12 items-center justify-center rounded-full px-4 text-sm font-medium transition-[background-color,color,box-shadow,transform] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-100 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
+  "inline-flex min-h-11 items-center justify-center rounded-[0.9rem] px-4 text-sm font-semibold transition-[background-color,color,box-shadow,transform] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-100 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
 const loginInputClassName =
-  "w-full min-h-12 appearance-none rounded-full border-0 bg-[#fbfcfe] px-4 py-3 text-[15px] text-slate-600 shadow-[0_4px_12px_rgba(241,245,249,0.98)] outline-none transition-[box-shadow,background-color,transform] duration-300 placeholder:text-slate-400 hover:bg-white hover:shadow-[0_8px_18px_rgba(241,245,249,0.98)] focus:bg-white focus:shadow-[0_0_0_4px_rgba(14,165,233,0.06),0_10px_22px_rgba(224,242,254,0.92)]";
-const loginCheckboxInputClassName = "peer sr-only";
-const loginCheckboxControlClassName =
-  "flex h-5 w-5 items-center justify-center rounded-[0.95rem] bg-[#fafbfd] shadow-[0_6px_14px_rgba(241,245,249,0.96)] transition-[background-color,box-shadow,transform] duration-300 peer-checked:bg-sky-500 peer-checked:shadow-[0_10px_20px_rgba(56,189,248,0.2)] peer-focus-visible:ring-2 peer-focus-visible:ring-sky-100 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-white";
+  "w-full min-h-11 appearance-none rounded-[1rem] border border-slate-200/80 bg-white px-4 py-3 text-[15px] text-slate-700 shadow-[0_6px_16px_rgba(15,23,42,0.04)] outline-none transition-[box-shadow,border-color] duration-300 placeholder:text-slate-400 focus:border-sky-200 focus:shadow-[0_0_0_4px_rgba(14,165,233,0.06),0_10px_20px_rgba(15,23,42,0.05)]";
 const loginPrimaryButtonClassName =
-  "inline-flex min-h-12 w-full items-center justify-center rounded-full bg-sky-500 px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(56,189,248,0.22)] transition-[background-color,box-shadow,transform] duration-300 hover:-translate-y-0.5 hover:bg-sky-600 hover:shadow-[0_14px_28px_rgba(56,189,248,0.26)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-100 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:bg-sky-300 disabled:shadow-none";
+  "inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(15,23,42,0.14)] transition-[background-color,box-shadow,transform] duration-300 hover:-translate-y-0.5 hover:bg-slate-900 hover:shadow-[0_16px_28px_rgba(15,23,42,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-200 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none";
 const loginSecondaryActionClassName =
-  "text-sm font-medium text-sky-700 transition-[color,transform] duration-300 hover:translate-x-0.5 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
+  "inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border border-slate-200/80 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.03)] transition-[background-color,box-shadow,transform] duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_10px_18px_rgba(15,23,42,0.05)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-200 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
 const loginMessageClassName =
-  "rounded-[1.7rem] bg-rose-50/88 px-4 py-3 text-sm leading-6 text-rose-700 shadow-[0_8px_18px_rgba(254,205,211,0.4)]";
+  "rounded-[1rem] bg-rose-50/88 px-4 py-3 text-sm leading-6 text-rose-700 shadow-[0_8px_18px_rgba(254,205,211,0.28)]";
 
 const normalizeRole = (role?: string | null): "admin" | "student" | null => {
   if (role === "admin" || role === "student") {
@@ -85,7 +72,6 @@ const withTimeout = async <T,>(
 function LoginContent() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -383,82 +369,20 @@ function LoginContent() {
     }
   };
 
-  const title = isAdminLogin ? "Sign in to the admin workspace" : "Sign in to your student workspace";
-  const supportingText = isAdminLogin
-    ? "Access the Nipracademy operations dashboard with your verified institute credentials."
-    : "Continue to classes, study resources, tests, and your student dashboard with your institute credentials.";
-  const websiteHighlights = [
-    {
-      title: "Learning",
-      copy: "Courses, notes, tests, and study material stay in one calm workspace.",
-    },
-    {
-      title: "Progress",
-      copy: "Students stay aligned with dashboards, updates, and structured learning flow.",
-    },
-    {
-      title: "Operations",
-      copy: "Institutes manage admissions, publishing, and academic delivery from one system.",
-    },
-  ];
-  const websiteDescription =
-    "Nipracademy is a focused academic platform built for modern institutes, combining learning access, study resources, assessments, and administration in a clean everyday interface.";
-  const websitePortalNote = isAdminLogin
-    ? "Admin access is reserved for verified institute staff and operational teams."
-    : "Student access opens your courses, notes, tests, updates, and daily learning tools.";
-
+  const title = isAdminLogin ? "Admin Login" : "Student Login";
   return (
     <main className={loginShellClassName}>
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.92),transparent_72%)]" />
-      <div className="pointer-events-none absolute left-[8%] top-24 h-56 w-56 rounded-full bg-white/70 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-10 right-[10%] h-64 w-64 rounded-full bg-sky-100/30 blur-3xl" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.96),transparent_70%)]" />
 
       <section className={loginViewportClassName} aria-label="Nipracademy login">
         <div className={loginLayoutClassName}>
-          <div className={loginInfoPanelClassName}>
-            <div className="space-y-5">
-              <div className={loginInfoPillClassName}>About Nipracademy</div>
-
-              <div className="flex items-center justify-center gap-3 text-left lg:justify-start">
-                <div className={loginBrandMarkClassName} aria-hidden="true">
-                  <Image src={DEFAULT_LOGO_SRC} alt="" width={40} height={40} className="h-10 w-10 object-contain" />
-                </div>
-                <div>
-                  <p className="text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-slate-500">Nipracademy</p>
-                  <p className="mt-1 text-sm font-medium text-slate-600">Modern academic platform</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h1 className="text-[clamp(2.35rem,5vw,4.5rem)] font-semibold leading-[0.95] tracking-[-0.06em] text-slate-600">
-                  Clean learning access for students and institutes.
-                </h1>
-                <p className="max-w-2xl text-[1rem] leading-8 text-slate-600">{websiteDescription}</p>
-                <p className="text-sm leading-7 text-slate-500">{websitePortalNote}</p>
-              </div>
-            </div>
-
-            <div className={loginInfoFeatureGridClassName}>
-              {websiteHighlights.map((item) => (
-                <div key={item.title} className={loginInfoFeatureCardClassName}>
-                  <span className="mt-2 h-2.5 w-2.5 rounded-full bg-sky-400/75" aria-hidden="true" />
-                  <div>
-                    <p className="text-sm font-semibold tracking-[-0.02em] text-slate-700">{item.title}</p>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">{item.copy}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div className={loginCardClassName}>
-            <div className="space-y-8">
-              <div className="space-y-3 text-center sm:text-left">
-                <p className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-slate-500">Secure Sign-In</p>
-                <h2 className="text-[clamp(1.9rem,4vw,2.5rem)] font-semibold tracking-[-0.045em] text-slate-600">
+            <div className="space-y-5">
+              <div className="space-y-1 text-center">
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-slate-400">Nipracademy</p>
+                <h1 className="text-[clamp(1.7rem,4vw,2.1rem)] font-semibold tracking-[-0.05em] text-slate-700">
                   {title}
-                </h2>
-                <p className="text-sm leading-7 text-slate-600 sm:text-[0.95rem]">{supportingText}</p>
+                </h1>
               </div>
 
               <nav className={loginSegmentedControlClassName} aria-label="Choose portal type">
@@ -467,8 +391,8 @@ function LoginContent() {
                   aria-current={!isAdminLogin ? "page" : undefined}
                   className={`${loginSegmentTabClassName} ${
                     !isAdminLogin
-                      ? "bg-white text-slate-600 shadow-[0_4px_10px_rgba(241,245,249,0.98)]"
-                      : "text-slate-400 hover:bg-white/80 hover:text-slate-600 hover:shadow-[0_3px_8px_rgba(241,245,249,0.94)]"
+                      ? "bg-white text-slate-700 shadow-[0_6px_14px_rgba(15,23,42,0.05)]"
+                      : "bg-transparent text-slate-500 hover:bg-white/70 hover:text-slate-600"
                   }`}
                 >
                   Student
@@ -478,16 +402,16 @@ function LoginContent() {
                   aria-current={isAdminLogin ? "page" : undefined}
                   className={`${loginSegmentTabClassName} ${
                     isAdminLogin
-                      ? "bg-white text-slate-600 shadow-[0_4px_10px_rgba(241,245,249,0.98)]"
-                      : "text-slate-400 hover:bg-white/80 hover:text-slate-600 hover:shadow-[0_3px_8px_rgba(241,245,249,0.94)]"
+                      ? "bg-white text-slate-700 shadow-[0_6px_14px_rgba(15,23,42,0.05)]"
+                      : "bg-transparent text-slate-500 hover:bg-white/70 hover:text-slate-600"
                   }`}
                 >
                   Admin
                 </Link>
               </nav>
 
-              <form onSubmit={handleSubmit} autoComplete={rememberMe ? "on" : "off"} aria-busy={loading} className="space-y-5">
-                <fieldset disabled={loading} className="m-0 min-w-0 space-y-5 border-0 p-0 disabled:opacity-100">
+              <form onSubmit={handleSubmit} autoComplete="on" aria-busy={loading} className="space-y-3.5">
+                <fieldset disabled={loading} className="m-0 min-w-0 space-y-3.5 border-0 p-0 disabled:opacity-100">
                   <div className="space-y-2">
                     <label htmlFor="identifier" className="text-sm font-medium text-slate-600">
                       {isAdminLogin ? "Admin email or login ID" : "Student email or login ID"}
@@ -525,54 +449,32 @@ function LoginContent() {
                     />
                   </div>
 
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <label className="inline-flex items-center gap-3 text-sm text-slate-600">
-                      <span className="relative flex h-5 w-5 items-center justify-center">
-                        <input
-                          type="checkbox"
-                          name="remember"
-                          checked={rememberMe}
-                          onChange={(event) => setRememberMe(event.target.checked)}
-                          className={loginCheckboxInputClassName}
-                        />
-                        <span className={`${loginCheckboxControlClassName} absolute inset-0`} aria-hidden="true" />
-                        <svg
-                          viewBox="0 0 16 16"
-                          className="pointer-events-none absolute h-3.5 w-3.5 text-white opacity-0 transition-opacity duration-200 peer-checked:opacity-100"
-                          fill="none"
-                          aria-hidden="true"
-                        >
-                          <path d="M4 8.2 6.6 10.8 12 5.4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </span>
-                      <span>Remember me</span>
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={() => setError("Password reset is not configured yet. Please contact the institute.")}
-                      className={`${loginSecondaryActionClassName} self-start sm:self-auto`}
-                    >
-                      Forgot password?
-                    </button>
-                  </div>
-
                   {error ? (
                     <div role="alert" className={loginMessageClassName}>
                       {error}
                     </div>
                   ) : null}
 
-                  <button type="submit" className={loginPrimaryButtonClassName} disabled={loading}>
-                    {loading ? (
-                      <span className="inline-flex items-center gap-2" role="status" aria-live="polite">
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" aria-hidden="true" />
-                        Signing in...
-                      </span>
-                    ) : (
-                      `Sign in as ${isAdminLogin ? "Admin" : "Student"}`
-                    )}
-                  </button>
+                  <div className="space-y-2.5">
+                    <button type="submit" className={loginPrimaryButtonClassName} disabled={loading}>
+                      {loading ? (
+                        <span className="inline-flex items-center gap-2" role="status" aria-live="polite">
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" aria-hidden="true" />
+                          Signing in...
+                        </span>
+                      ) : (
+                        `Sign in as ${isAdminLogin ? "Admin" : "Student"}`
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setError("Password reset is not configured yet. Please contact the institute.")}
+                      className={loginSecondaryActionClassName}
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
                 </fieldset>
               </form>
             </div>
@@ -588,49 +490,31 @@ export default function Login() {
     <Suspense
       fallback={
         <main className={loginShellClassName}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.92),transparent_72%)]" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.96),transparent_70%)]" />
           <section className={loginViewportClassName} aria-label="Loading Nipracademy login">
             <div className={loginLayoutClassName}>
-              <div className="order-2 space-y-8 animate-pulse lg:order-1">
-                <div className="h-9 w-36 rounded-full bg-white/80 shadow-[0_10px_24px_rgba(15,23,42,0.04)]" />
-                <div className="flex items-center gap-3">
-                  <div className="h-11 w-11 rounded-[1.15rem] bg-white shadow-[0_10px_22px_rgba(15,23,42,0.04)]" />
-                  <div className="space-y-2">
-                    <div className="h-3 w-28 rounded-full bg-slate-200" />
-                    <div className="h-3 w-36 rounded-full bg-slate-200" />
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="h-14 w-4/5 rounded-3xl bg-slate-200" />
-                  <div className="h-4 w-full rounded-full bg-slate-200" />
-                  <div className="h-4 w-5/6 rounded-full bg-slate-200" />
-                </div>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="h-28 rounded-[1.4rem] bg-white/80 shadow-[0_12px_28px_rgba(15,23,42,0.04)]" />
-                  <div className="h-28 rounded-[1.4rem] bg-white/80 shadow-[0_12px_28px_rgba(15,23,42,0.04)]" />
-                  <div className="h-28 rounded-[1.4rem] bg-white/80 shadow-[0_12px_28px_rgba(15,23,42,0.04)]" />
-                </div>
-              </div>
-
               <div className={loginCardClassName}>
-                <div className="space-y-8 animate-pulse">
-                  <div className="space-y-3">
-                    <div className="h-3 w-28 rounded-full bg-slate-200" />
-                    <div className="h-10 w-3/4 rounded-2xl bg-slate-200" />
-                    <div className="h-4 w-full rounded-full bg-slate-200" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-1 rounded-[1.15rem] bg-slate-100 p-1">
-                    <div className="h-11 rounded-[0.95rem] bg-white" />
-                    <div className="h-11 rounded-[0.95rem] bg-slate-200" />
-                  </div>
-                  <div className="space-y-4">
-                    <div className="h-14 rounded-[1.1rem] bg-slate-100" />
-                    <div className="h-14 rounded-[1.1rem] bg-slate-100" />
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="h-4 w-28 rounded-full bg-slate-200" />
-                      <div className="h-4 w-28 rounded-full bg-slate-200" />
+                <div className="space-y-6 animate-pulse">
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="h-11 w-11 rounded-[1rem] bg-white shadow-[0_10px_22px_rgba(15,23,42,0.04)]" />
+                    <div className="space-y-2">
+                      <div className="h-3 w-28 rounded-full bg-slate-200" />
+                      <div className="h-3 w-24 rounded-full bg-slate-200" />
                     </div>
-                    <div className="h-12 rounded-[1.1rem] bg-slate-200" />
+                  </div>
+                  <div className="space-y-2 text-center">
+                    <div className="mx-auto h-8 w-40 rounded-full bg-slate-200" />
+                    <div className="mx-auto h-3 w-36 rounded-full bg-slate-200" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 rounded-[1.15rem] bg-slate-100 p-1">
+                    <div className="h-11 rounded-[0.9rem] bg-white" />
+                    <div className="h-11 rounded-[0.9rem] bg-slate-200" />
+                  </div>
+                  <div className="space-y-3">
+                    <div className="h-11 rounded-[1rem] bg-slate-100" />
+                    <div className="h-11 rounded-[1rem] bg-slate-100" />
+                    <div className="h-11 rounded-[1rem] bg-slate-200" />
+                    <div className="h-11 rounded-[1rem] bg-slate-100" />
                   </div>
                 </div>
               </div>

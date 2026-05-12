@@ -12,6 +12,10 @@ export async function POST(request: Request) {
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof PublicAdmissionError) {
+      if (error.status === 410) {
+        return NextResponse.json({ ready: false, status: "expired" });
+      }
+
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
