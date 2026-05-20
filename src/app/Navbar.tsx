@@ -41,18 +41,18 @@ const desktopMenuItemIdleClass =
 const desktopMenuItemActiveClass = "desktop-nav-link-active bg-white text-slate-950 shadow-[0_12px_24px_rgba(15,23,42,0.07)]";
 
 const mobileMenuToggleClass =
-  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.15rem] bg-white/88 text-slate-900 shadow-[0_10px_22px_rgba(15,23,42,0.05)] transition-[background-color,color,box-shadow,transform] duration-150";
+  "group relative inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200/80 bg-white text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.06)] ring-1 ring-white/80 transition-[background-color,border-color,box-shadow,transform] duration-300 ease-out hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_14px_30px_rgba(15,23,42,0.09)]";
 
 const mobileMenuPanelClass =
-  "overflow-hidden rounded-[1.45rem] bg-white/84 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.88),0_14px_28px_rgba(15,23,42,0.05)] backdrop-blur-[20px]";
+  "overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-white p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_18px_36px_rgba(15,23,42,0.08)]";
 
 const mobileMenuItemClass =
-  "inline-flex w-full min-h-[2.9rem] items-center justify-between rounded-[1.05rem] px-4 py-3 text-left text-[0.88rem] font-medium tracking-normal text-slate-600 transition-[background-color,color,box-shadow,transform] duration-150";
+  "inline-flex w-full min-h-[2.75rem] items-center justify-between rounded-[0.95rem] px-3.5 py-2.5 text-left text-[0.88rem] font-medium tracking-normal text-slate-600 transition-[background-color,color,box-shadow,transform] duration-200 ease-out";
 
 const mobileMenuItemIdleClass =
-  "hover:bg-white/96 hover:text-slate-950 hover:shadow-[0_8px_16px_rgba(15,23,42,0.04)]";
+  "hover:bg-slate-50 hover:text-slate-950";
 
-const mobileMenuItemActiveClass = "bg-white text-slate-950 shadow-[0_8px_16px_rgba(15,23,42,0.05)]";
+const mobileMenuItemActiveClass = "bg-slate-950 text-white shadow-[0_10px_22px_rgba(15,23,42,0.12)]";
 
 export default function Navbar({ siteSettings }: NavbarProps) {
   const { isAuthenticated, logout, role } = useAuth();
@@ -75,10 +75,7 @@ export default function Navbar({ siteSettings }: NavbarProps) {
       ];
     }
 
-    return [
-      { href: "/login?type=student", label: "Student Login" },
-      { href: "/login?type=admin", label: "Admin Login" },
-    ];
+    return [{ href: "/login", label: "Login" }];
   }, [isAuthenticated, role]);
 
   const inlineLinks = useMemo(() => [...navLinks, ...actionLinks], [actionLinks]);
@@ -249,20 +246,16 @@ export default function Navbar({ siteSettings }: NavbarProps) {
               onClick={toggleMobileMenu}
               className={mobileMenuToggleClass}
             >
-              <span className="relative block h-4 w-5">
+              <span className="absolute inset-0 rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.9))]" aria-hidden="true" />
+              <span className="relative block h-[0.875rem] w-[1.125rem]">
                 <span
-                  className={`absolute left-0 top-0 h-[1.5px] w-5 rounded-full bg-current transition-all duration-200 ${
-                    isMobileMenuOpen ? "top-[7px] rotate-45" : ""
+                  className={`absolute left-0 top-[3px] h-[1.5px] w-[1.125rem] rounded-full bg-current transition-all duration-300 ease-out ${
+                    isMobileMenuOpen ? "top-[6px] rotate-45" : ""
                   }`}
                 />
                 <span
-                  className={`absolute left-0 top-[7px] h-[1.5px] w-5 rounded-full bg-current transition-all duration-200 ${
-                    isMobileMenuOpen ? "opacity-0" : "opacity-100"
-                  }`}
-                />
-                <span
-                  className={`absolute left-0 top-[14px] h-[1.5px] w-5 rounded-full bg-current transition-all duration-200 ${
-                    isMobileMenuOpen ? "top-[7px] -rotate-45" : ""
+                  className={`absolute left-0 top-[10px] h-[1.5px] w-[1.125rem] rounded-full bg-current transition-all duration-300 ease-out ${
+                    isMobileMenuOpen ? "top-[6px] -rotate-45" : ""
                   }`}
                 />
               </span>
@@ -274,9 +267,9 @@ export default function Navbar({ siteSettings }: NavbarProps) {
               <motion.nav
                 id="mobile-navigation-panel"
                 aria-label="Mobile navigation"
-                initial={{ height: 0, opacity: 0, y: -8 }}
-                animate={{ height: "auto", opacity: 1, y: 0 }}
-                exit={{ height: 0, opacity: 0, y: -8 }}
+                initial={{ height: 0, opacity: 0, y: -6, scale: 0.98 }}
+                animate={{ height: "auto", opacity: 1, y: 0, scale: 1 }}
+                exit={{ height: 0, opacity: 0, y: -6, scale: 0.98 }}
                 transition={navTransition}
                 className="overflow-hidden pt-3"
               >
@@ -292,7 +285,7 @@ export default function Navbar({ siteSettings }: NavbarProps) {
                           }`}
                         >
                           <span>{link.label}</span>
-                          <span aria-hidden="true" className="text-base leading-none text-slate-300">
+                          <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-current text-[0] opacity-25">
                             ›
                           </span>
                         </Link>
@@ -311,7 +304,7 @@ export default function Navbar({ siteSettings }: NavbarProps) {
                         className={`${mobileMenuItemClass} ${mobileMenuItemIdleClass}`}
                       >
                         <span>Logout</span>
-                        <span aria-hidden="true" className="text-base leading-none text-slate-300">
+                        <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-current text-[0] opacity-25">
                           ›
                         </span>
                       </motion.button>

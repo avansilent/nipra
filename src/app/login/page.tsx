@@ -23,7 +23,139 @@ const loginPrimaryButtonClassName =
 const loginSecondaryActionClassName =
   "inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border border-slate-200/80 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.03)] transition-[background-color,box-shadow,transform] duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_10px_18px_rgba(15,23,42,0.05)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-200 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
 const loginMessageClassName =
-  "rounded-[1rem] bg-rose-50/88 px-4 py-3 text-sm leading-6 text-rose-700 shadow-[0_8px_18px_rgba(254,205,211,0.28)]";
+  "whitespace-pre-line rounded-[1rem] bg-rose-50/88 px-4 py-3 text-sm leading-6 text-rose-700 shadow-[0_8px_18px_rgba(254,205,211,0.28)]";
+
+function getSupabaseGoogleCallbackUrl() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) {
+    return null;
+  }
+
+  try {
+    return new URL("/auth/v1/callback", supabaseUrl).toString();
+  } catch {
+    return null;
+  }
+}
+
+async function isGoogleProviderEnabled() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !anonKey) {
+    return null;
+  }
+
+  try {
+    const settingsUrl = new URL("/auth/v1/settings", supabaseUrl).toString();
+    const response = await fetch(settingsUrl, {
+      method: "GET",
+      headers: {
+        apikey: anonKey,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = (await response.json()) as { external?: { google?: boolean } };
+    return payload.external?.google === true;
+  } catch {
+    return null;
+  }
+}
+
+function extractOAuthErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return extractOAuthErrorMessage(error.message);
+  }
+
+  if (typeof error === "string") {
+    try {
+      const parsed = JSON.parse(error) as { msg?: string; message?: string; error_description?: string };
+      if (typeof parsed.msg === "string") {
+        return parsed.msg;
+      }
+      if (typeof parsed.message === "string") {
+        return parsed.message;
+      }
+      if (typeof parsed.error_description === "string") {
+        return parsed.error_description;
+      }
+    } catch {
+      // Keep the original string when it is not JSON.
+    }
+
+    return error;
+  }
+
+  if (typeof error === "object" && error) {
+    const maybeMessage =
+      "msg" in error
+        ? error.msg
+        : "message" in error
+          ? error.message
+          : "error_description" in error
+            ? error.error_description
+            : null;
+
+    if (typeof maybeMessage === "string") {
+      return maybeMessage;
+    }
+  }
+
+  return "Unable to start Google sign-in.";
+}
+
+function formatGoogleOAuthError(error: unknown, appCallbackUrl: string) {
+  const message = extractOAuthErrorMessage(error);
+
+  if (/unsupported provider|provider is not enabled/i.test(message)) {
+    return getGoogleOAuthSetupMessage(appCallbackUrl);
+  }
+
+  return message;
+}
+
+function getGoogleOAuthSetupMessage(appCallbackUrl: string) {
+  const providerCallbackUrl = getSupabaseGoogleCallbackUrl();
+
+  return [
+    "Google login is not enabled in Supabase yet.",
+    "Enable it in Supabase Dashboard > Authentication > Providers > Google and add the Google client ID and secret.",
+    `Add ${appCallbackUrl} in Supabase Dashboard > Authentication > URL Configuration > Redirect URLs.`,
+    providerCallbackUrl
+      ? `Add ${providerCallbackUrl} as an Authorized redirect URI in Google Cloud.`
+      : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function GoogleLogoMark() {
+  return (
+    <svg viewBox="0 0 18 18" aria-hidden="true" className="h-[1.05rem] w-[1.05rem] shrink-0">
+      <path
+        fill="#4285F4"
+        d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.56 2.68-3.86 2.68-6.62Z"
+      />
+      <path
+        fill="#34A853"
+        d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.83.86-3.04.86-2.34 0-4.33-1.58-5.04-3.7H.96v2.34A9 9 0 0 0 9 18Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M3.96 10.72A5.4 5.4 0 0 1 3.68 9c0-.6.1-1.18.28-1.72V4.94H.96A9 9 0 0 0 0 9c0 1.46.35 2.84.96 4.06l3-2.34Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M9 3.58c1.32 0 2.5.46 3.44 1.36l2.58-2.58C13.46.9 11.42 0 9 0A9 9 0 0 0 .96 4.94l3 2.34C4.67 5.16 6.66 3.58 9 3.58Z"
+      />
+    </svg>
+  );
+}
 
 const normalizeRole = (role?: string | null): "admin" | "student" | null => {
   if (role === "admin" || role === "student") {
@@ -72,12 +204,17 @@ const withTimeout = async <T,>(
 function LoginContent() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loadingAction, setLoadingAction] = useState<"google" | "password" | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const loginType = searchParams.get("type") || "student";
+  const authError = searchParams.get("error");
+  const [error, setError] = useState<string | null>(() =>
+    authError === "oauth" ? "Google sign-in could not be completed. Check the Google provider setup in Supabase and try again." : null
+  );
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { user, role, loading: authLoading } = useAuth();
+  const loading = loadingAction !== null;
 
   const clearBrokenSession = useCallback(async () => {
     if (!supabase) {
@@ -91,7 +228,6 @@ function LoginContent() {
     }
   }, [supabase]);
 
-  const loginType = searchParams.get("type") || "student";
   const isAdminLogin = loginType === "admin";
   const callbackUrl = searchParams.get("callbackUrl");
   const studentLoginHref = callbackUrl ? `/login?type=student&callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login?type=student";
@@ -292,9 +428,52 @@ function LoginContent() {
     void resolveUserRole();
   }, [resolveUserRole]);
 
+  const handleGoogleSignIn = async () => {
+    if (isAdminLogin) {
+      setError("Google sign-in is available for student access only.");
+      return;
+    }
+
+    if (!supabase) {
+      setError("Supabase is not configured yet. Please add env vars.");
+      return;
+    }
+
+    setLoadingAction("google");
+    setError(null);
+    const redirectUrl = new URL("/auth/callback", window.location.origin);
+
+    try {
+      const googleProviderEnabled = await isGoogleProviderEnabled();
+      if (googleProviderEnabled === false) {
+        setError(getGoogleOAuthSetupMessage(redirectUrl.toString()));
+        setLoadingAction(null);
+        return;
+      }
+
+      const { error: signInError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: redirectUrl.toString(),
+          queryParams: {
+            access_type: "offline",
+            prompt: "select_account",
+          },
+        },
+      });
+
+      if (signInError) {
+        throw signInError;
+      }
+    } catch (oauthError) {
+      setError(formatGoogleOAuthError(oauthError, redirectUrl.toString()));
+      setLoadingAction(null);
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setLoading(true);
+    setLoadingAction("password");
     setError(null);
 
     try {
@@ -365,15 +544,13 @@ function LoginContent() {
       const message = err instanceof Error ? err.message : "Unable to sign in.";
       setError(message);
     } finally {
-      setLoading(false);
+      setLoadingAction(null);
     }
   };
 
   const title = isAdminLogin ? "Admin Login" : "Student Login";
   return (
     <main className={loginShellClassName}>
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.96),transparent_70%)]" />
-
       <section className={loginViewportClassName} aria-label="Nipracademy login">
         <div className={loginLayoutClassName}>
           <div className={loginCardClassName}>
@@ -456,16 +633,52 @@ function LoginContent() {
                   ) : null}
 
                   <div className="space-y-2.5">
-                    <button type="submit" className={loginPrimaryButtonClassName} disabled={loading}>
-                      {loading ? (
-                        <span className="inline-flex items-center gap-2" role="status" aria-live="polite">
-                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" aria-hidden="true" />
-                          Signing in...
-                        </span>
-                      ) : (
-                        `Sign in as ${isAdminLogin ? "Admin" : "Student"}`
-                      )}
-                    </button>
+                    {!isAdminLogin ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleGoogleSignIn()}
+                        className={loginPrimaryButtonClassName}
+                        disabled={loading}
+                      >
+                        {loadingAction === "google" ? (
+                          <span className="inline-flex items-center gap-2" role="status" aria-live="polite">
+                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" aria-hidden="true" />
+                            Opening Google...
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-3">
+                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-[0_1px_3px_rgba(15,23,42,0.08)]">
+                              <GoogleLogoMark />
+                            </span>
+                            <span>Continue with Google</span>
+                          </span>
+                        )}
+                      </button>
+                    ) : (
+                      <button type="submit" className={loginPrimaryButtonClassName} disabled={loading}>
+                        {loadingAction === "password" ? (
+                          <span className="inline-flex items-center gap-2" role="status" aria-live="polite">
+                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" aria-hidden="true" />
+                            Signing in...
+                          </span>
+                        ) : (
+                          "Sign in as Admin"
+                        )}
+                      </button>
+                    )}
+
+                    {!isAdminLogin ? (
+                      <button type="submit" className={loginSecondaryActionClassName} disabled={loading}>
+                        {loadingAction === "password" ? (
+                          <span className="inline-flex items-center gap-2" role="status" aria-live="polite">
+                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" aria-hidden="true" />
+                            Signing in...
+                          </span>
+                        ) : (
+                          "Login with password"
+                        )}
+                      </button>
+                    ) : null}
 
                     <button
                       type="button"
@@ -490,7 +703,6 @@ export default function Login() {
     <Suspense
       fallback={
         <main className={loginShellClassName}>
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.96),transparent_70%)]" />
           <section className={loginViewportClassName} aria-label="Loading Nipracademy login">
             <div className={loginLayoutClassName}>
               <div className={loginCardClassName}>

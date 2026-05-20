@@ -13,6 +13,13 @@ export type AdmissionCredentials = {
   password: string;
 };
 
+export type AdmissionPortalAccess = {
+  mode: "existing-account" | "generated-credentials";
+  dashboardPath: string;
+  email: string | null;
+  loginId: string | null;
+};
+
 export type AdmissionPaymentDetails = {
   orderId: string;
   paymentId: string;
@@ -24,6 +31,7 @@ export type AdmissionPaymentDetails = {
 export type AdmissionResult = {
   studentName: string;
   courseTitle: string;
-  credentials: AdmissionCredentials;
+  credentials?: AdmissionCredentials | null;
+  portalAccess: AdmissionPortalAccess;
   payment?: AdmissionPaymentDetails;
 };

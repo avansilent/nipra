@@ -45,7 +45,7 @@ export default function CoursesExperience({ contactPhone, admissionOpenCourseIds
     <section className="app-page-shell courses-page-shell">
       <div className="mx-auto max-w-6xl space-y-7 lg:space-y-8">
         <motion.section
-          initial="hidden"
+          initial={false}
           whileInView="show"
           viewport={viewportOnce}
           variants={sectionVariants}
@@ -83,7 +83,7 @@ export default function CoursesExperience({ contactPhone, admissionOpenCourseIds
 
         <motion.section
           id="catalog"
-          initial="hidden"
+          initial={false}
           whileInView="show"
           viewport={viewportOnce}
           variants={sectionVariants}

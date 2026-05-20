@@ -5,7 +5,7 @@ import Razorpay from "razorpay";
 import { findAcademyCatalogCourse } from "../../data/academyCatalog";
 import { createStudentEmail, createTempPassword, sanitizeLoginId } from "../admin/route";
 import { createSupabaseServiceClient } from "../supabase/service";
-import type { AdmissionCredentials, AdmissionPaymentDetails, AdmissionResult } from "../../types/admission";
+import type { AdmissionCredentials, AdmissionPaymentDetails, AdmissionPortalAccess, AdmissionResult } from "../../types/admission";
 
 type ServiceClient = ReturnType<typeof createSupabaseServiceClient>;
 
@@ -51,7 +51,8 @@ type AdmissionLedgerRecord = {
 type IssuedCredentialPacket = {
   studentName: string;
   courseTitle: string;
-  credentials: AdmissionCredentials;
+  credentials?: AdmissionCredentials | null;
+  portalAccess: AdmissionPortalAccess;
   payment: AdmissionPaymentDetails;
 };
 
@@ -74,6 +75,7 @@ type AdmissionTokenPayload = {
   amountLabel: string;
   monthlyFeeLabel: string;
   currency: string;
+  studentUserId: string | null;
   issuedAt: number;
 };
 
@@ -195,10 +197,10 @@ function getRuntimeEnvValue(name: string) {
 }
 
 function getRazorpayKeyId() {
-  return getRuntimeEnvValue("NEXT_PUBLIC_RAZORPAY_KEY_ID") || getRuntimeEnvValue("RAZORPAY_KEY_ID") || "";
+  return getRuntimeEnvValue("RAZORPAY_KEY_ID") || getRuntimeEnvValue("NEXT_PUBLIC_RAZORPAY_KEY_ID") || "";
 }
 
-const razorpayKeyIdEnvName = "NEXT_PUBLIC_RAZORPAY_KEY_ID or RAZORPAY_KEY_ID";
+const razorpayKeyIdEnvName = "RAZORPAY_KEY_ID";
 
 function getRazorpaySecret() {
   return getRuntimeEnvValue("RAZORPAY_KEY_SECRET") || "";
@@ -566,7 +568,12 @@ export async function markWebhookAdmissionStatus(orderId: string, patch: Record<
   await updateAdmissionLedger(orderId, nextPatch);
 }
 
-export function buildAdmissionToken(orderId: string, receipt: string, draft: ResolvedAdmissionDraft) {
+export function buildAdmissionToken(
+  orderId: string,
+  receipt: string,
+  draft: ResolvedAdmissionDraft,
+  studentUserId?: string | null
+) {
   return createAdmissionToken({
     version: 1,
     orderId,
@@ -586,6 +593,7 @@ export function buildAdmissionToken(orderId: string, receipt: string, draft: Res
     amountLabel: draft.amountLabel,
     monthlyFeeLabel: draft.monthlyFeeLabel,
     currency: draft.currency,
+    studentUserId: studentUserId ?? null,
     issuedAt: Date.now(),
   });
 }
@@ -755,6 +763,182 @@ async function createIssuedCredentials(
         email: finalEmail,
         password,
       },
+      portalAccess: {
+        mode: "generated-credentials",
+        dashboardPath: "/student/dashboard",
+        email: finalEmail,
+        loginId,
+      },
+      payment: {
+        orderId: payment.order_id,
+        paymentId: payment.id,
+        amountLabel: token.amountLabel,
+        method: payment.method ?? null,
+        status: payment.status === "captured" ? "captured" : "verified",
+      },
+    } satisfies IssuedCredentialPacket,
+  };
+}
+
+async function attachAdmissionToExistingStudent(
+  serviceClient: ServiceClient,
+  token: AdmissionTokenPayload,
+  payment: RazorpayPaymentDetails,
+  signature: string | null,
+  studentUserId: string
+) {
+  const { data: authUserResult, error: authUserError } = await serviceClient.auth.admin.getUserById(studentUserId);
+  if (authUserError || !authUserResult.user) {
+    throw new PublicAdmissionError("The signed-in student account could not be restored for this payment.", 404);
+  }
+
+  const authUser = authUserResult.user;
+  const authRole = normalizeText(
+    (authUser.app_metadata?.role as string | undefined) ??
+      (authUser.user_metadata?.role as string | undefined) ??
+      "student"
+  );
+
+  if (authRole && authRole !== "student") {
+    throw new PublicAdmissionError("Sign in with a student account before paying for a course.", 403);
+  }
+
+  const [{ data: profileRow, error: profileError }, { data: userRow, error: userRowError }] = await Promise.all([
+    serviceClient
+      .from("profiles")
+      .select("role, institute_id")
+      .eq("id", studentUserId)
+      .maybeSingle(),
+    serviceClient
+      .from("users")
+      .select("name, email, login_id, role")
+      .eq("id", studentUserId)
+      .maybeSingle(),
+  ]);
+
+  if (profileError) {
+    throw new PublicAdmissionError("The student profile could not be prepared for course access.", 500);
+  }
+
+  if (userRowError) {
+    throw new PublicAdmissionError("The student account could not be prepared for course access.", 500);
+  }
+
+  const profileRole = normalizeText(profileRow?.role);
+  const userRole = normalizeText(userRow?.role);
+  const resolvedRole = profileRole || userRole || authRole || "student";
+
+  if (resolvedRole !== "student") {
+    throw new PublicAdmissionError("Sign in with a student account before paying for a course.", 403);
+  }
+
+  const existingInstituteId = normalizeText(
+    (profileRow?.institute_id as string | null | undefined) ??
+      (authUser.app_metadata?.institute_id as string | undefined) ??
+      (authUser.user_metadata?.institute_id as string | undefined) ??
+      ""
+  );
+
+  if (existingInstituteId && existingInstituteId !== token.instituteId) {
+    throw new PublicAdmissionError("This student account belongs to another institute.", 409);
+  }
+
+  const resolvedName =
+    token.studentName ||
+    normalizeText(userRow?.name) ||
+    normalizeText(authUser.user_metadata?.name as string | undefined) ||
+    "Student";
+  const resolvedEmail = normalizeEmail(userRow?.email || authUser.email || token.email);
+  const resolvedLoginId = normalizeText(
+    userRow?.login_id ||
+      (authUser.user_metadata?.login_id as string | undefined) ||
+      (resolvedEmail ? resolvedEmail.split("@")[0] : "")
+  );
+
+  const { error: profileUpsertError } = await serviceClient.from("profiles").upsert(
+    {
+      id: studentUserId,
+      role: "student",
+      institute_id: token.instituteId,
+    },
+    { onConflict: "id" }
+  );
+
+  if (profileUpsertError) {
+    throw new PublicAdmissionError("The student profile could not be updated for course access.", 500);
+  }
+
+  const { error: userUpsertError } = await serviceClient.from("users").upsert(
+    {
+      id: studentUserId,
+      name: resolvedName,
+      email: resolvedEmail || null,
+      login_id: resolvedLoginId || null,
+      role: "student",
+    },
+    { onConflict: "id" }
+  );
+
+  if (userUpsertError) {
+    throw new PublicAdmissionError("The student account could not be updated for course access.", 500);
+  }
+
+  await serviceClient.auth.admin.updateUserById(studentUserId, {
+    user_metadata: {
+      ...(authUser.user_metadata ?? {}),
+      name: resolvedName,
+      full_name: resolvedName,
+      role: "student",
+      institute_id: token.instituteId,
+      login_id: resolvedLoginId || undefined,
+      guardian_name: token.guardianName,
+      phone: token.phone,
+      board: token.board,
+      class_level: token.classLevel,
+      address: token.address,
+      contact_email: token.email || null,
+      admission_interest: token.interest || null,
+      admission_source: "razorpay-public-join-flow",
+      enrolled_course_id: token.courseId,
+      enrolled_course_title: token.courseTitle,
+      admission_order_id: payment.order_id,
+      admission_payment_id: payment.id,
+      admission_payment_method: payment.method ?? null,
+      admission_amount_paise: token.amountPaise,
+      razorpay_signature: signature ?? null,
+    },
+    app_metadata: {
+      ...(authUser.app_metadata ?? {}),
+      role: "student",
+      institute_id: token.instituteId,
+    },
+  });
+
+  const { error: enrollmentError } = await serviceClient.from("enrollments").upsert(
+    {
+      student_id: studentUserId,
+      course_id: token.courseId,
+      institute_id: token.instituteId,
+    },
+    { onConflict: "student_id,course_id" }
+  );
+
+  if (enrollmentError) {
+    throw new PublicAdmissionError("Payment was verified, but course enrollment could not be completed.", 500);
+  }
+
+  return {
+    studentUserId,
+    packet: {
+      studentName: resolvedName,
+      courseTitle: token.courseTitle,
+      credentials: null,
+      portalAccess: {
+        mode: "existing-account",
+        dashboardPath: "/student/dashboard",
+        email: resolvedEmail || null,
+        loginId: resolvedLoginId || null,
+      },
       payment: {
         orderId: payment.order_id,
         paymentId: payment.id,
@@ -790,7 +974,9 @@ async function syncIssuedAdmissionCredentials(
   });
 
   const serviceClient = getServiceClient();
-  const issued = await createIssuedCredentials(serviceClient, token, payment, persistedSignature);
+  const issued = token.studentUserId
+    ? await attachAdmissionToExistingStudent(serviceClient, token, payment, persistedSignature, token.studentUserId)
+    : await createIssuedCredentials(serviceClient, token, payment, persistedSignature);
   const credentialsCiphertext = sealCredentialPacket(issued.packet);
 
   await updateAdmissionLedger(ledger.order_id, {

@@ -35,11 +35,14 @@ Required for Razorpay admissions:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `NEXT_PUBLIC_RAZORPAY_KEY_ID`
 - `RAZORPAY_KEY_ID`
 - `RAZORPAY_KEY_SECRET`
 - `RAZORPAY_WEBHOOK_SECRET`
 - `ADMISSION_SIGNING_SECRET`
+
+Optional compatibility fallback:
+
+- `NEXT_PUBLIC_RAZORPAY_KEY_ID`
 
 `SUPABASE_SERVICE_ROLE_KEY` is also required locally for login-ID resolution and for public course/resource queries that read published data server-side.
 
@@ -89,10 +92,17 @@ Required environment variables:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-
-If you use server-side file upload/download routes backed by Supabase Storage with elevated access checks, add:
-
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `RAZORPAY_KEY_ID`
+- `RAZORPAY_KEY_SECRET`
+- `RAZORPAY_WEBHOOK_SECRET`
+- `ADMISSION_SIGNING_SECRET`
+
+Optional compatibility fallback:
+
+- `NEXT_PUBLIC_RAZORPAY_KEY_ID`
+
+After adding or changing the production payment variables in Vercel, trigger a fresh deployment. Until that redeploy completes, the live checkout route will continue returning a payment-configuration error.
 
 ## API Routes
 

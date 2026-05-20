@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createSupabaseRouteClient } from "../../../../../../lib/supabase/route";
 import {
   buildAdmissionToken,
   createAdmissionOrderReceipt,
@@ -9,10 +10,33 @@ import {
   resolveAdmissionDraft,
 } from "../../../../../../lib/admission/payments";
 
+async function resolveAuthenticatedStudentUserId() {
+  const supabase = await createSupabaseRouteClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new PublicAdmissionError("Please sign in as a student before starting payment.", 401);
+  }
+
+  const metadataRole =
+    (user.app_metadata?.role as string | undefined) ??
+    (user.user_metadata?.role as string | undefined) ??
+    "student";
+
+  if (metadataRole === "admin") {
+    throw new PublicAdmissionError("Sign in with a student account before paying for a course.", 403);
+  }
+
+  return user.id;
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as Record<string, unknown>;
     const draft = await resolveAdmissionDraft(body);
+    const studentUserId = await resolveAuthenticatedStudentUserId();
     const receipt = createAdmissionOrderReceipt();
     const razorpay = getRazorpayClient();
 
@@ -28,7 +52,7 @@ export async function POST(request: Request) {
       },
     });
 
-    const admissionToken = buildAdmissionToken(order.id, receipt, draft);
+    const admissionToken = buildAdmissionToken(order.id, receipt, draft, studentUserId);
     await insertAdmissionLedgerEntry({
       orderId: order.id,
       receipt,

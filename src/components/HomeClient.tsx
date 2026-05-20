@@ -209,7 +209,6 @@ export default function HomeClient({ content, siteSettings }: HomeClientProps) {
               </div>
             </motion.div>
           </motion.section>
-            initial={initialSectionState}
         </div>
       </section>
 

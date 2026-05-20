@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useAuth } from "../app/AuthProvider";
 import { useAdaptiveMotion } from "../hooks/useAdaptiveMotion";
 import { academyAdmissionNote, findAcademyCatalogCourse } from "../data/academyCatalog";
 import {
@@ -131,6 +132,13 @@ type StoredAdmissionSession = {
   createdAt: number;
 };
 
+type StoredAdmissionDraft = {
+  path: string;
+  selectedCourseId: string;
+  form: FormState;
+  createdAt: number;
+};
+
 const emptyForm: FormState = {
   studentName: "",
   guardianName: "",
@@ -143,6 +151,7 @@ const emptyForm: FormState = {
 
 let razorpayScriptPromise: Promise<boolean> | null = null;
 const pendingAdmissionStorageKey = "nipra.pendingAdmissionPayment";
+const pendingAdmissionDraftStorageKey = "nipra.pendingAdmissionDraft";
 const pendingAdmissionMaxAgeMs = 1000 * 60 * 60 * 24;
 
 function normalizeSearchValue(value: string) {
@@ -220,7 +229,7 @@ function formatPaymentSetupErrorMessage(error: unknown, contactPhone: string) {
   const fallbackMessage = "Unable to start secure checkout right now.";
   const message = error instanceof Error ? error.message : fallbackMessage;
 
-  if (/NEXT_PUBLIC_RAZORPAY_KEY_ID|RAZORPAY_KEY_ID|RAZORPAY_KEY_SECRET|environment configuration/i.test(message)) {
+  if (/NEXT_PUBLIC_RAZORPAY_KEY_ID|RAZORPAY_KEY_ID|RAZORPAY_KEY_SECRET|ADMISSION_SIGNING_SECRET|Missing Supabase service credentials/i.test(message)) {
     return `Secure Razorpay checkout is being configured right now. Call ${contactPhone} and the team can complete the admission manually until payment is restored.`;
   }
 
@@ -286,8 +295,82 @@ function clearPendingAdmissionSession(orderId?: string) {
   }
 }
 
+function getCurrentAdmissionPath() {
+  if (typeof window === "undefined") {
+    return "/join#admission";
+  }
+
+  const { pathname, search, hash } = window.location;
+  return `${pathname}${search}${hash || "#admission"}`;
+}
+
+function readPendingAdmissionDraft(expectedPath?: string) {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const rawValue = window.sessionStorage.getItem(pendingAdmissionDraftStorageKey);
+    if (!rawValue) {
+      return null;
+    }
+
+    const parsed = JSON.parse(rawValue) as Partial<StoredAdmissionDraft>;
+    if (
+      typeof parsed.path !== "string" ||
+      typeof parsed.selectedCourseId !== "string" ||
+      typeof parsed.createdAt !== "number" ||
+      typeof parsed.form !== "object" ||
+      parsed.form === null
+    ) {
+      window.sessionStorage.removeItem(pendingAdmissionDraftStorageKey);
+      return null;
+    }
+
+    if (Date.now() - parsed.createdAt > pendingAdmissionMaxAgeMs) {
+      window.sessionStorage.removeItem(pendingAdmissionDraftStorageKey);
+      return null;
+    }
+
+    if (expectedPath && parsed.path !== expectedPath) {
+      return null;
+    }
+
+    return parsed as StoredAdmissionDraft;
+  } catch {
+    window.sessionStorage.removeItem(pendingAdmissionDraftStorageKey);
+    return null;
+  }
+}
+
+function writePendingAdmissionDraft(draft: StoredAdmissionDraft) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.sessionStorage.setItem(pendingAdmissionDraftStorageKey, JSON.stringify(draft));
+}
+
+function clearPendingAdmissionDraft(path?: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (!path) {
+    window.sessionStorage.removeItem(pendingAdmissionDraftStorageKey);
+    return;
+  }
+
+  const currentDraft = readPendingAdmissionDraft();
+  if (currentDraft?.path === path) {
+    window.sessionStorage.removeItem(pendingAdmissionDraftStorageKey);
+  }
+}
+
 function AdmissionSuccessCard({ copiedLabel, onCopy, onReset, success }: AdmissionSuccessCardProps) {
   const successPayment = success.payment ?? null;
+  const generatedCredentials = success.credentials ?? null;
+  const hasGeneratedCredentials = Boolean(generatedCredentials);
 
   return (
     <motion.div
@@ -299,7 +382,9 @@ function AdmissionSuccessCard({ copiedLabel, onCopy, onReset, success }: Admissi
       <p className="admission-success-kicker">Payment verified</p>
       <h3 className="admission-success-title">{success.studentName} is ready for the portal.</h3>
       <p className="admission-success-copy">
-        The payment was verified securely and the selected course is already attached to the student account.
+        {success.portalAccess.mode === "existing-account"
+          ? "The payment was verified securely and the selected course is already attached to the signed-in student portal."
+          : "The payment was verified securely and the selected course is already attached to the new student account."}
       </p>
 
       {successPayment ? (
@@ -321,33 +406,47 @@ function AdmissionSuccessCard({ copiedLabel, onCopy, onReset, success }: Admissi
         </div>
       ) : null}
 
-      <div className="admission-credential-grid">
-        <div className="admission-credential-item">
-          <span>Student ID</span>
-          <strong>{success.credentials.studentId}</strong>
-          <button type="button" onClick={() => void onCopy("student-id", success.credentials.studentId)} className="admission-copy-button">
-            {copiedLabel === "student-id" ? "Copied" : "Copy"}
-          </button>
+      {generatedCredentials ? (
+        <div className="admission-credential-grid">
+          <div className="admission-credential-item">
+            <span>Student ID</span>
+            <strong>{generatedCredentials.studentId}</strong>
+            <button type="button" onClick={() => void onCopy("student-id", generatedCredentials.studentId)} className="admission-copy-button">
+              {copiedLabel === "student-id" ? "Copied" : "Copy"}
+            </button>
+          </div>
+          <div className="admission-credential-item">
+            <span>Password</span>
+            <strong>{generatedCredentials.password}</strong>
+            <button type="button" onClick={() => void onCopy("password", generatedCredentials.password)} className="admission-copy-button">
+              {copiedLabel === "password" ? "Copied" : "Copy"}
+            </button>
+          </div>
+          <div className="admission-credential-item admission-credential-item-full">
+            <span>Login email</span>
+            <strong>{generatedCredentials.email}</strong>
+            <button type="button" onClick={() => void onCopy("email", generatedCredentials.email)} className="admission-copy-button">
+              {copiedLabel === "email" ? "Copied" : "Copy"}
+            </button>
+          </div>
         </div>
-        <div className="admission-credential-item">
-          <span>Password</span>
-          <strong>{success.credentials.password}</strong>
-          <button type="button" onClick={() => void onCopy("password", success.credentials.password)} className="admission-copy-button">
-            {copiedLabel === "password" ? "Copied" : "Copy"}
-          </button>
+      ) : (
+        <div className="admission-credential-grid">
+          <div className="admission-credential-item admission-credential-item-full">
+            <span>Portal account</span>
+            <strong>{success.portalAccess.email ?? "Signed-in student account"}</strong>
+            {success.portalAccess.email ? (
+              <button type="button" onClick={() => void onCopy("portal-email", success.portalAccess.email ?? "")} className="admission-copy-button">
+                {copiedLabel === "portal-email" ? "Copied" : "Copy"}
+              </button>
+            ) : null}
+          </div>
         </div>
-        <div className="admission-credential-item admission-credential-item-full">
-          <span>Login email</span>
-          <strong>{success.credentials.email}</strong>
-          <button type="button" onClick={() => void onCopy("email", success.credentials.email)} className="admission-copy-button">
-            {copiedLabel === "email" ? "Copied" : "Copy"}
-          </button>
-        </div>
-      </div>
+      )}
 
       <div className="admission-success-actions">
-        <Link href="/login?type=student" className="btn inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold">
-          Go to Student Login
+        <Link href={hasGeneratedCredentials ? "/login?type=student" : success.portalAccess.dashboardPath} className="btn inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold">
+          {hasGeneratedCredentials ? "Go to Student Login" : "Open Student Portal"}
         </Link>
         {onReset ? (
           <button type="button" onClick={onReset} className="admission-copy-button admission-copy-button-secondary">
@@ -367,15 +466,29 @@ export default function JoinAdmissionFlow({
   lockCourseSelection = false,
   embedded = false,
 }: JoinAdmissionFlowProps) {
-  const [selectedCourseId, setSelectedCourseId] = useState(() => resolveInitialCourseId(courses, interest, initialCourseId));
-  const [form, setForm] = useState<FormState>(emptyForm);
+  const initialSelectedCourseId = resolveInitialCourseId(courses, interest, initialCourseId);
+  const [selectedCourseId, setSelectedCourseId] = useState(initialSelectedCourseId);
+  const [form, setForm] = useState<FormState>(() => {
+    const initialSelectedCourse = courses.find((course) => course.id === initialSelectedCourseId) ?? null;
+    const initialCatalogCourse = findAcademyCatalogCourse(initialSelectedCourse?.title ?? interest);
+    const initialClassLevel = initialCatalogCourse?.subtitle.split("|")[0]?.trim() ?? "";
+
+    return initialClassLevel
+      ? {
+          ...emptyForm,
+          classLevel: initialClassLevel,
+        }
+      : emptyForm;
+  });
   const [paymentPhase, setPaymentPhase] = useState<PaymentPhase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<AdmissionResult | null>(null);
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const resumeCheckRef = useRef(false);
+  const draftRestoreRef = useRef(false);
   const { allowHoverMotion, allowRichMotion } = useAdaptiveMotion();
+  const { user, role, loading: authLoading } = useAuth();
 
   const selectedCourse = useMemo(
     () => courses.find((course) => course.id === selectedCourseId) ?? null,
@@ -392,6 +505,7 @@ export default function JoinAdmissionFlow({
   const selectedAdmissionFee =
     selectedCatalogCourse?.admissionFee ?? selectedCourse?.priceText ?? "Institute admission fee will appear at checkout";
   const selectedMonthlyFee = selectedCatalogCourse?.monthlyFee ?? null;
+  const suggestedClassLevel = selectedCatalogCourse?.subtitle.split("|")[0]?.trim() ?? "";
   const successPayment = success?.payment ?? null;
   const sectionVariants = allowRichMotion ? sectionReveal : balancedSectionReveal;
   const itemVariants = allowRichMotion ? itemReveal : balancedItemReveal;
@@ -400,15 +514,17 @@ export default function JoinAdmissionFlow({
   const shellClassName = embedded ? "admission-shell admission-shell-embedded" : "admission-shell";
   const paymentSecurityCardClassName =
     embedded
-      ? "overflow-hidden rounded-[1.7rem] border border-slate-200/55 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] p-5 text-slate-950 shadow-[0_16px_34px_rgba(15,23,42,0.05)]"
+      ? "overflow-hidden rounded-[1.7rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] p-5 text-slate-950 shadow-[0_18px_38px_rgba(15,23,42,0.05)]"
       : "overflow-hidden rounded-[1.65rem] border border-slate-200/75 bg-white p-5 text-slate-950 shadow-[0_14px_28px_rgba(15,23,42,0.05)]";
   const paymentSubmitButtonClassName =
     embedded
-      ? "mt-6 inline-flex min-h-[3.2rem] w-full items-center justify-center rounded-full border border-slate-950 bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-[0_14px_26px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
+      ? "mt-6 inline-flex min-h-[3.2rem] w-full items-center justify-center rounded-full bg-[linear-gradient(180deg,#0f172a,#1e293b)] px-6 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
       : "mt-6 inline-flex min-h-[3.2rem] w-full items-center justify-center rounded-full border border-slate-200/80 bg-white px-6 py-3 text-sm font-semibold text-slate-950 shadow-[0_14px_28px_rgba(15,23,42,0.06)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70";
   const showLockedCourseCard = !showCourseSelection && selectedCourse && !embedded;
   const showSelectionPanel = !embedded || showCourseSelection;
   const showSummaryAside = !embedded;
+  const isStudentAuthenticated = Boolean(user && role === "student");
+  const hasWrongPortalRole = Boolean(user && role && role !== "student");
 
   const phoneDialUrl = useMemo(
     () => `tel:${siteSettings.contactPhone.replace(/\s+/g, "")}`,
@@ -416,6 +532,72 @@ export default function JoinAdmissionFlow({
   );
 
   const normalizedPhone = useMemo(() => form.phone.replace(/\D/g, ""), [form.phone]);
+
+  useEffect(() => {
+    if (draftRestoreRef.current) {
+      return;
+    }
+
+    draftRestoreRef.current = true;
+
+    const draftPath = getCurrentAdmissionPath();
+    const pendingDraft = readPendingAdmissionDraft(draftPath);
+    if (!pendingDraft) {
+      return;
+    }
+
+    queueMicrotask(() => {
+      if (pendingDraft.selectedCourseId && courses.some((course) => course.id === pendingDraft.selectedCourseId)) {
+        setSelectedCourseId(pendingDraft.selectedCourseId);
+      }
+
+      setForm((current) => {
+        const hasTypedValues = Object.values(current).some((value) => value.trim().length > 0);
+        return hasTypedValues ? current : pendingDraft.form;
+      });
+    });
+  }, [courses]);
+
+  const continueWithStudentLogin = () => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const callbackPath = getCurrentAdmissionPath();
+    writePendingAdmissionDraft({
+      path: callbackPath,
+      selectedCourseId,
+      form,
+      createdAt: Date.now(),
+    });
+
+    const loginUrl = new URL("/login", window.location.origin);
+    loginUrl.searchParams.set("type", "student");
+    loginUrl.searchParams.set("callbackUrl", callbackPath);
+    window.location.assign(loginUrl.toString());
+  };
+
+  const selectCourse = (courseId: string) => {
+    setSelectedCourseId(courseId);
+
+    setForm((current) => {
+      const nextCourse = courses.find((course) => course.id === courseId) ?? null;
+      const nextSuggestedClassLevel = findAcademyCatalogCourse(nextCourse?.title)?.subtitle.split("|")[0]?.trim() ?? "";
+
+      if (!nextSuggestedClassLevel) {
+        return current;
+      }
+
+      if (current.classLevel.trim() && current.classLevel.trim() !== suggestedClassLevel) {
+        return current;
+      }
+
+      return {
+        ...current,
+        classLevel: nextSuggestedClassLevel,
+      };
+    });
+  };
 
   useEffect(() => {
     if (resumeCheckRef.current) {
@@ -487,6 +669,7 @@ export default function JoinAdmissionFlow({
         }
 
         clearPendingAdmissionSession(pendingSession.orderId);
+        clearPendingAdmissionDraft(getCurrentAdmissionPath());
         setSuccess(payload);
         setPaymentPhase("verified");
         setError(null);
@@ -534,12 +717,12 @@ export default function JoinAdmissionFlow({
               : "Ready";
   const paymentStateBadgeClassName =
     paymentPhase === "verified"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      ? "bg-emerald-50/95 text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]"
       : paymentPhase === "failed"
-        ? "border-rose-200 bg-rose-50 text-rose-700"
+        ? "bg-rose-50/95 text-rose-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]"
         : paymentPhase === "creating-order" || paymentPhase === "checkout-open" || paymentPhase === "verifying"
-          ? "border-amber-200 bg-amber-50 text-amber-700"
-          : "border-slate-200 bg-slate-50 text-slate-600";
+          ? "bg-amber-50/95 text-amber-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]"
+          : "bg-slate-100/90 text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]";
 
   const paymentStepDescription =
     paymentPhase === "verified"
@@ -547,9 +730,9 @@ export default function JoinAdmissionFlow({
       : paymentPhase === "creating-order"
         ? "Creating a secure Razorpay order for the admission fee."
         : paymentPhase === "checkout-open"
-          ? "Checkout opened. Complete the payment to unlock credentials."
+          ? "Checkout opened. Complete the payment to unlock the course in the student portal."
           : paymentPhase === "verifying"
-            ? "Payment captured. Verifying signature and issuing student access."
+            ? "Payment captured. Verifying signature and preparing student portal access."
             : paymentPhase === "failed"
               ? "The last payment attempt was not completed. You can retry securely."
               : `Pay the admission fee ${selectedCatalogCourse ? `(${selectedCatalogCourse.admissionFee}) ` : ""}through Razorpay checkout.`;
@@ -580,7 +763,11 @@ export default function JoinAdmissionFlow({
     },
     {
       label: "Receive student access",
-      description: success ? "Student ID and password are ready." : "Credentials appear only after verified payment.",
+      description: success
+        ? success.portalAccess.mode === "existing-account"
+          ? "The course is now available in the student portal."
+          : "Student login credentials are ready."
+        : "Portal access is confirmed only after verified payment.",
       state: success ? "done" : "pending",
     },
   ] as const;
@@ -603,6 +790,7 @@ export default function JoinAdmissionFlow({
 
   const resetFlow = () => {
     clearPendingAdmissionSession(activeOrderId ?? undefined);
+    clearPendingAdmissionDraft(getCurrentAdmissionPath());
     setForm(emptyForm);
     setPaymentPhase("idle");
     setError(null);
@@ -629,13 +817,14 @@ export default function JoinAdmissionFlow({
       });
 
       const payload = (await response.json()) as AdmissionResult & { error?: string };
-      if (!response.ok || !payload.credentials) {
+      if (!response.ok || !payload.portalAccess) {
         throw new Error(payload.error ?? "Payment verification failed. Please contact support before retrying.");
       }
 
       setSuccess(payload);
       setPaymentPhase("verified");
       clearPendingAdmissionSession(checkoutResponse.razorpay_order_id);
+      clearPendingAdmissionDraft(getCurrentAdmissionPath());
       setActiveOrderId(payload.payment?.orderId ?? checkoutResponse.razorpay_order_id);
     } catch (verifyError) {
       setSuccess(null);
@@ -658,6 +847,21 @@ export default function JoinAdmissionFlow({
 
     if (!isFormReady) {
       setError("Complete the form before opening secure checkout.");
+      return;
+    }
+
+    if (authLoading) {
+      setError("Checking your student login. Please wait a moment.");
+      return;
+    }
+
+    if (hasWrongPortalRole) {
+      setError("Sign in with a student account before paying for a course.");
+      return;
+    }
+
+    if (!isStudentAuthenticated) {
+      continueWithStudentLogin();
       return;
     }
 
@@ -785,7 +989,7 @@ export default function JoinAdmissionFlow({
             <span className="admission-kicker">Admission And Enrollment</span>
             <h1 className="admission-title">Secure payment, instant student access.</h1>
             <p className="admission-copy">
-              Fill the admission form once, complete the Razorpay checkout, and receive the student ID and password only after verified payment.
+              Sign in once, complete the admission form, and let verified payment unlock the selected course directly in the student portal.
             </p>
             <div className="admission-hero-actions">
               <Link href="/#contact" className="home-secondary-action inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold">
@@ -807,8 +1011,8 @@ export default function JoinAdmissionFlow({
                 <strong>Razorpay secured checkout</strong>
               </div>
               <div className="admission-hero-fact">
-                <span className="admission-note-label">Credential rule</span>
-                <strong>Issued only after verified payment</strong>
+                <span className="admission-note-label">Portal rule</span>
+                <strong>Course unlocks after verified payment</strong>
               </div>
               <div className="admission-hero-fact">
                 <span className="admission-note-label">Support</span>
@@ -854,7 +1058,7 @@ export default function JoinAdmissionFlow({
                           variants={itemVariants}
                           whileHover={buttonMotion}
                           whileTap={tapPress}
-                          onClick={() => setSelectedCourseId(course.id)}
+                          onClick={() => selectCourse(course.id)}
                           className={`admission-course-card ${isSelected ? "is-selected" : ""}`}
                         >
                           <div className="admission-course-topline">
@@ -945,27 +1149,57 @@ export default function JoinAdmissionFlow({
               <div className="admission-panel-head">
                 <div>
                   <p className="admission-panel-kicker">{embedded ? "Application" : "Step 2"}</p>
-                  <h2 className="admission-panel-title">{embedded ? "Fill the main details" : "Fill the form"}</h2>
+                  <h2 className="admission-panel-title">{embedded ? "Quick details to start" : "Fill the form"}</h2>
                 </div>
                 <p className="admission-panel-copy">
                   {embedded
-                    ? "Only the main student details are required to start. Optional details can be added below if needed."
-                    : "These details are used to create the student account after Razorpay verification."}
+                    ? "Only four fields are needed to open checkout. Optional details can stay for later."
+                    : "These details are used to unlock the selected course inside the student portal after Razorpay verification."}
                 </p>
               </div>
 
+              <div className="mt-4 rounded-[1.35rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.9))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.88),0_12px_24px_rgba(15,23,42,0.03)]">
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500">Portal access</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {isStudentAuthenticated
+                    ? `Signed in as ${user?.email ?? "student"}. After payment, this course will unlock directly in the student portal.`
+                    : hasWrongPortalRole
+                      ? "You are signed in with a non-student account. Switch to a student login before starting payment."
+                      : "Sign in before payment so the selected course is added directly to the student portal."}
+                </p>
+                {!isStudentAuthenticated ? (
+                  <div className="mt-3 flex flex-wrap gap-2.5">
+                    <button
+                      type="button"
+                      onClick={continueWithStudentLogin}
+                      disabled={authLoading}
+                      className="inline-flex min-h-11 items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_26px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {authLoading ? "Checking login..." : "Student login or Google sign-in"}
+                    </button>
+                    <p className="text-sm leading-6 text-slate-500">Your filled details stay here and reopen after login.</p>
+                  </div>
+                ) : null}
+              </div>
+
+              {embedded ? (
+                <p className="mt-4 text-sm leading-6 text-slate-500">
+                  Student name, guardian name, mobile number, and class are enough to start. The class is suggested from the selected course.
+                </p>
+              ) : null}
+
               {embedded && selectedCourse ? (
-                <div className="mb-5 rounded-[1.5rem] border border-slate-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.9))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.88),0_14px_30px_rgba(15,23,42,0.035)]">
+                <div className="mb-5 rounded-[1.5rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.9))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.88),0_14px_30px_rgba(15,23,42,0.035)]">
                   <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500">Selected course</p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <span className="inline-flex rounded-full border border-slate-200/60 bg-white px-3.5 py-2 text-sm font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
+                    <span className="inline-flex rounded-full bg-white px-3.5 py-2 text-sm font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.88),0_8px_18px_rgba(15,23,42,0.04)]">
                       {selectedCourse.title}
                     </span>
-                    <span className="inline-flex rounded-full border border-slate-200/60 bg-white/90 px-3.5 py-2 text-sm font-medium text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
+                    <span className="inline-flex rounded-full bg-white/90 px-3.5 py-2 text-sm font-medium text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
                       Admission {selectedAdmissionFee}
                     </span>
                     {selectedMonthlyFee ? (
-                      <span className="inline-flex rounded-full border border-slate-200/60 bg-white/90 px-3.5 py-2 text-sm font-medium text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
+                      <span className="inline-flex rounded-full bg-white/90 px-3.5 py-2 text-sm font-medium text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
                         {selectedMonthlyFee}
                       </span>
                     ) : null}
@@ -977,6 +1211,8 @@ export default function JoinAdmissionFlow({
                 <label className="admission-field">
                   <span>Student name</span>
                   <input
+                    autoCapitalize="words"
+                    autoComplete="name"
                     value={form.studentName}
                     onChange={(event) => updateField("studentName", event.target.value)}
                     placeholder="Aarav Kumar"
@@ -987,6 +1223,8 @@ export default function JoinAdmissionFlow({
                 <label className="admission-field">
                   <span>Parent or guardian name</span>
                   <input
+                    autoCapitalize="words"
+                    autoComplete="name"
                     value={form.guardianName}
                     onChange={(event) => updateField("guardianName", event.target.value)}
                     placeholder="Rakesh Kumar"
@@ -998,10 +1236,13 @@ export default function JoinAdmissionFlow({
                   <span>Mobile number</span>
                   <input
                     type="tel"
+                    autoComplete="tel"
                     inputMode="numeric"
+                    maxLength={10}
+                    pattern="[0-9]{10}"
                     value={form.phone}
                     onChange={(event) => updateField("phone", event.target.value)}
-                    placeholder="9876543210"
+                    placeholder="10-digit mobile number"
                     required
                   />
                 </label>
@@ -1009,23 +1250,26 @@ export default function JoinAdmissionFlow({
                 <label className="admission-field">
                   <span>Class</span>
                   <input
+                    autoComplete="off"
                     value={form.classLevel}
                     onChange={(event) => updateField("classLevel", event.target.value)}
-                    placeholder="Class 10"
+                    placeholder={suggestedClassLevel || "Class 10"}
                     required
                   />
                 </label>
               </div>
 
-              <details className="mt-4 rounded-[1.45rem] border border-slate-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.9))] p-4 text-sm text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+              <details className="mt-4 rounded-[1.45rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.9))] p-4 text-sm text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_10px_22px_rgba(15,23,42,0.03)]">
                 <summary className="cursor-pointer list-none font-semibold text-slate-700">
-                  Add optional details
+                  Optional details
                 </summary>
+                <p className="mt-2 text-sm leading-6 text-slate-500">You can leave these empty and still complete the payment.</p>
                 <div className="admission-form-grid mt-4">
                   <label className="admission-field">
                     <span>Email address</span>
                     <input
                       type="email"
+                      autoComplete="email"
                       value={form.email}
                       onChange={(event) => updateField("email", event.target.value)}
                       placeholder="Optional for counselor follow-up"
@@ -1045,6 +1289,7 @@ export default function JoinAdmissionFlow({
                   <label className="admission-field admission-field-full">
                     <span>Address</span>
                     <textarea
+                      autoComplete="street-address"
                       value={form.address}
                       onChange={(event) => updateField("address", event.target.value)}
                       placeholder="Deo, Aurangabad, Bihar"
@@ -1061,7 +1306,7 @@ export default function JoinAdmissionFlow({
                   <p className="admission-panel-kicker">{embedded ? "Payment" : "Step 3"}</p>
                   <h2 className="admission-panel-title">Secure Razorpay payment</h2>
                 </div>
-                <p className="admission-panel-copy">Use the hosted checkout so the payment is verified server-side before access is created.</p>
+                <p className="admission-panel-copy">Use the hosted checkout so the payment is verified server-side before the course is unlocked in the portal.</p>
               </div>
 
               <div className={paymentSecurityCardClassName}>
@@ -1074,34 +1319,34 @@ export default function JoinAdmissionFlow({
                       {embedded ? "Pay the admission fee only." : "Easy admission, secure checkout."}
                     </h3>
                   </div>
-                  <span className={`inline-flex items-center justify-center rounded-full border px-3 py-1.5 text-xs font-semibold ${paymentStateBadgeClassName}`}>
+                  <span className={`inline-flex items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold ${paymentStateBadgeClassName}`}>
                     {paymentStateLabel}
                   </span>
                 </div>
 
-                <div className="mt-5 grid gap-2.5 rounded-[1.35rem] border border-slate-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.92))] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
-                  <div className="flex flex-col items-start gap-2 rounded-[1rem] bg-slate-50/85 px-4 py-3.5 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                <div className="mt-5 grid gap-2 rounded-[1.35rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(248,250,252,0.9))] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_10px_22px_rgba(15,23,42,0.03)]">
+                  <div className="flex flex-col items-start gap-2 rounded-[1rem] bg-white/82 px-4 py-3.5 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                     <span className="text-slate-500">Course</span>
                     <strong className="max-w-[16rem] font-semibold text-slate-950 sm:text-right">{selectedCourse?.title ?? "Choose a course first"}</strong>
                   </div>
-                  <div className="flex flex-col items-start gap-2 rounded-[1rem] bg-slate-50/85 px-4 py-3.5 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                  <div className="flex flex-col items-start gap-2 rounded-[1rem] bg-white/82 px-4 py-3.5 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                     <span className="text-slate-500">Admission fee</span>
                     <strong className="font-semibold text-slate-950 sm:text-right">{selectedAdmissionFee}</strong>
                   </div>
                   {selectedMonthlyFee ? (
-                    <div className="flex flex-col items-start gap-2 rounded-[1rem] bg-slate-50/85 px-4 py-3.5 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                    <div className="flex flex-col items-start gap-2 rounded-[1rem] bg-white/82 px-4 py-3.5 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                       <span className="text-slate-500">Monthly fee</span>
                       <strong className="font-semibold text-slate-950 sm:text-right">{selectedMonthlyFee}</strong>
                     </div>
                   ) : null}
-                  <div className="flex flex-col items-start gap-2 rounded-[1rem] bg-slate-50/85 px-4 py-3.5 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                  <div className="flex flex-col items-start gap-2 rounded-[1rem] bg-white/82 px-4 py-3.5 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                     <span className="text-slate-500">Payment methods</span>
                     <strong className="font-semibold text-slate-950 sm:text-right">UPI, cards, net banking</strong>
                   </div>
                 </div>
 
                 <p className="mt-4 text-sm leading-7 text-slate-600">
-                  {academyAdmissionNote} No student ID or password is created until the payment is captured and verified on the server.
+                  {academyAdmissionNote} The selected course appears in the student portal only after the payment is captured and verified on the server.
                 </p>
 
                 <p className="mt-3 break-all text-xs text-slate-500">
@@ -1129,7 +1374,9 @@ export default function JoinAdmissionFlow({
                         ? "Payment verified"
                         : paymentPhase === "checkout-open"
                           ? "Checkout open..."
-                          : "Pay admission fee securely"}
+                          : !isStudentAuthenticated
+                            ? "Sign in to continue payment"
+                            : "Pay admission fee securely"}
                 </motion.button>
               </div>
 
@@ -1202,9 +1449,9 @@ export default function JoinAdmissionFlow({
                   className="admission-summary-card"
                 >
                   <p className="admission-note-label">After verified payment</p>
-                  <h3 className="admission-summary-title">Student credentials will appear here.</h3>
+                  <h3 className="admission-summary-title">Student portal access will appear here.</h3>
                   <p className="admission-summary-copy">
-                    After Razorpay checkout succeeds and the server verifies the payment signature, this panel will reveal the student ID and password.
+                    After Razorpay checkout succeeds and the server verifies the payment signature, this panel will confirm that the course is live in the student portal.
                   </p>
                 </motion.div>
               )}

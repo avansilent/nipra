@@ -2,6 +2,43 @@
   "css.lint.unknownAtRules": "ignore",
   "scss.lint.unknownAtRules": "ignore",
   "less.lint.unknownAtRules": "ignore",
+  "css.customData": [".vscode/tailwind.css-data.json"],
+  "scss.customData": [".vscode/tailwind.css-data.json"],
+  "less.customData": [".vscode/tailwind.css-data.json"],
+  "eslint.workingDirectories": [{ "mode": "auto" }],
+  "tailwindCSS.experimental.configFile": "src/app/globals.css",
+  "tailwindCSS.files.exclude": [
+    "**/.git/**",
+    "**/.next/**",
+    "**/.open-next/**",
+    "**/out/**",
+    "**/coverage/**",
+    "**/node_modules/**"
+  ],
+  "tailwindCSS.lint.cssConflict": "ignore",
+  "tailwindCSS.lint.recommendedVariantOrder": "ignore",
+  "tailwindCSS.lint.suggestCanonicalClasses": "ignore",
+  "files.watcherExclude": {
+    "**/.git/**": true,
+    "**/.next/**": true,
+    "**/.open-next/**": true,
+    "**/out/**": true,
+    "**/coverage/**": true,
+    "**/node_modules/**": true
+  },
+  "files.exclude": {
+    "**/.next": true,
+    "**/.open-next": true,
+    "**/out": true,
+    "**/coverage": true
+  },
+  "search.exclude": {
+    "**/.next": true,
+    "**/.open-next": true,
+    "**/out": true,
+    "**/coverage": true,
+    "**/node_modules": true
+  },
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true
 }
