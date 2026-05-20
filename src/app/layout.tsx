@@ -136,13 +136,46 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         ? "lite"
         : coarsePointer || midMemory || midCpu
           ? "balanced"
-          : "full";
+        : "full";
+    })();
+  `;
+
+  const themeModeScript = `
+    (function () {
+      var doc = document.documentElement;
+      if (!doc) {
+        return;
+      }
+
+      var storedTheme = null;
+      try {
+        storedTheme = window.localStorage.getItem("nipra-theme");
+      } catch (_error) {
+        storedTheme = null;
+      }
+
+      var prefersDark = false;
+      try {
+        prefersDark = !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      } catch (_error) {
+        prefersDark = false;
+      }
+
+      var theme = storedTheme === "dark" || storedTheme === "light"
+        ? storedTheme
+        : prefersDark
+          ? "dark"
+          : "light";
+
+      doc.dataset.theme = theme;
+      doc.classList.toggle("dark", theme === "dark");
     })();
   `;
 
   return (
     <html lang="en" data-performance-mode="full" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: themeModeScript }} />
         <script dangerouslySetInnerHTML={{ __html: performanceCompatScript }} />
         <script dangerouslySetInnerHTML={{ __html: performanceModeScript }} />
       </head>

@@ -57,11 +57,11 @@ type AnnouncementRow = {
 type TimelineFilter = "all" | "upcoming" | "completed" | "missed";
 
 const shellSurfaceClass =
-  "rounded-[32px] bg-white/94 p-5 shadow-[0_20px_52px_rgba(226,232,240,0.9)] sm:p-6";
+  "student-surface min-w-0 overflow-hidden rounded-[32px] bg-white/94 p-5 shadow-[0_20px_52px_rgba(226,232,240,0.9)] sm:p-6";
 const softCardClass =
-  "rounded-[24px] bg-white/92 p-4 shadow-[0_14px_30px_rgba(226,232,240,0.86)]";
+  "student-soft-card min-w-0 overflow-hidden rounded-[24px] bg-white/92 p-4 shadow-[0_14px_30px_rgba(226,232,240,0.86)]";
 const actionCardClass =
-  "rounded-[24px] bg-white/92 p-4 shadow-[0_14px_30px_rgba(226,232,240,0.86)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(226,232,240,0.94)]";
+  "student-soft-card min-w-0 overflow-hidden rounded-[24px] bg-white/92 p-4 shadow-[0_14px_30px_rgba(226,232,240,0.86)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(226,232,240,0.94)]";
 const primaryButtonClass =
   "inline-flex items-center justify-center rounded-[1.4rem] bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(56,189,248,0.24)] transition duration-300 hover:-translate-y-0.5 hover:bg-sky-700 hover:shadow-[0_18px_34px_rgba(56,189,248,0.3)]";
 const secondaryButtonClass =
@@ -115,7 +115,7 @@ function StatusBadge({
     danger: "bg-rose-50 text-rose-700",
   }[tone];
 
-  return <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${toneClass}`}>{children}</span>;
+  return <span className={`student-status-badge inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${toneClass}`}>{children}</span>;
 }
 
 function PortalSection({
@@ -132,7 +132,7 @@ function PortalSection({
   return (
     <section className={shellSurfaceClass}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
+        <div className="min-w-0">
           <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-700">{title}</h2>
           {description ? <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p> : null}
         </div>
@@ -145,7 +145,7 @@ function PortalSection({
 
 function MetricCard({ label, value, helper }: { label: string; value: string | number; helper: string }) {
   return (
-    <div className="rounded-[24px] bg-white/92 p-4 shadow-[0_14px_30px_rgba(226,232,240,0.88)]">
+    <div className="student-soft-card min-w-0 overflow-hidden rounded-[24px] bg-white/92 p-4 shadow-[0_14px_30px_rgba(226,232,240,0.88)]">
       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">{label}</p>
       <p className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-slate-700">{value}</p>
       <p className="mt-2 text-sm leading-6 text-slate-600">{helper}</p>
@@ -155,7 +155,7 @@ function MetricCard({ label, value, helper }: { label: string; value: string | n
 
 function EmptyState({ title, description }: { title: string; description: string }) {
   return (
-    <div className="rounded-[22px] bg-[#f6f8fb] px-4 py-5 text-sm text-slate-600 shadow-[0_10px_24px_rgba(226,232,240,0.72)]">
+    <div className="student-empty-state min-w-0 rounded-[22px] bg-[#f6f8fb] px-4 py-5 text-sm text-slate-600 shadow-[0_10px_24px_rgba(226,232,240,0.72)]">
       <p className="font-semibold text-slate-700">{title}</p>
       <p className="mt-1 leading-6">{description}</p>
     </div>
@@ -212,8 +212,16 @@ export default function StudentPortal() {
         return;
       }
 
+      setLastLogin(user.last_sign_in_at ?? null);
+
       if (!instituteId) {
-        setError("Institute not assigned for this account.");
+        setCourses([]);
+        setTests([]);
+        setResults([]);
+        setNotes([]);
+        setMaterials([]);
+        setAnnouncements([]);
+        setError("Google login is active. Course assignments will appear here after the institute links this account.");
         setReady(true);
         return;
       }
@@ -222,8 +230,6 @@ export default function StudentPortal() {
       setReady(false);
 
       try {
-        setLastLogin(user.last_sign_in_at ?? null);
-
         const { data: enrollmentRows, error: enrollmentError } = await withTimeout(
           supabase
             .from("enrollments")
@@ -401,6 +407,21 @@ export default function StudentPortal() {
 
   const recentResultTrend = results.slice(0, 6).reverse();
   const peakForTrend = recentResultTrend.length > 0 ? Math.max(...recentResultTrend.map((item) => Number(item.marks || 0)), 1) : 1;
+  const chartPointItems = recentResultTrend.map((item, index, trend) => {
+    const score = Number(item.marks || 0);
+    const x = trend.length === 1 ? 50 : 8 + (index / Math.max(trend.length - 1, 1)) * 84;
+    const y = 88 - (score / peakForTrend) * 68;
+
+    return {
+      id: item.test_id,
+      label: item.test_title ?? "Test",
+      score,
+      x: Number(x.toFixed(2)),
+      y: Number(y.toFixed(2)),
+    };
+  });
+  const chartPolyline = chartPointItems.map((point) => `${point.x},${point.y}`).join(" ");
+  const chartFill = chartPolyline ? `8,92 ${chartPolyline} 92,92` : "";
   const latestAnnouncement = announcements[0] ?? null;
 
   const courseTitleById = useMemo(() => new Map(courses.map((course) => [course.id, course.title])), [courses]);
@@ -449,7 +470,7 @@ export default function StudentPortal() {
 
   if (authLoading || !ready) {
     return (
-      <section className="relative mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+      <section className="student-portal-shell relative mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
         <div className="pointer-events-none absolute -top-10 left-0 h-48 w-48 rounded-full bg-stone-200/45 blur-3xl" />
         <div className="pointer-events-none absolute right-0 top-20 h-56 w-56 rounded-full bg-slate-200/35 blur-3xl" />
         <div className="space-y-5 animate-pulse">
@@ -475,8 +496,8 @@ export default function StudentPortal() {
 
   if (!user || role !== "student") {
     return (
-      <section className="relative mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-        <div className="rounded-[32px] bg-white/92 p-8 shadow-[0_24px_60px_rgba(226,232,240,0.88)]">
+      <section className="student-portal-shell relative mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+        <div className="student-surface rounded-[32px] bg-white/92 p-8 shadow-[0_24px_60px_rgba(226,232,240,0.88)]">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">Student Portal</p>
           <h1 className="mt-4 text-3xl font-semibold tracking-[-0.05em] text-slate-950">Student access required</h1>
           <p className="mt-3 text-base leading-7 text-slate-600">
@@ -492,19 +513,19 @@ export default function StudentPortal() {
   }
 
   return (
-    <section className="relative mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+    <section className="student-portal-shell relative mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <div className="pointer-events-none absolute -top-10 left-0 h-48 w-48 rounded-full bg-stone-200/45 blur-3xl" />
       <div className="pointer-events-none absolute right-0 top-20 h-56 w-56 rounded-full bg-slate-200/35 blur-3xl" />
       <div className="pointer-events-none absolute bottom-6 left-1/3 h-52 w-52 rounded-full bg-stone-100/70 blur-3xl" />
 
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         {error ? (
           <div className="rounded-[22px] bg-amber-50/90 px-5 py-4 text-sm text-amber-700 shadow-[0_12px_28px_rgba(253,230,138,0.34)]">
             {error}
           </div>
         ) : null}
 
-        <div className="overflow-hidden rounded-[36px] bg-white/94 p-6 shadow-[0_28px_80px_rgba(226,232,240,0.92)] sm:p-7">
+        <div className="student-surface overflow-hidden rounded-[36px] bg-white/94 p-6 shadow-[0_28px_80px_rgba(226,232,240,0.92)] sm:p-7">
           <div className="grid gap-6 xl:grid-cols-[1.35fr_0.85fr] xl:items-end">
             <div>
               <div className="flex flex-wrap items-center gap-3">
@@ -524,7 +545,7 @@ export default function StudentPortal() {
               </div>
             </div>
 
-            <div className="rounded-[28px] bg-[#f8fafd] p-5 shadow-[0_16px_36px_rgba(226,232,240,0.88)]">
+            <div className="student-soft-card rounded-[28px] bg-[#f8fafd] p-5 shadow-[0_16px_36px_rgba(226,232,240,0.88)]">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Session Overview</p>
               <div className="mt-4 space-y-4 text-sm text-slate-600">
                 <div className="flex items-start justify-between gap-4">
@@ -743,6 +764,44 @@ export default function StudentPortal() {
                   <p className="mt-2 text-sm text-slate-600">Highest recorded marks visible in the portal.</p>
                 </div>
               </div>
+
+              {chartPointItems.length > 0 ? (
+                <div className={`${softCardClass} mt-5`}>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">Score graph</p>
+                      <p className="mt-1 text-sm text-slate-600">Recent marks are mapped from oldest to newest.</p>
+                    </div>
+                    <StatusBadge tone="success">{chartPointItems[chartPointItems.length - 1]?.score ?? 0}</StatusBadge>
+                  </div>
+                  <div className="mt-5 rounded-[20px] bg-[#f8fafd] p-3">
+                    <svg viewBox="0 0 100 100" role="img" aria-label="Recent result score graph" className="h-40 w-full overflow-visible">
+                      <defs>
+                        <linearGradient id="student-score-fill" x1="0" x2="0" y1="0" y2="1">
+                          <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.28" />
+                          <stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
+                        </linearGradient>
+                      </defs>
+                      {[20, 40, 60, 80].map((line) => (
+                        <line key={line} x1="4" x2="96" y1={line} y2={line} stroke="#e2e8f0" strokeWidth="0.6" vectorEffect="non-scaling-stroke" />
+                      ))}
+                      {chartFill ? <polygon points={chartFill} fill="url(#student-score-fill)" /> : null}
+                      <polyline points={chartPolyline} fill="none" stroke="#0284c7" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                      {chartPointItems.map((point) => (
+                        <circle key={point.id} cx={point.x} cy={point.y} r="2.6" fill="#ffffff" stroke="#0284c7" strokeWidth="1.8" vectorEffect="non-scaling-stroke" />
+                      ))}
+                    </svg>
+                  </div>
+                  <div className="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-2">
+                    {chartPointItems.slice(-2).map((point) => (
+                      <div key={`${point.id}-label`} className="rounded-[14px] bg-sky-50 px-3 py-2">
+                        <span className="font-semibold text-slate-700">{point.label}</span>
+                        <span className="ml-2 text-sky-700">{point.score}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="mt-5 space-y-3">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">Recent result trend</p>

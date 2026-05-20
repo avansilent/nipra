@@ -191,11 +191,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const nextRole = normalizeRole(
+      const resolvedRole = normalizeRole(
         profile?.role ??
           userRow?.role ??
           metadataRole
       );
+      const nextRole = resolvedRole ?? (pathname.startsWith("/student") ? "student" : null);
 
       setRole(nextRole);
       setInstituteId(
@@ -205,7 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       setRoleResolved(true);
     },
-    [supabase]
+    [pathname, supabase]
   );
 
   useEffect(() => {

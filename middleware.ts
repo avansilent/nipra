@@ -104,13 +104,17 @@ export async function middleware(request: NextRequest) {
     fallbackRole = userRow?.role ?? null;
   }
 
-  const role = normalizeRole(
+  let role = normalizeRole(
     profile?.role ??
     fallbackRole ??
     user.app_metadata?.role ??
     user.user_metadata?.role ??
     null
   );
+
+  if (!role && (isStudentRoute || isStudentApiRoute)) {
+    role = "student";
+  }
 
   const instituteId =
     profile?.institute_id ??

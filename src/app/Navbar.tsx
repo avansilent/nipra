@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -29,8 +29,12 @@ type InlineLink = {
   label: string;
 };
 
+type ThemeMode = "light" | "dark";
+
+const themeStorageKey = "nipra-theme";
+
 const desktopMenuShellClass =
-  "navbar-desktop-menu desktop-nav-links flex w-full min-w-max flex-nowrap items-center justify-start gap-3 overflow-x-auto rounded-full bg-white/80 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.84),0_14px_30px_rgba(15,23,42,0.04)] backdrop-blur-[24px] lg:gap-3.5 lg:p-2.5";
+  "site-nav-menu navbar-desktop-menu desktop-nav-links flex w-full min-w-max flex-nowrap items-center justify-start gap-3 overflow-x-auto rounded-full bg-white/80 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.84),0_14px_30px_rgba(15,23,42,0.04)] backdrop-blur-[24px] lg:gap-3.5 lg:p-2.5";
 
 const desktopMenuItemClass =
   "desktop-nav-link inline-flex min-h-[2.8rem] shrink-0 items-center justify-center rounded-full px-5 py-2 text-[0.88rem] font-medium tracking-normal text-slate-600 transition-[background-color,color,box-shadow,transform] duration-150 lg:px-6 lg:text-[0.91rem]";
@@ -41,18 +45,66 @@ const desktopMenuItemIdleClass =
 const desktopMenuItemActiveClass = "desktop-nav-link-active bg-white text-slate-950 shadow-[0_12px_24px_rgba(15,23,42,0.07)]";
 
 const mobileMenuToggleClass =
-  "group relative inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200/80 bg-white text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.06)] ring-1 ring-white/80 transition-[background-color,border-color,box-shadow,transform] duration-300 ease-out hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_14px_30px_rgba(15,23,42,0.09)]";
+  "site-mobile-menu-toggle group relative inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200/80 bg-white text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.06)] ring-1 ring-white/80 transition-[background-color,border-color,box-shadow,transform] duration-300 ease-out hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_14px_30px_rgba(15,23,42,0.09)]";
 
 const mobileMenuPanelClass =
-  "overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-white p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_18px_36px_rgba(15,23,42,0.08)]";
+  "site-mobile-menu-panel overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-white p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_18px_36px_rgba(15,23,42,0.08)]";
 
 const mobileMenuItemClass =
-  "inline-flex w-full min-h-[2.75rem] items-center justify-between rounded-[0.95rem] px-3.5 py-2.5 text-left text-[0.88rem] font-medium tracking-normal text-slate-600 transition-[background-color,color,box-shadow,transform] duration-200 ease-out";
+  "site-mobile-menu-item inline-flex w-full min-h-[2.75rem] items-center justify-between rounded-[0.95rem] px-3.5 py-2.5 text-left text-[0.88rem] font-medium tracking-normal text-slate-600 transition-[background-color,color,box-shadow,transform] duration-200 ease-out";
 
 const mobileMenuItemIdleClass =
   "hover:bg-slate-50 hover:text-slate-950";
 
 const mobileMenuItemActiveClass = "bg-slate-950 text-white shadow-[0_10px_22px_rgba(15,23,42,0.12)]";
+
+const desktopThemeToggleClass =
+  "theme-toggle-button desktop-nav-link inline-flex min-h-[2.8rem] shrink-0 items-center justify-center gap-2 rounded-full px-5 py-2 text-[0.88rem] font-medium tracking-normal text-slate-600 transition-[background-color,color,box-shadow,transform] duration-150 lg:px-5 lg:text-[0.91rem]";
+
+const mobileThemeToggleClass =
+  "theme-toggle-button inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200/80 bg-white text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.06)] ring-1 ring-white/80 transition-[background-color,border-color,box-shadow,transform] duration-300 ease-out hover:-translate-y-0.5";
+
+function applyTheme(theme: ThemeMode) {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.classList.toggle("dark", theme === "dark");
+}
+
+type MotionButtonProps = ComponentProps<typeof motion.button>;
+
+function ThemeToggleButton({
+  compact = false,
+  onToggle,
+  hoverMotion,
+  tapMotion,
+}: {
+  compact?: boolean;
+  onToggle: () => void;
+  hoverMotion: MotionButtonProps["whileHover"];
+  tapMotion: MotionButtonProps["whileTap"];
+}) {
+  return (
+    <motion.button
+      type="button"
+      whileHover={hoverMotion}
+      whileTap={tapMotion}
+      onClick={onToggle}
+      aria-label="Toggle dark mode"
+      className={compact ? mobileThemeToggleClass : `${desktopThemeToggleClass} ${desktopMenuItemIdleClass}`}
+    >
+      <span
+        aria-hidden="true"
+        className="theme-toggle-track relative inline-flex h-5 w-9 shrink-0 items-center rounded-full bg-slate-200 p-0.5 transition-colors duration-300"
+      >
+        <span className="theme-toggle-dot h-4 w-4 translate-x-0 rounded-full bg-white shadow-[0_2px_6px_rgba(15,23,42,0.18)] transition-transform duration-300" />
+      </span>
+      {compact ? null : <span>Theme</span>}
+    </motion.button>
+  );
+}
 
 export default function Navbar({ siteSettings }: NavbarProps) {
   const { isAuthenticated, logout, role } = useAuth();
@@ -130,6 +182,18 @@ export default function Navbar({ siteSettings }: NavbarProps) {
     });
   };
 
+  const toggleTheme = () => {
+    const currentTheme = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+    const nextTheme = currentTheme === "dark" ? "light" : "dark";
+    applyTheme(nextTheme);
+
+    try {
+      window.localStorage.setItem(themeStorageKey, nextTheme);
+    } catch {
+      // Theme still applies for the current page even if storage is blocked.
+    }
+  };
+
   const toggleMobileMenu = () => {
     setMobileMenuState((current) => {
       const isOpenForPath = current.isOpen && current.pathname === pathname;
@@ -175,7 +239,7 @@ export default function Navbar({ siteSettings }: NavbarProps) {
       transition={allowEntranceMotion ? navTransition : undefined}
       className="fixed inset-x-0 top-0 z-50 w-full px-3 pt-3 sm:px-4"
     >
-      <div className="mx-auto w-full max-w-[96rem] rounded-[1.75rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.84),rgba(248,246,241,0.72))] shadow-[0_18px_38px_rgba(15,23,42,0.05)] backdrop-blur-[26px]">
+      <div className="site-nav-shell mx-auto w-full max-w-[96rem] rounded-[1.75rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.84),rgba(248,246,241,0.72))] shadow-[0_18px_38px_rgba(15,23,42,0.05)] backdrop-blur-[26px]">
         <div className="navbar-desktop-shell hidden min-h-[4.3rem] items-center gap-4 px-4 py-2.5 md:flex lg:px-6 xl:gap-5 xl:px-5">
           <Link href="/" className="navbar-desktop-brand flex min-w-0 shrink-0 items-center justify-start gap-3.5">
             <motion.div
@@ -205,6 +269,8 @@ export default function Navbar({ siteSettings }: NavbarProps) {
                   </Link>
                 </motion.div>
               ))}
+
+              <ThemeToggleButton onToggle={toggleTheme} hoverMotion={hoverMotion} tapMotion={tapMotion} />
 
               {isAuthenticated ? (
                 <motion.button
@@ -236,30 +302,33 @@ export default function Navbar({ siteSettings }: NavbarProps) {
               </span>
             </Link>
 
-            <motion.button
-              type="button"
-              whileHover={hoverMotion}
-              whileTap={tapMotion}
-              aria-expanded={isMobileMenuOpen}
-              aria-controls="mobile-navigation-panel"
-              aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
-              onClick={toggleMobileMenu}
-              className={mobileMenuToggleClass}
-            >
-              <span className="absolute inset-0 rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.9))]" aria-hidden="true" />
-              <span className="relative block h-[0.875rem] w-[1.125rem]">
-                <span
-                  className={`absolute left-0 top-[3px] h-[1.5px] w-[1.125rem] rounded-full bg-current transition-all duration-300 ease-out ${
-                    isMobileMenuOpen ? "top-[6px] rotate-45" : ""
-                  }`}
-                />
-                <span
-                  className={`absolute left-0 top-[10px] h-[1.5px] w-[1.125rem] rounded-full bg-current transition-all duration-300 ease-out ${
-                    isMobileMenuOpen ? "top-[6px] -rotate-45" : ""
-                  }`}
-                />
-              </span>
-            </motion.button>
+            <div className="flex shrink-0 items-center gap-2">
+              <ThemeToggleButton compact onToggle={toggleTheme} hoverMotion={hoverMotion} tapMotion={tapMotion} />
+              <motion.button
+                type="button"
+                whileHover={hoverMotion}
+                whileTap={tapMotion}
+                aria-expanded={isMobileMenuOpen}
+                aria-controls="mobile-navigation-panel"
+                aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+                onClick={toggleMobileMenu}
+                className={mobileMenuToggleClass}
+              >
+                <span className="site-mobile-menu-toggle-bg absolute inset-0 rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.9))]" aria-hidden="true" />
+                <span className="relative block h-[0.875rem] w-[1.125rem]">
+                  <span
+                    className={`absolute left-0 top-[3px] h-[1.5px] w-[1.125rem] rounded-full bg-current transition-all duration-300 ease-out ${
+                      isMobileMenuOpen ? "top-[6px] rotate-45" : ""
+                    }`}
+                  />
+                  <span
+                    className={`absolute left-0 top-[10px] h-[1.5px] w-[1.125rem] rounded-full bg-current transition-all duration-300 ease-out ${
+                      isMobileMenuOpen ? "top-[6px] -rotate-45" : ""
+                    }`}
+                  />
+                </span>
+              </motion.button>
+            </div>
           </div>
 
           <AnimatePresence initial={false}>

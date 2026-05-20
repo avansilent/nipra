@@ -7,23 +7,42 @@ import { createSupabaseBrowserClient } from "../../lib/supabase/browser";
 import { useAuth } from "../AuthProvider";
 
 const loginShellClassName =
-  "relative overflow-hidden bg-[#f5f5f7] px-4 py-4 sm:px-6 sm:py-6 lg:flex lg:min-h-[calc(100svh-4rem)] lg:items-center lg:px-8";
+  "login-page-shell relative overflow-hidden bg-[#f5f5f7] px-4 py-4 sm:px-6 sm:py-6 lg:flex lg:min-h-[calc(100svh-4rem)] lg:items-center lg:px-8";
 const loginViewportClassName = "mx-auto w-full max-w-[25.5rem]";
 const loginLayoutClassName = "flex justify-center";
 const loginCardClassName =
-  "mx-auto w-full max-w-[25.5rem] rounded-[2rem] bg-white/98 p-5 shadow-[0_18px_42px_rgba(15,23,42,0.05)] sm:p-6";
+  "login-card mx-auto w-full max-w-[25.5rem] rounded-[2rem] bg-white/98 p-5 shadow-[0_18px_42px_rgba(15,23,42,0.05)] sm:p-6";
 const loginSegmentedControlClassName =
-  "grid grid-cols-2 gap-1.5 rounded-[1.15rem] bg-[#eef2f6] p-1";
+  "login-segmented-control grid grid-cols-2 gap-1.5 rounded-[1.15rem] bg-[#eef2f6] p-1";
 const loginSegmentTabClassName =
-  "inline-flex min-h-11 items-center justify-center rounded-[0.9rem] px-4 text-sm font-semibold transition-[background-color,color,box-shadow,transform] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-100 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
+  "login-segment-tab inline-flex min-h-11 items-center justify-center rounded-[0.9rem] px-4 text-sm font-semibold transition-[background-color,color,box-shadow,transform] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-100 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
 const loginInputClassName =
-  "w-full min-h-11 appearance-none rounded-[1rem] border border-slate-200/80 bg-white px-4 py-3 text-[15px] text-slate-700 shadow-[0_6px_16px_rgba(15,23,42,0.04)] outline-none transition-[box-shadow,border-color] duration-300 placeholder:text-slate-400 focus:border-sky-200 focus:shadow-[0_0_0_4px_rgba(14,165,233,0.06),0_10px_20px_rgba(15,23,42,0.05)]";
+  "login-input w-full min-h-11 appearance-none rounded-[1rem] border border-slate-200/80 bg-white px-4 py-3 text-[15px] text-slate-700 shadow-[0_6px_16px_rgba(15,23,42,0.04)] outline-none transition-[box-shadow,border-color] duration-300 placeholder:text-slate-400 focus:border-sky-200 focus:shadow-[0_0_0_4px_rgba(14,165,233,0.06),0_10px_20px_rgba(15,23,42,0.05)]";
 const loginPrimaryButtonClassName =
   "inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(15,23,42,0.14)] transition-[background-color,box-shadow,transform] duration-300 hover:-translate-y-0.5 hover:bg-slate-900 hover:shadow-[0_16px_28px_rgba(15,23,42,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-200 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none";
 const loginSecondaryActionClassName =
   "inline-flex min-h-11 w-full items-center justify-center rounded-[1rem] border border-slate-200/80 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600 shadow-[0_6px_14px_rgba(15,23,42,0.03)] transition-[background-color,box-shadow,transform] duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_10px_18px_rgba(15,23,42,0.05)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-200 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
 const loginMessageClassName =
   "whitespace-pre-line rounded-[1rem] bg-rose-50/88 px-4 py-3 text-sm leading-6 text-rose-700 shadow-[0_8px_18px_rgba(254,205,211,0.28)]";
+
+const defaultGoogleOAuthError =
+  "Google sign-in could not be completed. Check the Google provider setup in Supabase and try again.";
+
+function formatOAuthCallbackMessage(message: string | null) {
+  if (!message) {
+    return defaultGoogleOAuthError;
+  }
+
+  if (/requested path is invalid|redirect/i.test(message)) {
+    return [
+      message,
+      "Add http://localhost:3000/auth/callback in Supabase Dashboard > Authentication > URL Configuration > Redirect URLs.",
+      "In Google Cloud, the Authorized redirect URI must be the Supabase callback URL from the Google provider settings.",
+    ].join("\n");
+  }
+
+  return message;
+}
 
 function getSupabaseGoogleCallbackUrl() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -209,8 +228,9 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const loginType = searchParams.get("type") || "student";
   const authError = searchParams.get("error");
+  const authMessage = searchParams.get("message");
   const [error, setError] = useState<string | null>(() =>
-    authError === "oauth" ? "Google sign-in could not be completed. Check the Google provider setup in Supabase and try again." : null
+    authError === "oauth" ? formatOAuthCallbackMessage(authMessage) : null
   );
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const { user, role, loading: authLoading } = useAuth();
@@ -647,7 +667,7 @@ function LoginContent() {
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-3">
-                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-[0_1px_3px_rgba(15,23,42,0.08)]">
+                            <span className="google-logo-shell inline-flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-[0_1px_3px_rgba(15,23,42,0.08)]">
                               <GoogleLogoMark />
                             </span>
                             <span>Continue with Google</span>
