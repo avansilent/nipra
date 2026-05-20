@@ -1,4 +1,5 @@
 import "./globals.css";
+import { execSync } from "node:child_process";
 import Navbar from "./Navbar";
 import type { Metadata } from "next";
 import { Providers } from "./Providers";
@@ -15,6 +16,28 @@ const inter = Inter({
 });
 
 const siteVersion = "v12";
+
+function resolveBuildRef() {
+  const envSha =
+    process.env.NEXT_PUBLIC_COMMIT_SHA ||
+    process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ||
+    process.env.VERCEL_GIT_COMMIT_SHA ||
+    process.env.GITHUB_SHA;
+
+  if (envSha) {
+    return envSha.slice(0, 7);
+  }
+
+  try {
+    return execSync("git rev-parse --short=7 HEAD", {
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .toString()
+      .trim();
+  } catch {
+    return "local";
+  }
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   const siteSettings = await fetchSiteSettings();
@@ -49,6 +72,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const siteSettings = await fetchSiteSettings();
+  const buildRef = resolveBuildRef();
   const performanceCompatScript = `
     (function () {
       var perf = window.performance || {};
@@ -149,23 +173,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
       var storedTheme = null;
       try {
-        storedTheme = window.localStorage.getItem("nipra-theme");
+        storedTheme = window.localStorage.getItem("nipra-theme-v2");
       } catch (_error) {
         storedTheme = null;
       }
 
-      var prefersDark = false;
-      try {
-        prefersDark = !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
-      } catch (_error) {
-        prefersDark = false;
-      }
-
       var theme = storedTheme === "dark" || storedTheme === "light"
         ? storedTheme
-        : prefersDark
-          ? "dark"
-          : "light";
+        : "light";
 
       doc.dataset.theme = theme;
       doc.classList.toggle("dark", theme === "dark");
@@ -193,10 +208,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 </div>
                 <p className="mt-3 text-sm leading-relaxed text-slate-600">{siteSettings.footerNotice}</p>
                 <p className="mt-2 text-xs text-slate-500">&copy; {new Date().getFullYear()} {siteSettings.siteName}. All rights reserved.</p>
-                <p className="mt-3 text-[0.68rem] font-medium uppercase tracking-[0.18em] text-slate-400">{siteVersion}</p>
                 <p className="mt-1 text-xs text-slate-500">Powered by Dark Astra</p>
               </div>
             </footer>
+            <div
+              className="site-version-badge fixed bottom-2 right-2 z-40 rounded-full border border-slate-200/80 bg-white/95 px-2.5 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-slate-500 shadow-[0_8px_20px_rgba(15,23,42,0.08)]"
+              title={`Release ${siteVersion}, commit ${buildRef}`}
+            >
+              <span>{siteVersion}</span>
+              <span className="mx-1 text-slate-300">|</span>
+              <span>{buildRef}</span>
+            </div>
           </div>
         </Providers>
       </body>

@@ -6670,6 +6670,36 @@ body .admission-page-shell .admission-shell {
   }
 }
 
+.site-version-badge {
+  pointer-events: auto;
+}
+
+@media (max-width: 767px) {
+  .site-nav-shell {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, 0.06) !important;
+    backdrop-filter: none !important;
+  }
+
+  .site-mobile-menu-panel {
+    background: #ffffff !important;
+    opacity: 1 !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .site-mobile-menu-item:not(.site-mobile-menu-item-active) {
+    background: #ffffff !important;
+    color: #475569 !important;
+    box-shadow: none !important;
+  }
+
+  .site-mobile-menu-item-active {
+    background: #0f172a !important;
+    color: #ffffff !important;
+  }
+}
+
 /* ===== SITE DARK MODE ===== */
 html[data-theme="dark"] {
   color-scheme: dark;
@@ -6831,6 +6861,33 @@ html[data-theme="dark"] .student-portal-shell svg line {
 
 html[data-theme="dark"] .student-portal-shell svg circle {
   fill: #0f172a !important;
+}
+
+html[data-theme="dark"] .site-version-badge {
+  background: rgba(15, 23, 42, 0.95) !important;
+  border-color: rgba(148, 163, 184, 0.2) !important;
+  color: #cbd5e1 !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22) !important;
+}
+
+@media (max-width: 767px) {
+  html[data-theme="dark"] .site-nav-shell,
+  html[data-theme="dark"] .site-mobile-menu-panel {
+    background: #0f172a !important;
+    border-color: rgba(148, 163, 184, 0.2) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  html[data-theme="dark"] .site-mobile-menu-item:not(.site-mobile-menu-item-active) {
+    background: #0f172a !important;
+    color: #cbd5e1 !important;
+  }
+
+  html[data-theme="dark"] .site-mobile-menu-item-active {
+    background: #e2e8f0 !important;
+    color: #020617 !important;
+  }
 }
 
 @media (max-width: 767px) {

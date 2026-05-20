@@ -31,7 +31,7 @@ type InlineLink = {
 
 type ThemeMode = "light" | "dark";
 
-const themeStorageKey = "nipra-theme";
+const themeStorageKey = "nipra-theme-v2";
 
 const desktopMenuShellClass =
   "site-nav-menu navbar-desktop-menu desktop-nav-links flex w-full min-w-max flex-nowrap items-center justify-start gap-3 overflow-x-auto rounded-full bg-white/80 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.84),0_14px_30px_rgba(15,23,42,0.04)] backdrop-blur-[24px] lg:gap-3.5 lg:p-2.5";
@@ -56,7 +56,7 @@ const mobileMenuItemClass =
 const mobileMenuItemIdleClass =
   "hover:bg-slate-50 hover:text-slate-950";
 
-const mobileMenuItemActiveClass = "bg-slate-950 text-white shadow-[0_10px_22px_rgba(15,23,42,0.12)]";
+const mobileMenuItemActiveClass = "site-mobile-menu-item-active bg-slate-950 text-white shadow-[0_10px_22px_rgba(15,23,42,0.12)]";
 
 const desktopThemeToggleClass =
   "theme-toggle-button desktop-nav-link inline-flex min-h-[2.8rem] shrink-0 items-center justify-center gap-2 rounded-full px-5 py-2 text-[0.88rem] font-medium tracking-normal text-slate-600 transition-[background-color,color,box-shadow,transform] duration-150 lg:px-5 lg:text-[0.91rem]";
@@ -355,7 +355,7 @@ export default function Navbar({ siteSettings }: NavbarProps) {
                         >
                           <span>{link.label}</span>
                           <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-current text-[0] opacity-25">
-                            ›
+                            &gt;
                           </span>
                         </Link>
                       </motion.div>
@@ -374,7 +374,7 @@ export default function Navbar({ siteSettings }: NavbarProps) {
                       >
                         <span>Logout</span>
                         <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-current text-[0] opacity-25">
-                          ›
+                          &gt;
                         </span>
                       </motion.button>
                     ) : null}

@@ -221,7 +221,7 @@ export default function StudentPortal() {
         setNotes([]);
         setMaterials([]);
         setAnnouncements([]);
-        setError("Google login is active. Course assignments will appear here after the institute links this account.");
+        setError("Google login works. Ask admin to assign courses.");
         setReady(true);
         return;
       }
@@ -501,7 +501,7 @@ export default function StudentPortal() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">Student Portal</p>
           <h1 className="mt-4 text-3xl font-semibold tracking-[-0.05em] text-slate-950">Student access required</h1>
           <p className="mt-3 text-base leading-7 text-slate-600">
-            Sign in with a valid student account to open your private courses, tests, resources, and announcements.
+            Sign in to open your courses, tests, and resources.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/login?type=student" className={primaryButtonClass}>Go to Student Login</Link>
@@ -533,10 +533,10 @@ export default function StudentPortal() {
                 <StatusBadge tone="neutral">Live academic feed</StatusBadge>
               </div>
               <h1 className="mt-5 max-w-4xl text-3xl font-semibold tracking-[-0.06em] text-slate-700 sm:text-4xl lg:text-[3rem]">
-                Welcome back, {firstName}. Your study system is clean, focused, and ready.
+                Hi {firstName}, ready to study?
               </h1>
               <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">
-                Use this portal to track assigned courses, stay ahead of upcoming tests, open secure resources, and catch new announcements without the usual clutter.
+                Courses, tests, results, and resources are here.
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
                 <StatusBadge tone="success">{courses.length} assigned courses</StatusBadge>
@@ -558,7 +558,7 @@ export default function StudentPortal() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="font-semibold text-slate-900">Latest result</p>
-                    <p className="mt-1 leading-6">{latestResult ? `${latestResult.test_title ?? "Test"} · ${latestResult.marks}` : "No results recorded yet"}</p>
+                    <p className="mt-1 leading-6">{latestResult ? `${latestResult.test_title ?? "Test"} - ${latestResult.marks}` : "No results yet"}</p>
                   </div>
                   <StatusBadge tone={latestResult ? "success" : "neutral"}>{latestResult ? "Live" : "Pending"}</StatusBadge>
                 </div>
@@ -574,18 +574,18 @@ export default function StudentPortal() {
           </div>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <MetricCard label="Courses" value={courses.length} helper="Assigned learning tracks visible in this portal" />
-            <MetricCard label="Upcoming tests" value={upcomingCount} helper={`${missedCount} missed and ${completedCount} completed so far`} />
-            <MetricCard label="Average score" value={averageMarks} helper={results.length > 0 ? `Best score ${bestMarks}` : "No result data yet"} />
-            <MetricCard label="Resources" value={resourceCount} helper={`${announcements.length} announcements currently active`} />
+            <MetricCard label="Courses" value={courses.length} helper="Assigned" />
+            <MetricCard label="Tests" value={upcomingCount} helper={`${completedCount} done, ${missedCount} missed`} />
+            <MetricCard label="Average" value={averageMarks} helper={results.length > 0 ? `Best ${bestMarks}` : "No marks yet"} />
+            <MetricCard label="Files" value={resourceCount} helper={`${announcements.length} updates`} />
           </div>
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[1.35fr_0.85fr]">
           <div className="space-y-6">
-            <PortalSection title="Assigned Courses" description="These are the courses already attached to your account by the institute admin." action={<Link href="/courses" className={secondaryButtonClass}>Browse Full Catalog</Link>}>
+            <PortalSection title="My Courses" action={<Link href="/courses" className={secondaryButtonClass}>Catalog</Link>}>
               {courses.length === 0 ? (
-                <EmptyState title="No assigned courses yet" description="Your admin has not attached a course yet. Check back soon or contact the institute for activation." />
+                <EmptyState title="No courses yet" description="Ask admin to assign your course." />
               ) : (
                 <div className="grid gap-3 md:grid-cols-2">
                   {courses.map((course, index) => (
@@ -593,7 +593,7 @@ export default function StudentPortal() {
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <p className="text-lg font-semibold tracking-[-0.03em] text-slate-950">{course.title}</p>
-                          <p className="mt-2 text-sm leading-6 text-slate-600">{course.description || "Assigned course with portal-based resources and assessment tracking."}</p>
+                          {course.description ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{course.description}</p> : null}
                         </div>
                         <StatusBadge tone="neutral">#{index + 1}</StatusBadge>
                       </div>
@@ -607,7 +607,7 @@ export default function StudentPortal() {
               )}
             </PortalSection>
 
-            <PortalSection title="Assessment Timeline" description="Upcoming, completed, and missed tests are grouped here so you can plan faster and recover earlier.">
+            <PortalSection title="Tests">
               <div className="mb-4 flex flex-wrap gap-2">
                 {[
                   { id: "all", label: "All" },
@@ -630,7 +630,7 @@ export default function StudentPortal() {
               </div>
               <div className="space-y-3">
                 {filteredTestActivity.length === 0 ? (
-                  <EmptyState title="No test activity for this filter" description="Try a different timeline filter or wait for the admin to publish more assessments." />
+                  <EmptyState title="No tests here" description="Try another filter." />
                 ) : (
                   filteredTestActivity.map((test) => {
                     const tone = test.status === "completed" ? "success" : test.status === "upcoming" ? "warning" : "danger";
@@ -640,7 +640,7 @@ export default function StudentPortal() {
                       <div key={test.id} className={`${softCardClass} flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between`}>
                         <div>
                           <p className="font-semibold text-slate-900">{test.title}</p>
-                          <p className="mt-1 text-sm text-slate-600">{courseTitleById.get(test.course_id) ?? "Course"} · {formatDate(test.test_date)}</p>
+                          <p className="mt-1 text-sm text-slate-600">{courseTitleById.get(test.course_id) ?? "Course"} - {formatDate(test.test_date)}</p>
                         </div>
                         <StatusBadge tone={tone}>{label}</StatusBadge>
                       </div>
@@ -651,12 +651,11 @@ export default function StudentPortal() {
             </PortalSection>
 
             <PortalSection
-              title="Resource Center"
-              description="Search and open notes or books attached to your assigned courses. Public files also stay available on the open libraries."
+              title="Resources"
               action={
                 <div className="flex flex-wrap gap-3">
-                  <Link href="/notes" className={secondaryButtonClass}>Open Notes Library</Link>
-                  <Link href="/books" className={secondaryButtonClass}>Open Books Library</Link>
+                  <Link href="/notes" className={secondaryButtonClass}>Notes</Link>
+                  <Link href="/books" className={secondaryButtonClass}>Books</Link>
                 </div>
               }
             >
@@ -679,7 +678,7 @@ export default function StudentPortal() {
                   </div>
                   <div className="space-y-3">
                     {filteredNotes.length === 0 ? (
-                      <EmptyState title="No notes found" description={notes.length === 0 ? "Notes uploaded by the admin will appear here automatically." : "Try a different search term to find a note faster."} />
+                      <EmptyState title="No notes" description={notes.length === 0 ? "Notes will appear here." : "Try another search."} />
                     ) : (
                       filteredNotes.slice(0, 6).map((note) => (
                         <div key={note.id} className={softCardClass}>
@@ -708,7 +707,7 @@ export default function StudentPortal() {
                   </div>
                   <div className="space-y-3">
                     {filteredMaterials.length === 0 ? (
-                      <EmptyState title="No books found" description={materials.length === 0 ? "Books and PDFs uploaded by the admin will appear here automatically." : "Try a different search term to find a book faster."} />
+                      <EmptyState title="No books" description={materials.length === 0 ? "Books will appear here." : "Try another search."} />
                     ) : (
                       filteredMaterials.slice(0, 6).map((material) => (
                         <div key={material.id} className={softCardClass}>
@@ -734,34 +733,31 @@ export default function StudentPortal() {
           </div>
 
           <div className="space-y-6">
-            <PortalSection title="Quick Actions" description="Jump into the most-used study surfaces without leaving the portal.">
+            <PortalSection title="Quick Actions">
               <div className="grid gap-3">
                 {[
-                  { href: "/courses", label: "Explore courses", description: "Review the full catalog and fee structure." },
-                  { href: "/test-series", label: "Open test series", description: "Practice in the assessment workspace." },
-                  { href: "/notes", label: "Open notes", description: "Go straight to the revision library." },
-                    { href: "/books", label: "Open books", description: "Browse books and reference PDFs." },
-                  { href: "/question-papers", label: "Question papers", description: "Access paper-based preparation material." },
+                  { href: "/courses", label: "Courses" },
+                  { href: "/test-series", label: "Test series" },
+                  { href: "/notes", label: "Notes" },
+                  { href: "/books", label: "Books" },
+                  { href: "/question-papers", label: "Question papers" },
                 ].map((action) => (
                   <Link key={action.href} href={action.href} className={actionCardClass}>
                     <p className="text-base font-semibold tracking-[-0.02em] text-slate-950">{action.label}</p>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">{action.description}</p>
                   </Link>
                 ))}
               </div>
             </PortalSection>
 
-            <PortalSection title="Performance Board" description="Your recent result pattern and participation rate stay visible here for quick review.">
+            <PortalSection title="Progress">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className={softCardClass}>
                   <p className="text-xs text-stone-500">Participation</p>
                   <p className="mt-2 text-2xl font-semibold text-slate-950">{participationRate}%</p>
-                  <p className="mt-2 text-sm text-slate-600">Based on results recorded against scheduled tests.</p>
                 </div>
                 <div className={softCardClass}>
                   <p className="text-xs text-stone-500">Best score</p>
                   <p className="mt-2 text-2xl font-semibold text-slate-950">{bestMarks}</p>
-                  <p className="mt-2 text-sm text-slate-600">Highest recorded marks visible in the portal.</p>
                 </div>
               </div>
 
@@ -770,7 +766,6 @@ export default function StudentPortal() {
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">Score graph</p>
-                      <p className="mt-1 text-sm text-slate-600">Recent marks are mapped from oldest to newest.</p>
                     </div>
                     <StatusBadge tone="success">{chartPointItems[chartPointItems.length - 1]?.score ?? 0}</StatusBadge>
                   </div>
@@ -803,36 +798,17 @@ export default function StudentPortal() {
                 </div>
               ) : null}
 
-              <div className="mt-5 space-y-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">Recent result trend</p>
-                {recentResultTrend.length === 0 ? (
-                  <EmptyState title="No result trend yet" description="Once marks are recorded by the admin, your recent progress will appear here." />
-                ) : (
-                  recentResultTrend.map((item) => {
-                    const width = Math.max(8, Math.round((Number(item.marks || 0) / peakForTrend) * 100));
-                    return (
-                      <div key={item.test_id} className={softCardClass}>
-                        <div className="flex items-center justify-between gap-4 text-sm">
-                          <div>
-                            <p className="font-semibold text-slate-900">{item.test_title ?? "Test"}</p>
-                            <p className="mt-1 text-xs text-slate-500">{item.test_date ? formatDate(item.test_date) : "No date"}</p>
-                          </div>
-                          <StatusBadge tone="success">{item.marks}</StatusBadge>
-                        </div>
-                        <div className="mt-4 h-2 overflow-hidden rounded-full bg-sky-50">
-                          <div className="h-2 rounded-full bg-sky-500 transition-[width] duration-500" style={{ width: `${width}%` }} />
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
+              {recentResultTrend.length === 0 ? (
+                <div className="mt-5">
+                  <EmptyState title="No marks yet" description="Scores will appear here." />
+                </div>
+              ) : null}
             </PortalSection>
 
-            <PortalSection title="Announcements" description="The latest institute communication arrives here first.">
+            <PortalSection title="Announcements">
               <div className="space-y-3">
                 {announcements.length === 0 ? (
-                  <EmptyState title="No announcements yet" description="Once the admin publishes updates, they will appear in this stream." />
+                  <EmptyState title="No announcements" description="Updates will appear here." />
                 ) : (
                   announcements.map((announcement) => (
                     <article key={announcement.id} className={softCardClass}>
