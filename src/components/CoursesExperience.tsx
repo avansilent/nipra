@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import AssignedCoursesSection from "./AssignedCoursesSection";
 import { academyCatalog, academyLocation, academySession } from "../data/academyCatalog";
 import { useAdaptiveMotion } from "../hooks/useAdaptiveMotion";
+import { getProgramCourseIds } from "../lib/programNavigation";
 import {
   balancedItemReveal,
   balancedSectionReveal,
@@ -20,6 +21,8 @@ import {
 type CoursesExperienceProps = {
   contactPhone: string;
   admissionOpenCourseIds?: string[];
+  initialProgramId?: string;
+  initialIntent?: "buy" | "explore";
 };
 
 function compactCopy(value: string, limit = 100) {
@@ -30,7 +33,12 @@ function compactCopy(value: string, limit = 100) {
   return `${value.slice(0, limit).trimEnd()}...`;
 }
 
-export default function CoursesExperience({ contactPhone, admissionOpenCourseIds = [] }: CoursesExperienceProps) {
+export default function CoursesExperience({
+  contactPhone,
+  admissionOpenCourseIds = [],
+  initialProgramId,
+  initialIntent = "explore",
+}: CoursesExperienceProps) {
   const { allowHoverMotion, allowRichMotion } = useAdaptiveMotion();
 
   const sectionVariants = allowRichMotion ? sectionReveal : balancedSectionReveal;
@@ -40,6 +48,20 @@ export default function CoursesExperience({ contactPhone, admissionOpenCourseIds
   const tapMotion = allowHoverMotion ? tapPress : undefined;
   const phoneLabel = contactPhone.trim() || "Counselor line available";
   const admissionReadyCourseIds = new Set(admissionOpenCourseIds);
+  const relatedCourseIds = getProgramCourseIds(initialProgramId);
+  const visibleCatalog =
+    relatedCourseIds.length > 0
+      ? academyCatalog.filter((course) => relatedCourseIds.includes(course.id))
+      : academyCatalog;
+  const showingRelatedCourses = relatedCourseIds.length > 0;
+  const catalogHeading = showingRelatedCourses
+    ? initialIntent === "buy"
+      ? "Choose a related course to buy."
+      : "Explore related courses."
+    : "Open the course you want to join.";
+  const catalogCopy = showingRelatedCourses
+    ? "These courses match the program selected from the home page."
+    : "The full card is clickable and takes the student straight into that course application and payment section.";
 
   return (
     <section className="app-page-shell courses-page-shell">
@@ -92,15 +114,15 @@ export default function CoursesExperience({ contactPhone, admissionOpenCourseIds
           <motion.div variants={itemVariants} className="max-w-3xl min-w-0">
             <p className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-slate-500">Course Catalog</p>
             <h2 className="course-section-title mt-3 text-[clamp(1.8rem,3vw,2.45rem)] font-semibold leading-[1.04] tracking-[-0.06em] text-slate-950">
-              Open the course you want to join.
+              {catalogHeading}
             </h2>
             <p className="course-body mt-3 text-sm leading-7 text-slate-600 sm:text-base">
-              The full card is clickable and takes the student straight into that course application and payment section.
+              {catalogCopy}
             </p>
           </motion.div>
 
           <motion.div variants={gridVariants} className="courses-catalog-grid">
-            {academyCatalog.map((course) => (
+            {visibleCatalog.map((course) => (
               <motion.div
                 key={course.id}
                 variants={itemVariants}
@@ -148,7 +170,7 @@ export default function CoursesExperience({ contactPhone, admissionOpenCourseIds
                       {admissionReadyCourseIds.has(course.id) ? "Application and payment ready" : "Open course application"}
                     </p>
                     <span className="course-card-action shrink-0 text-[0.84rem] font-semibold">
-                      Open form
+                      {initialIntent === "buy" ? "Buy" : "Explore"}
                     </span>
                   </div>
                 </Link>

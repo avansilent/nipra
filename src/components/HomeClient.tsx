@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { motion } from "framer-motion";
 import { useAdaptiveMotion } from "../hooks/useAdaptiveMotion";
+import { getProgramBuyHref, getProgramExploreHref } from "../lib/programNavigation";
 import HeroBanner from "./HeroBanner";
 import type { HomeContent } from "../types/home";
 import type { SiteSettings } from "../types/site";
@@ -28,6 +29,8 @@ type HomeClientProps = {
 };
 
 export default function HomeClient({ content, siteSettings }: HomeClientProps) {
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterMessage, setNewsletterMessage] = useState<string | null>(null);
   const whatsappNumber = useMemo(() => siteSettings.contactPhone.replace(/\D/g, ""), [siteSettings.contactPhone]);
   const phoneDialUrl = useMemo(() => `tel:${siteSettings.contactPhone.replace(/\s+/g, "")}`, [siteSettings.contactPhone]);
   const { allowEntranceMotion, allowHoverMotion, allowRichMotion } = useAdaptiveMotion();
@@ -35,8 +38,22 @@ export default function HomeClient({ content, siteSettings }: HomeClientProps) {
   const itemVariants = allowRichMotion ? itemReveal : balancedItemReveal;
   const hoverMotion = allowHoverMotion ? hoverLift : undefined;
   const buttonMotion = allowHoverMotion ? buttonHover : undefined;
-  const resolveProgramHref = (href: string) => href;
   const initialSectionState = allowEntranceMotion ? "hidden" : false;
+
+  const handleNewsletterSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const email = newsletterEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setNewsletterMessage("Enter a valid email address.");
+      return;
+    }
+
+    setNewsletterMessage("Opening email app...");
+    const subject = encodeURIComponent("Nipracademy newsletter request");
+    const body = encodeURIComponent(`Please add ${email} to the Nipracademy newsletter list.`);
+    window.location.href = `mailto:${siteSettings.contactEmail}?subject=${subject}&body=${body}`;
+  };
 
   return (
     <div className="home-shell w-full">
@@ -85,9 +102,14 @@ export default function HomeClient({ content, siteSettings }: HomeClientProps) {
                         </div>
                       ))}
                     </div>
-                    <Link href={resolveProgramHref(program.ctaHref)} className="program-cta">
-                      {program.ctaLabel}
-                    </Link>
+                    <div className="program-action-row">
+                      <Link href={getProgramBuyHref(program.id)} className="program-cta">
+                        Buy
+                      </Link>
+                      <Link href={getProgramExploreHref(program.id)} className="program-secondary-cta">
+                        Explore
+                      </Link>
+                    </div>
                   </motion.div>
                 ))}
               </motion.div>
@@ -201,12 +223,24 @@ export default function HomeClient({ content, siteSettings }: HomeClientProps) {
                 <h3 className="section-title">{content.newsletterHeading}</h3>
                 <p className="section-subtitle">{content.newsletterSubtitle}</p>
               </div>
-              <div className="newsletter-form">
-                <input className="contact-input" placeholder="Email address" aria-label="Email address" />
-                <motion.button whileHover={buttonMotion} whileTap={tapPress} type="button" className="contact-cta">
+              <form className="newsletter-form" onSubmit={handleNewsletterSubmit}>
+                <input
+                  className="contact-input"
+                  placeholder="Email address"
+                  aria-label="Email address"
+                  type="email"
+                  value={newsletterEmail}
+                  onChange={(event) => {
+                    setNewsletterEmail(event.target.value);
+                    setNewsletterMessage(null);
+                  }}
+                  required
+                />
+                <motion.button whileHover={buttonMotion} whileTap={tapPress} type="submit" className="contact-cta">
                   {content.newsletterCtaLabel}
                 </motion.button>
-              </div>
+                {newsletterMessage ? <p className="newsletter-message text-sm text-slate-500">{newsletterMessage}</p> : null}
+              </form>
             </motion.div>
           </motion.section>
         </div>

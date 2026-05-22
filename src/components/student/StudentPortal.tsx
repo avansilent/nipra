@@ -63,7 +63,7 @@ const softCardClass =
 const actionCardClass =
   "student-soft-card min-w-0 overflow-hidden rounded-[24px] bg-white/92 p-4 shadow-[0_14px_30px_rgba(226,232,240,0.86)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(226,232,240,0.94)]";
 const primaryButtonClass =
-  "inline-flex items-center justify-center rounded-[1.4rem] bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(56,189,248,0.24)] transition duration-300 hover:-translate-y-0.5 hover:bg-sky-700 hover:shadow-[0_18px_34px_rgba(56,189,248,0.3)]";
+  "inline-flex items-center justify-center rounded-[1.4rem] bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(56,189,248,0.24)] transition duration-300 hover:-translate-y-0.5 hover:bg-sky-700 hover:shadow-[0_18px_34px_rgba(56,189,248,0.3)] disabled:cursor-not-allowed disabled:opacity-70";
 const secondaryButtonClass =
   "inline-flex items-center justify-center rounded-[1.4rem] bg-[#f6f8fb] px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-[0_10px_22px_rgba(226,232,240,0.84)] transition duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_14px_28px_rgba(226,232,240,0.92)]";
 
@@ -165,6 +165,8 @@ function EmptyState({ title, description }: { title: string; description: string
 export default function StudentPortal() {
   const { user, role, instituteId, loading: authLoading } = useAuth();
   const supabase = useMemo(() => createSupabaseBrowserClient(), [])!;
+  const userId = user?.id ?? null;
+  const userLastSignInAt = user?.last_sign_in_at ?? null;
 
   const [ready, setReady] = useState(false);
   const [lastLogin, setLastLogin] = useState<string | null>(null);
@@ -176,6 +178,7 @@ export default function StudentPortal() {
   const [announcements, setAnnouncements] = useState<AnnouncementRow[]>([]);
   const [timelineFilter, setTimelineFilter] = useState<TimelineFilter>("all");
   const [resourceQuery, setResourceQuery] = useState("");
+  const [statusTime, setStatusTime] = useState(0);
   const [downloadingNoteId, setDownloadingNoteId] = useState<string | null>(null);
   const [downloadingMaterialId, setDownloadingMaterialId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -202,7 +205,7 @@ export default function StudentPortal() {
     }
 
     const loadPortal = async () => {
-      if (!user) {
+      if (!userId) {
         setReady(true);
         return;
       }
@@ -212,7 +215,7 @@ export default function StudentPortal() {
         return;
       }
 
-      setLastLogin(user.last_sign_in_at ?? null);
+      setLastLogin(userLastSignInAt);
 
       if (!instituteId) {
         setCourses([]);
@@ -228,13 +231,14 @@ export default function StudentPortal() {
 
       setError(null);
       setReady(false);
+      setStatusTime(Date.now());
 
       try {
         const { data: enrollmentRows, error: enrollmentError } = await withTimeout(
           supabase
             .from("enrollments")
             .select("course:course_id (id, title, description)")
-            .eq("student_id", user.id)
+            .eq("student_id", userId)
             .eq("institute_id", instituteId)
         );
 
@@ -262,14 +266,16 @@ export default function StudentPortal() {
                 .eq("institute_id", instituteId)
                 .in("course_id", courseIds)
                 .order("test_date", { ascending: true })
+                .limit(24)
             ),
             withTimeout(
               supabase
                 .from("results")
                 .select("test_id, marks, recorded_at, test:tests(title, test_date)")
-                .eq("student_id", user.id)
+                .eq("student_id", userId)
                 .eq("institute_id", instituteId)
                 .order("recorded_at", { ascending: false })
+                .limit(12)
             ),
             withTimeout(
               supabase
@@ -279,6 +285,7 @@ export default function StudentPortal() {
                 .in("visibility", ["student", "public"])
                 .in("course_id", courseIds)
                 .order("created_at", { ascending: false })
+                .limit(12)
             ),
             withTimeout(
               supabase
@@ -288,6 +295,7 @@ export default function StudentPortal() {
                 .in("visibility", ["student", "public"])
                 .in("course_id", courseIds)
                 .order("created_at", { ascending: false })
+                .limit(12)
             ),
           ]);
 
@@ -373,7 +381,7 @@ export default function StudentPortal() {
     };
 
     void loadPortal();
-  }, [authLoading, instituteId, role, supabase, user]);
+  }, [authLoading, instituteId, role, supabase, userId, userLastSignInAt]);
 
   const displayName = useMemo(() => {
     const metadataName = typeof user?.user_metadata?.name === "string" ? user.user_metadata.name : null;
@@ -389,25 +397,29 @@ export default function StudentPortal() {
   const bestMarks = results.length > 0 ? Math.max(...results.map((item) => Number(item.marks || 0))) : 0;
   const latestResult = results[0] ?? null;
 
-  const testActivity = tests.slice(0, 12).map((test) => {
-    const taken = results.some((result) => result.test_id === test.id);
-    const isUpcoming = new Date(test.test_date) >= new Date();
-    const status = taken ? "completed" : isUpcoming ? "upcoming" : "missed";
-    return { ...test, status };
-  });
+  const resultTestIds = useMemo(() => new Set(results.map((result) => result.test_id)), [results]);
+  const testActivity = useMemo(() => {
+    const currentTime = statusTime;
+    return tests.slice(0, 12).map((test) => {
+      const taken = resultTestIds.has(test.id);
+      const isUpcoming = new Date(test.test_date).getTime() >= currentTime;
+      const status = taken ? "completed" : isUpcoming ? "upcoming" : "missed";
+      return { ...test, status };
+    });
+  }, [resultTestIds, statusTime, tests]);
 
-  const completedCount = testActivity.filter((item) => item.status === "completed").length;
-  const missedCount = testActivity.filter((item) => item.status === "missed").length;
+  const completedCount = useMemo(() => testActivity.filter((item) => item.status === "completed").length, [testActivity]);
+  const missedCount = useMemo(() => testActivity.filter((item) => item.status === "missed").length, [testActivity]);
   const participationRate = tests.length > 0 ? Math.min(100, Math.round((results.length / tests.length) * 100)) : 0;
 
-  const filteredTestActivity =
-    timelineFilter === "all"
-      ? testActivity
-      : testActivity.filter((test) => test.status === timelineFilter);
+  const filteredTestActivity = useMemo(
+    () => (timelineFilter === "all" ? testActivity : testActivity.filter((test) => test.status === timelineFilter)),
+    [testActivity, timelineFilter]
+  );
 
-  const recentResultTrend = results.slice(0, 6).reverse();
+  const recentResultTrend = useMemo(() => results.slice(0, 6).reverse(), [results]);
   const peakForTrend = recentResultTrend.length > 0 ? Math.max(...recentResultTrend.map((item) => Number(item.marks || 0)), 1) : 1;
-  const chartPointItems = recentResultTrend.map((item, index, trend) => {
+  const chartPointItems = useMemo(() => recentResultTrend.map((item, index, trend) => {
     const score = Number(item.marks || 0);
     const x = trend.length === 1 ? 50 : 8 + (index / Math.max(trend.length - 1, 1)) * 84;
     const y = 88 - (score / peakForTrend) * 68;
@@ -419,18 +431,26 @@ export default function StudentPortal() {
       x: Number(x.toFixed(2)),
       y: Number(y.toFixed(2)),
     };
-  });
-  const chartPolyline = chartPointItems.map((point) => `${point.x},${point.y}`).join(" ");
+  }), [peakForTrend, recentResultTrend]);
+  const chartPolyline = useMemo(() => chartPointItems.map((point) => `${point.x},${point.y}`).join(" "), [chartPointItems]);
   const chartFill = chartPolyline ? `8,92 ${chartPolyline} 92,92` : "";
   const latestAnnouncement = announcements[0] ?? null;
 
   const courseTitleById = useMemo(() => new Map(courses.map((course) => [course.id, course.title])), [courses]);
-  const filteredNotes = deferredResourceQuery
-    ? notes.filter((note) => `${note.title} ${courseTitleById.get(note.course_id) ?? ""}`.toLowerCase().includes(deferredResourceQuery))
-    : notes;
-  const filteredMaterials = deferredResourceQuery
-    ? materials.filter((material) => `${material.title} ${courseTitleById.get(material.course_id) ?? ""}`.toLowerCase().includes(deferredResourceQuery))
-    : materials;
+  const filteredNotes = useMemo(
+    () =>
+      deferredResourceQuery
+        ? notes.filter((note) => `${note.title} ${courseTitleById.get(note.course_id) ?? ""}`.toLowerCase().includes(deferredResourceQuery))
+        : notes,
+    [courseTitleById, deferredResourceQuery, notes]
+  );
+  const filteredMaterials = useMemo(
+    () =>
+      deferredResourceQuery
+        ? materials.filter((material) => `${material.title} ${courseTitleById.get(material.course_id) ?? ""}`.toLowerCase().includes(deferredResourceQuery))
+        : materials,
+    [courseTitleById, deferredResourceQuery, materials]
+  );
 
   const handleNoteDownload = async (noteId: string) => {
     try {
@@ -690,7 +710,12 @@ export default function StudentPortal() {
                             <StatusBadge tone={note.visibility === "public" ? "success" : "neutral"}>{formatResourceVisibility(note.visibility)}</StatusBadge>
                           </div>
                           <div className="mt-4">
-                            <button type="button" onClick={() => handleNoteDownload(note.id)} className={primaryButtonClass}>
+                            <button
+                              type="button"
+                              onClick={() => handleNoteDownload(note.id)}
+                              className={primaryButtonClass}
+                              disabled={downloadingNoteId === note.id}
+                            >
                               {downloadingNoteId === note.id ? "Preparing..." : "Open Note"}
                             </button>
                           </div>
@@ -719,7 +744,12 @@ export default function StudentPortal() {
                             <StatusBadge tone={material.visibility === "public" ? "success" : "neutral"}>{formatResourceVisibility(material.visibility)}</StatusBadge>
                           </div>
                           <div className="mt-4">
-                            <button type="button" onClick={() => handleMaterialDownload(material.id)} className={primaryButtonClass}>
+                            <button
+                              type="button"
+                              onClick={() => handleMaterialDownload(material.id)}
+                              className={primaryButtonClass}
+                              disabled={downloadingMaterialId === material.id}
+                            >
                               {downloadingMaterialId === material.id ? "Preparing..." : "Open Book"}
                             </button>
                           </div>

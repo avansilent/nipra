@@ -25,6 +25,8 @@ const loginSecondaryActionClassName =
 const loginMessageClassName =
   "whitespace-pre-line rounded-[1rem] bg-rose-50/88 px-4 py-3 text-sm leading-6 text-rose-700 shadow-[0_8px_18px_rgba(254,205,211,0.28)]";
 
+type LoadingAction = "google" | "password" | "phone-send" | "phone-verify" | null;
+
 const defaultGoogleOAuthError =
   "Google sign-in could not be completed. Check the Google provider setup in Supabase and try again.";
 
@@ -42,6 +44,39 @@ function formatOAuthCallbackMessage(message: string | null) {
   }
 
   return message;
+}
+
+function normalizeMobileForOtp(value: string) {
+  const trimmed = value.trim();
+  const digits = trimmed.replace(/\D/g, "");
+
+  if (trimmed.startsWith("+") && digits.length >= 10 && digits.length <= 15) {
+    return `+${digits}`;
+  }
+
+  if (digits.length === 10) {
+    return `+91${digits}`;
+  }
+
+  if (digits.length === 12 && digits.startsWith("91")) {
+    return `+${digits}`;
+  }
+
+  return null;
+}
+
+function formatPhoneOtpError(error: unknown) {
+  const message = extractOAuthErrorMessage(error);
+
+  if (/sms|phone|provider|otp/i.test(message)) {
+    return `${message}\nMake sure Phone OTP is enabled in Supabase Auth with an SMS provider.`;
+  }
+
+  return message;
+}
+
+function isSafeAppPath(value: string | null): value is string {
+  return Boolean(value && value.startsWith("/") && !value.startsWith("//"));
 }
 
 function getSupabaseGoogleCallbackUrl() {
@@ -223,10 +258,14 @@ const withTimeout = async <T,>(
 function LoginContent() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [loadingAction, setLoadingAction] = useState<"google" | "password" | null>(null);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<LoadingAction>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const loginType = searchParams.get("type") || "student";
+  const requestedLoginMethod = searchParams.get("method") || "phone";
   const authError = searchParams.get("error");
   const authMessage = searchParams.get("message");
   const [error, setError] = useState<string | null>(() =>
@@ -249,19 +288,35 @@ function LoginContent() {
   }, [supabase]);
 
   const isAdminLogin = loginType === "admin";
+  const isForcedStudentLogin = !isAdminLogin && searchParams.get("force") === "1";
+  const loginMethod = isForcedStudentLogin ? "phone" : requestedLoginMethod;
+  const isStudentPasswordLogin = !isAdminLogin && loginMethod === "password";
+  const isForcedPhoneLogin = !isAdminLogin && isForcedStudentLogin;
   const callbackUrl = searchParams.get("callbackUrl");
-  const studentLoginHref = callbackUrl ? `/login?type=student&callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login?type=student";
+  const buildStudentLoginHref = (method: "phone" | "password", force = false) => {
+    const params = new URLSearchParams({ type: "student", method });
+    if (callbackUrl) {
+      params.set("callbackUrl", callbackUrl);
+    }
+    if (force) {
+      params.set("force", "1");
+    }
+    return `/login?${params.toString()}`;
+  };
+  const studentLoginHref = buildStudentLoginHref("phone");
+  const studentPasswordLoginHref = buildStudentLoginHref("password");
+  const studentPhoneLoginHref = buildStudentLoginHref("phone", isForcedStudentLogin);
   const adminLoginHref = callbackUrl ? `/login?type=admin&callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login?type=admin";
 
   const getPreferredRedirect = useCallback(
     (nextRole?: string | null) => {
+      if (isSafeAppPath(callbackUrl)) {
+        return callbackUrl;
+      }
+
       const roleRedirect = getRoleRedirect(nextRole);
       if (roleRedirect) {
         return roleRedirect;
-      }
-
-      if (callbackUrl && callbackUrl.startsWith("/")) {
-        return callbackUrl;
       }
 
       return isAdminLogin ? "/admin/dashboard" : "/student/dashboard";
@@ -441,12 +496,95 @@ function LoginContent() {
       return;
     }
 
+    if (isForcedPhoneLogin) {
+      return;
+    }
+
     forceNavigate(getPreferredRedirect(role));
-  }, [authLoading, forceNavigate, getPreferredRedirect, role, user]);
+  }, [authLoading, forceNavigate, getPreferredRedirect, isForcedPhoneLogin, role, user]);
 
   useEffect(() => {
     void resolveUserRole();
   }, [resolveUserRole]);
+
+  const handlePhoneOtpSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (isAdminLogin) {
+      setError("Mobile OTP login is available for students only.");
+      return;
+    }
+
+    if (!supabase) {
+      setError("Supabase is not configured yet. Please add env vars.");
+      return;
+    }
+
+    const normalizedPhone = normalizeMobileForOtp(phoneNumber);
+    if (!normalizedPhone) {
+      setError("Enter a valid 10-digit mobile number.");
+      return;
+    }
+
+    setError(null);
+
+    if (!otpSent) {
+      setLoadingAction("phone-send");
+      try {
+        const { error: otpError } = await withTimeout(
+          supabase.auth.signInWithOtp({
+            phone: normalizedPhone,
+            options: {
+              data: {
+                role: "student",
+              },
+            },
+          }),
+          8000
+        );
+
+        if (otpError) {
+          throw otpError;
+        }
+
+        setOtpSent(true);
+      } catch (otpError) {
+        setError(formatPhoneOtpError(otpError));
+      } finally {
+        setLoadingAction(null);
+      }
+      return;
+    }
+
+    const normalizedOtp = otpCode.replace(/\D/g, "");
+    if (normalizedOtp.length < 4) {
+      setError("Enter the OTP sent to your mobile number.");
+      return;
+    }
+
+    setLoadingAction("phone-verify");
+    try {
+      const { data: verifyData, error: verifyError } = await withTimeout(
+        supabase.auth.verifyOtp({
+          phone: normalizedPhone,
+          token: normalizedOtp,
+          type: "sms",
+        }),
+        8000
+      );
+
+      if (verifyError) {
+        throw verifyError;
+      }
+
+      const resolvedRole = await resolveUserRoleForUser(verifyData.user ?? null);
+      forceNavigate(getPreferredRedirect(resolvedRole ?? "student"));
+    } catch (verifyError) {
+      setError(formatPhoneOtpError(verifyError));
+    } finally {
+      setLoadingAction(null);
+    }
+  };
 
   const handleGoogleSignIn = async () => {
     if (isAdminLogin) {
@@ -607,44 +745,98 @@ function LoginContent() {
                 </Link>
               </nav>
 
-              <form onSubmit={handleSubmit} autoComplete="on" aria-busy={loading} className="space-y-3.5">
+              <form
+                onSubmit={isAdminLogin || isStudentPasswordLogin ? handleSubmit : handlePhoneOtpSubmit}
+                autoComplete="on"
+                aria-busy={loading}
+                className="space-y-3.5"
+              >
                 <fieldset disabled={loading} className="m-0 min-w-0 space-y-3.5 border-0 p-0 disabled:opacity-100">
-                  <div className="space-y-2">
-                    <label htmlFor="identifier" className="text-sm font-medium text-slate-600">
-                      {isAdminLogin ? "Admin email or login ID" : "Student email or login ID"}
-                    </label>
-                    <input
-                      id="identifier"
-                      name="identifier"
-                      type="text"
-                      inputMode="email"
-                      autoComplete="username"
-                      autoCapitalize="none"
-                      spellCheck={false}
-                      placeholder={isAdminLogin ? "admin@nipracademy.com" : "student@nipracademy.com"}
-                      value={identifier}
-                      onChange={(event) => setIdentifier(event.target.value)}
-                      className={loginInputClassName}
-                      required
-                    />
-                  </div>
+                  {isAdminLogin || isStudentPasswordLogin ? (
+                    <>
+                      <div className="space-y-2">
+                        <label htmlFor="identifier" className="text-sm font-medium text-slate-600">
+                          {isAdminLogin ? "Admin email or login ID" : "Student email or login ID"}
+                        </label>
+                        <input
+                          id="identifier"
+                          name="identifier"
+                          type="text"
+                          inputMode="email"
+                          autoComplete="username"
+                          autoCapitalize="none"
+                          spellCheck={false}
+                          placeholder={isAdminLogin ? "admin@nipracademy.com" : "student@nipracademy.com"}
+                          value={identifier}
+                          onChange={(event) => setIdentifier(event.target.value)}
+                          className={loginInputClassName}
+                          required
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <label htmlFor="password" className="text-sm font-medium text-slate-600">
-                      Password
-                    </label>
-                    <input
-                      id="password"
-                      name="password"
-                      type="password"
-                      autoComplete="current-password"
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      className={loginInputClassName}
-                      required
-                    />
-                  </div>
+                      <div className="space-y-2">
+                        <label htmlFor="password" className="text-sm font-medium text-slate-600">
+                          Password
+                        </label>
+                        <input
+                          id="password"
+                          name="password"
+                          type="password"
+                          autoComplete="current-password"
+                          placeholder="Enter your password"
+                          value={password}
+                          onChange={(event) => setPassword(event.target.value)}
+                          className={loginInputClassName}
+                          required
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <label htmlFor="phoneNumber" className="text-sm font-medium text-slate-600">
+                          Mobile number
+                        </label>
+                        <input
+                          id="phoneNumber"
+                          name="phoneNumber"
+                          type="tel"
+                          inputMode="numeric"
+                          autoComplete="tel"
+                          placeholder="10-digit mobile number"
+                          value={phoneNumber}
+                          onChange={(event) => {
+                            setPhoneNumber(event.target.value);
+                            setOtpSent(false);
+                            setOtpCode("");
+                          }}
+                          className={loginInputClassName}
+                          required
+                        />
+                      </div>
+
+                      {otpSent ? (
+                        <div className="space-y-2">
+                          <label htmlFor="otpCode" className="text-sm font-medium text-slate-600">
+                            OTP
+                          </label>
+                          <input
+                            id="otpCode"
+                            name="otpCode"
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                            placeholder="Enter OTP"
+                            value={otpCode}
+                            onChange={(event) => setOtpCode(event.target.value)}
+                            className={loginInputClassName}
+                            required
+                          />
+                          <p className="text-xs leading-5 text-slate-500">OTP sent. Check SMS and verify.</p>
+                        </div>
+                      ) : null}
+                    </>
+                  )}
 
                   {error ? (
                     <div role="alert" className={loginMessageClassName}>
@@ -653,60 +845,72 @@ function LoginContent() {
                   ) : null}
 
                   <div className="space-y-2.5">
-                    {!isAdminLogin ? (
+                    <button type="submit" className={loginPrimaryButtonClassName} disabled={loading}>
+                      {isAdminLogin || isStudentPasswordLogin ? (
+                        loadingAction === "password" ? (
+                          <span className="inline-flex items-center gap-2" role="status" aria-live="polite">
+                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" aria-hidden="true" />
+                            Signing in...
+                          </span>
+                        ) : (
+                          isAdminLogin ? "Sign in as Admin" : "Login with password"
+                        )
+                      ) : loadingAction === "phone-send" || loadingAction === "phone-verify" ? (
+                        <span className="inline-flex items-center gap-2" role="status" aria-live="polite">
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" aria-hidden="true" />
+                          {loadingAction === "phone-send" ? "Sending OTP..." : "Verifying OTP..."}
+                        </span>
+                      ) : otpSent ? (
+                        "Verify OTP"
+                      ) : (
+                        "Send OTP"
+                      )}
+                    </button>
+
+                    {!isAdminLogin && !isStudentPasswordLogin && !isForcedPhoneLogin ? (
+                      <Link href={studentPasswordLoginHref} className={loginSecondaryActionClassName}>
+                        Use password instead
+                      </Link>
+                    ) : null}
+
+                    {!isAdminLogin && isStudentPasswordLogin ? (
+                      <Link href={studentPhoneLoginHref} className={loginSecondaryActionClassName}>
+                        Login with mobile OTP
+                      </Link>
+                    ) : null}
+
+                    {!isAdminLogin && !isForcedPhoneLogin ? (
                       <button
                         type="button"
                         onClick={() => void handleGoogleSignIn()}
-                        className={loginPrimaryButtonClassName}
+                        className={loginSecondaryActionClassName}
                         disabled={loading}
                       >
                         {loadingAction === "google" ? (
                           <span className="inline-flex items-center gap-2" role="status" aria-live="polite">
-                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" aria-hidden="true" />
+                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" aria-hidden="true" />
                             Opening Google...
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-3">
-                            <span className="google-logo-shell inline-flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-[0_1px_3px_rgba(15,23,42,0.08)]">
+                            <span className="google-logo-shell inline-flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-[0_1px_3px_rgba(15,23,42,0.08)]">
                               <GoogleLogoMark />
                             </span>
                             <span>Continue with Google</span>
                           </span>
                         )}
                       </button>
-                    ) : (
-                      <button type="submit" className={loginPrimaryButtonClassName} disabled={loading}>
-                        {loadingAction === "password" ? (
-                          <span className="inline-flex items-center gap-2" role="status" aria-live="polite">
-                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" aria-hidden="true" />
-                            Signing in...
-                          </span>
-                        ) : (
-                          "Sign in as Admin"
-                        )}
-                      </button>
-                    )}
-
-                    {!isAdminLogin ? (
-                      <button type="submit" className={loginSecondaryActionClassName} disabled={loading}>
-                        {loadingAction === "password" ? (
-                          <span className="inline-flex items-center gap-2" role="status" aria-live="polite">
-                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" aria-hidden="true" />
-                            Signing in...
-                          </span>
-                        ) : (
-                          "Login with password"
-                        )}
-                      </button>
                     ) : null}
 
-                    <button
-                      type="button"
-                      onClick={() => setError("Password reset is not configured yet. Please contact the institute.")}
-                      className={loginSecondaryActionClassName}
-                    >
-                      Forgot password?
-                    </button>
+                    {isAdminLogin || isStudentPasswordLogin ? (
+                      <button
+                        type="button"
+                        onClick={() => setError("Password reset is not configured yet. Please contact the institute.")}
+                        className={loginSecondaryActionClassName}
+                      >
+                        Forgot password?
+                      </button>
+                    ) : null}
                   </div>
                 </fieldset>
               </form>

@@ -273,6 +273,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const onLoginPage = pathname === "/login";
+    const currentSearchParams =
+      typeof window === "undefined" ? new URLSearchParams() : new URLSearchParams(window.location.search);
+    const forcedStudentPhoneLogin =
+      onLoginPage &&
+      currentSearchParams.get("type") === "student" &&
+      currentSearchParams.get("method") === "phone" &&
+      currentSearchParams.get("force") === "1";
+
+    if (forcedStudentPhoneLogin) {
+      return;
+    }
+
     if (onLoginPage && user) {
       if (role === "admin") {
         router.replace("/admin/dashboard");

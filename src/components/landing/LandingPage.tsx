@@ -95,6 +95,7 @@ export default function LandingPage({ content = defaultHomeContent }: LandingPag
 
             <div className="flex items-center gap-4 shrink-0">
               <button
+                type="button"
                 aria-label="Toggle Dark Mode"
                 data-theme-toggle="true"
                 className="flex items-center justify-center size-9 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
@@ -137,14 +138,14 @@ export default function LandingPage({ content = defaultHomeContent }: LandingPag
                     Unlock your potential with world-class education accessible from anywhere. Join millions of learners transforming their futures today.
                   </p>
                   <div className="flex flex-col sm:flex-row flex-wrap gap-4 justify-center md:justify-start pt-4">
-                    <button className="h-14 px-8 rounded-xl bg-primary text-white text-base font-bold shadow-lg shadow-primary/30 hover:scale-105 hover:shadow-primary/40 transition-all duration-300 flex items-center justify-center gap-2">
+                    <Link href="/login?type=student" className="h-14 px-8 rounded-xl bg-primary text-white text-base font-bold shadow-lg shadow-primary/30 hover:scale-105 hover:shadow-primary/40 transition-all duration-300 flex items-center justify-center gap-2">
                       <span className="material-symbols-outlined">school</span>
                       I&apos;m a Student
-                    </button>
-                    <button className="h-14 px-8 rounded-xl bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-base font-bold shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-300 flex items-center justify-center gap-2">
+                    </Link>
+                    <Link href="/login?type=admin" className="h-14 px-8 rounded-xl bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-base font-bold shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-300 flex items-center justify-center gap-2">
                       <span className="material-symbols-outlined">cast_for_education</span>
                       I&apos;m a Teacher
-                    </button>
+                    </Link>
                   </div>
                 </div>
               </div>

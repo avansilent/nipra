@@ -212,7 +212,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               </div>
             </footer>
             <div
-              className="site-version-badge fixed bottom-2 right-2 z-40 rounded-full border border-slate-200/80 bg-white/95 px-2.5 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-slate-500 shadow-[0_8px_20px_rgba(15,23,42,0.08)]"
+              className="site-version-badge mb-2 mr-2 self-end rounded-full border border-slate-200/80 bg-white/95 px-2.5 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-slate-500 shadow-[0_8px_20px_rgba(15,23,42,0.08)]"
               title={`Release ${siteVersion}, commit ${buildRef}`}
             >
               <span>{siteVersion}</span>

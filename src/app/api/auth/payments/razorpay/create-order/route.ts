@@ -29,6 +29,10 @@ async function resolveAuthenticatedStudentUserId() {
     throw new PublicAdmissionError("Sign in with a student account before paying for a course.", 403);
   }
 
+  if (!user.phone) {
+    throw new PublicAdmissionError("Login with mobile OTP before paying for a course.", 403);
+  }
+
   return user.id;
 }
 

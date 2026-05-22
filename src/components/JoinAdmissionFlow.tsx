@@ -524,6 +524,8 @@ export default function JoinAdmissionFlow({
   const showSelectionPanel = !embedded || showCourseSelection;
   const showSummaryAside = !embedded;
   const isStudentAuthenticated = Boolean(user && role === "student");
+  const hasMobileStudentLogin = Boolean(user?.phone);
+  const canStartPayment = isStudentAuthenticated && hasMobileStudentLogin;
   const hasWrongPortalRole = Boolean(user && role && role !== "student");
 
   const phoneDialUrl = useMemo(
@@ -573,6 +575,8 @@ export default function JoinAdmissionFlow({
 
     const loginUrl = new URL("/login", window.location.origin);
     loginUrl.searchParams.set("type", "student");
+    loginUrl.searchParams.set("method", "phone");
+    loginUrl.searchParams.set("force", "1");
     loginUrl.searchParams.set("callbackUrl", callbackPath);
     window.location.assign(loginUrl.toString());
   };
@@ -856,11 +860,11 @@ export default function JoinAdmissionFlow({
     }
 
     if (hasWrongPortalRole) {
-      setError("Sign in with a student account before paying for a course.");
+      setError("Login with a student mobile number before paying for a course.");
       return;
     }
 
-    if (!isStudentAuthenticated) {
+    if (!canStartPayment) {
       continueWithStudentLogin();
       return;
     }
@@ -1161,13 +1165,15 @@ export default function JoinAdmissionFlow({
               <div className="mt-4 rounded-[1.35rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.9))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.88),0_12px_24px_rgba(15,23,42,0.03)]">
                 <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500">Portal access</p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  {isStudentAuthenticated
-                    ? `Signed in as ${user?.email ?? "student"}. After payment, this course will unlock directly in the student portal.`
+                  {canStartPayment
+                    ? `Mobile login verified${user?.phone ? `: ${user.phone}` : ""}. After payment, this course unlocks in the student portal.`
                     : hasWrongPortalRole
                       ? "You are signed in with a non-student account. Switch to a student login before starting payment."
-                      : "Sign in before payment so the selected course is added directly to the student portal."}
+                      : isStudentAuthenticated
+                        ? "Mobile OTP login is required before payment."
+                        : "Login with mobile OTP before payment."}
                 </p>
-                {!isStudentAuthenticated ? (
+                {!canStartPayment ? (
                   <div className="mt-3 flex flex-wrap gap-2.5">
                     <button
                       type="button"
@@ -1175,7 +1181,7 @@ export default function JoinAdmissionFlow({
                       disabled={authLoading}
                       className="inline-flex min-h-11 items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_26px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
                     >
-                      {authLoading ? "Checking login..." : "Student login or Google sign-in"}
+                      {authLoading ? "Checking login..." : "Login with mobile OTP"}
                     </button>
                     <p className="text-sm leading-6 text-slate-500">Your filled details stay here and reopen after login.</p>
                   </div>
@@ -1374,8 +1380,8 @@ export default function JoinAdmissionFlow({
                         ? "Payment verified"
                         : paymentPhase === "checkout-open"
                           ? "Checkout open..."
-                          : !isStudentAuthenticated
-                            ? "Sign in to continue payment"
+                          : !canStartPayment
+                            ? "Login with mobile to pay"
                             : "Pay admission fee securely"}
                 </motion.button>
               </div>

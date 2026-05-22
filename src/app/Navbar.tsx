@@ -48,13 +48,13 @@ const mobileMenuToggleClass =
   "site-mobile-menu-toggle group relative inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200/80 bg-white text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.06)] ring-1 ring-white/80 transition-[background-color,border-color,box-shadow,transform] duration-300 ease-out hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_14px_30px_rgba(15,23,42,0.09)]";
 
 const mobileMenuPanelClass =
-  "site-mobile-menu-panel overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-white p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_18px_36px_rgba(15,23,42,0.08)]";
+  "site-mobile-menu-panel overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white p-1.5 shadow-[0_18px_36px_rgba(15,23,42,0.1)]";
 
 const mobileMenuItemClass =
   "site-mobile-menu-item inline-flex w-full min-h-[2.75rem] items-center justify-between rounded-[0.95rem] px-3.5 py-2.5 text-left text-[0.88rem] font-medium tracking-normal text-slate-600 transition-[background-color,color,box-shadow,transform] duration-200 ease-out";
 
 const mobileMenuItemIdleClass =
-  "hover:bg-slate-50 hover:text-slate-950";
+  "bg-slate-50 hover:bg-white hover:text-slate-950";
 
 const mobileMenuItemActiveClass = "site-mobile-menu-item-active bg-slate-950 text-white shadow-[0_10px_22px_rgba(15,23,42,0.12)]";
 
@@ -113,7 +113,7 @@ export default function Navbar({ siteSettings }: NavbarProps) {
     isOpen: false,
     pathname,
   }));
-  const { allowEntranceMotion, allowHoverMotion, allowRichMotion } = useAdaptiveMotion();
+  const { allowHoverMotion, allowRichMotion } = useAdaptiveMotion();
   const logoSrc = useMemo(() => resolveLogoSrc(siteSettings.logoUrl), [siteSettings.logoUrl]);
   const isMobileMenuOpen = mobileMenuState.isOpen && mobileMenuState.pathname === pathname;
 
@@ -234,9 +234,7 @@ export default function Navbar({ siteSettings }: NavbarProps) {
 
   return (
     <motion.header
-      initial={allowEntranceMotion ? { y: -8, opacity: 0 } : false}
-      animate={allowEntranceMotion ? { y: 0, opacity: 1 } : undefined}
-      transition={allowEntranceMotion ? navTransition : undefined}
+      initial={false}
       className="fixed inset-x-0 top-0 z-50 w-full px-3 pt-3 sm:px-4"
     >
       <div className="site-nav-shell mx-auto w-full max-w-[96rem] rounded-[1.75rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.84),rgba(248,246,241,0.72))] shadow-[0_18px_38px_rgba(15,23,42,0.05)] backdrop-blur-[26px]">
@@ -274,6 +272,7 @@ export default function Navbar({ siteSettings }: NavbarProps) {
 
               {isAuthenticated ? (
                 <motion.button
+                  type="button"
                   whileHover={hoverMotion}
                   whileTap={tapMotion}
                   onClick={() => void logout()}

@@ -1,5 +1,6 @@
 ﻿"use client";
 import React from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { useAdaptiveMotion } from "../hooks/useAdaptiveMotion";
 import { balancedItemReveal, hoverLift, itemReveal, viewportOnce } from "../lib/motion";
@@ -75,7 +76,7 @@ export default function CourseCard({
 
         <div className="flex items-center justify-between pt-2">
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{tag}</span>
-          <a className="text-sm font-semibold text-slate-900 transition hover:text-slate-700" href="#">Explore course</a>
+          <Link className="text-sm font-semibold text-slate-900 transition hover:text-slate-700" href="/courses">Explore course</Link>
         </div>
       </div>
     </motion.article>
