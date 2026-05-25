@@ -26,6 +26,10 @@ export async function POST(request: Request) {
     const signature = request.headers.get("x-razorpay-signature") || "";
     const rawBody = await request.text();
 
+    if (rawBody.length > 256_000) {
+      return NextResponse.json({ error: "Webhook payload too large." }, { status: 413 });
+    }
+
     if (!signature || !verifyRazorpayWebhookSignature(rawBody, signature)) {
       return NextResponse.json({ error: "Invalid Razorpay webhook signature." }, { status: 401 });
     }

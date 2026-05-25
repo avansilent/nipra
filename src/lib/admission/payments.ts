@@ -1,9 +1,8 @@
-import fs from "node:fs";
 import crypto from "node:crypto";
-import path from "node:path";
 import Razorpay from "razorpay";
 import { findAcademyCatalogCourse } from "../../data/academyCatalog";
 import { createStudentEmail, createTempPassword, sanitizeLoginId } from "../admin/route";
+import { isEnrollmentAccessColumnError } from "../enrollmentAccess";
 import { createSupabaseServiceClient } from "../supabase/service";
 import type { AdmissionCredentials, AdmissionPaymentDetails, AdmissionPortalAccess, AdmissionResult } from "../../types/admission";
 
@@ -155,7 +154,42 @@ function getServiceClient() {
   return createSupabaseServiceClient();
 }
 
-let runtimeEnvFileCache: Map<string, string> | null = null;
+async function upsertPaidEnrollment(serviceClient: ServiceClient, studentId: string, courseId: string, instituteId: string) {
+  const paidAt = new Date().toISOString();
+  const activeEnrollmentPayload = {
+    student_id: studentId,
+    course_id: courseId,
+    institute_id: instituteId,
+    access_status: "active",
+    payment_status: "paid",
+    access_ends_at: null,
+    payment_due_at: null,
+    last_payment_at: paidAt,
+  };
+
+  const { error } = await serviceClient
+    .from("enrollments")
+    .upsert(activeEnrollmentPayload, { onConflict: "student_id,course_id" });
+
+  if (!error) {
+    return null;
+  }
+
+  if (!isEnrollmentAccessColumnError(error.message)) {
+    return error;
+  }
+
+  const { error: fallbackError } = await serviceClient.from("enrollments").upsert(
+    {
+      student_id: studentId,
+      course_id: courseId,
+      institute_id: instituteId,
+    },
+    { onConflict: "student_id,course_id" }
+  );
+
+  return fallbackError;
+}
 
 function getRuntimeEnvValue(name: string) {
   const runtimeValue = process.env[name];
@@ -163,37 +197,7 @@ function getRuntimeEnvValue(name: string) {
     return runtimeValue.trim();
   }
 
-  if (!runtimeEnvFileCache) {
-    runtimeEnvFileCache = new Map<string, string>();
-
-    for (const fileName of [".env.local", ".env"]) {
-      const filePath = path.join(/* turbopackIgnore: true */ process.cwd(), fileName);
-      if (!fs.existsSync(filePath)) {
-        continue;
-      }
-
-      const fileText = fs.readFileSync(filePath, "utf8");
-      for (const rawLine of fileText.split(/\r?\n/)) {
-        const line = rawLine.trim();
-        if (!line || line.startsWith("#")) {
-          continue;
-        }
-
-        const separatorIndex = line.indexOf("=");
-        if (separatorIndex <= 0) {
-          continue;
-        }
-
-        const key = line.slice(0, separatorIndex).trim();
-        const value = line.slice(separatorIndex + 1).trim().replace(/^['"]|['"]$/g, "");
-        if (key && value && !runtimeEnvFileCache.has(key)) {
-          runtimeEnvFileCache.set(key, value);
-        }
-      }
-    }
-  }
-
-  return runtimeEnvFileCache.get(name) ?? "";
+  return "";
 }
 
 function getRazorpayKeyId() {
@@ -724,14 +728,7 @@ async function createIssuedCredentials(
     throw new PublicAdmissionError(createError?.message ?? "Unable to issue student access after payment.", 400);
   }
 
-  const { error: enrollmentError } = await serviceClient.from("enrollments").upsert(
-    {
-      student_id: created.user.id,
-      course_id: token.courseId,
-      institute_id: token.instituteId,
-    },
-    { onConflict: "student_id,course_id" }
-  );
+  const enrollmentError = await upsertPaidEnrollment(serviceClient, created.user.id, token.courseId, token.instituteId);
 
   if (enrollmentError) {
     await serviceClient.auth.admin.deleteUser(created.user.id);
@@ -795,7 +792,6 @@ async function attachAdmissionToExistingStudent(
   const authUser = authUserResult.user;
   const authRole = normalizeText(
     (authUser.app_metadata?.role as string | undefined) ??
-      (authUser.user_metadata?.role as string | undefined) ??
       "student"
   );
 
@@ -835,7 +831,6 @@ async function attachAdmissionToExistingStudent(
   const existingInstituteId = normalizeText(
     (profileRow?.institute_id as string | null | undefined) ??
       (authUser.app_metadata?.institute_id as string | undefined) ??
-      (authUser.user_metadata?.institute_id as string | undefined) ??
       ""
   );
 
@@ -914,14 +909,7 @@ async function attachAdmissionToExistingStudent(
     },
   });
 
-  const { error: enrollmentError } = await serviceClient.from("enrollments").upsert(
-    {
-      student_id: studentUserId,
-      course_id: token.courseId,
-      institute_id: token.instituteId,
-    },
-    { onConflict: "student_id,course_id" }
-  );
+  const enrollmentError = await upsertPaidEnrollment(serviceClient, studentUserId, token.courseId, token.instituteId);
 
   if (enrollmentError) {
     throw new PublicAdmissionError("Payment was verified, but course enrollment could not be completed.", 500);

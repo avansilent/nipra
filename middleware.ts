@@ -108,7 +108,6 @@ export async function middleware(request: NextRequest) {
     profile?.role ??
     fallbackRole ??
     user.app_metadata?.role ??
-    user.user_metadata?.role ??
     null
   );
 
@@ -119,7 +118,6 @@ export async function middleware(request: NextRequest) {
   const instituteId =
     profile?.institute_id ??
     user.app_metadata?.institute_id ??
-    user.user_metadata?.institute_id ??
     null;
 
   if (!instituteId && (isAdminRoute || isStudentRoute || isProtectedApiRoute)) {

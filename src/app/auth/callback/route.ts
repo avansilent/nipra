@@ -33,8 +33,7 @@ async function ensureStudentProfile(user: User) {
     const existingRole =
       profile?.role ??
       userRow?.role ??
-      (typeof user.app_metadata?.role === "string" ? user.app_metadata.role : null) ??
-      (typeof user.user_metadata?.role === "string" ? user.user_metadata.role : null);
+      (typeof user.app_metadata?.role === "string" ? user.app_metadata.role : null);
 
     if (existingRole === "admin") {
       return;

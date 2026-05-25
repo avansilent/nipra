@@ -54,11 +54,10 @@ export async function resolveAdminUploadContext(): Promise<UploadContextResult> 
     return { error: NextResponse.json({ error: profileError.message }, { status: 500 }) };
   }
 
-  const role = normalizeRole(profile?.role ?? user.app_metadata?.role ?? user.user_metadata?.role ?? null);
+  const role = normalizeRole(profile?.role ?? user.app_metadata?.role ?? null);
   const instituteId =
     profile?.institute_id ??
     (user.app_metadata?.institute_id as string | undefined) ??
-    (user.user_metadata?.institute_id as string | undefined) ??
     null;
 
   if (role !== "admin") {

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getEnrollmentAccessMessage, isEnrollmentAccessActive, type EnrollmentAccessRow } from "../../../../../lib/enrollmentAccess";
 import { createSupabaseRouteClient } from "../../../../../lib/supabase/route";
 import { createSupabaseServiceClient } from "../../../../../lib/supabase/service";
 import { normalizeResourceVisibility } from "../../../../../lib/resourceVisibility";
@@ -63,11 +64,10 @@ export async function GET(_request: Request, { params }: RouteParams) {
       .eq("id", user.id)
       .maybeSingle();
 
-    const role = profile?.role ?? user.app_metadata?.role ?? user.user_metadata?.role;
+    const role = profile?.role ?? user.app_metadata?.role;
     const instituteId =
       profile?.institute_id ??
       (user.app_metadata?.institute_id as string | undefined) ??
-      (user.user_metadata?.institute_id as string | undefined) ??
       null;
 
     const isAdmin = role === "admin";
@@ -79,7 +79,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     if (!isAdmin) {
       const { data: enrollment } = await supabase
         .from("enrollments")
-        .select("student_id")
+        .select("*")
         .eq("student_id", user.id)
         .eq("course_id", note.course_id)
         .eq("institute_id", instituteId)
@@ -87,6 +87,10 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
       if (!enrollment) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      if (!isEnrollmentAccessActive(enrollment as EnrollmentAccessRow)) {
+        return NextResponse.json({ error: getEnrollmentAccessMessage(enrollment as EnrollmentAccessRow) }, { status: 403 });
       }
     }
 

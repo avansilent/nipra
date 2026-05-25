@@ -1,3 +1,4 @@
+import { isBunnyStreamReference } from "./bunnyStreamReference";
 import { createSupabaseServiceClient } from "./supabase/service";
 
 type ResourceBucket = "notes" | "materials";
@@ -46,7 +47,7 @@ async function fetchPublicResourceLibrary(bucket: ResourceBucket): Promise<Publi
       return [];
     }
 
-    const rows = (data ?? []) as ResourceSelectRow[];
+    const rows = ((data ?? []) as ResourceSelectRow[]).filter((row) => !isBunnyStreamReference(row.file_url));
 
     return Promise.all(
       rows.map(async (row) => {

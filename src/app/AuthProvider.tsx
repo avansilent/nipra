@@ -142,12 +142,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const metadataRole = normalizeRole(
-        nextUser.app_metadata?.role ?? nextUser.user_metadata?.role
+        nextUser.app_metadata?.role
       );
       const metadataInstituteId =
-        (nextUser.app_metadata?.institute_id as string | undefined) ??
-        (nextUser.user_metadata?.institute_id as string | undefined) ??
-        null;
+        (nextUser.app_metadata?.institute_id as string | undefined) ?? null;
 
       if (metadataRole && metadataInstituteId) {
         setRole(metadataRole);

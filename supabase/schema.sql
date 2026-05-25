@@ -51,6 +51,20 @@ alter table public.profiles alter column role set default 'student';
 
 alter table public.profiles enable row level security;
 
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'profiles_role_check'
+      and conrelid = 'public.profiles'::regclass
+  ) then
+    alter table public.profiles
+      add constraint profiles_role_check
+      check (role in ('student', 'admin'));
+  end if;
+end $$;
+
 create table if not exists public.users (
   id uuid primary key references auth.users(id) on delete cascade,
   name text not null,
@@ -113,17 +127,17 @@ declare
   next_institute_name text;
   invited_by_admin_id uuid;
 begin
-  next_role := lower(coalesce(new.raw_user_meta_data->>'role', 'student'));
+  next_role := lower(coalesce(new.raw_app_meta_data->>'role', 'student'));
   if next_role not in ('admin', 'student') then
     next_role := 'student';
   end if;
 
   if next_role = 'admin' then
-    next_subdomain := lower(coalesce(new.raw_user_meta_data->>'subdomain', split_part(new.email, '@', 1)));
+    next_subdomain := lower(coalesce(new.raw_app_meta_data->>'subdomain', split_part(new.email, '@', 1)));
     next_subdomain := regexp_replace(next_subdomain, '[^a-z0-9-]', '', 'g');
 
     next_institute_name := coalesce(
-      nullif(new.raw_user_meta_data->>'institute_name', ''),
+      nullif(new.raw_app_meta_data->>'institute_name', ''),
       nullif(new.raw_user_meta_data->>'name', ''),
       initcap(replace(next_subdomain, '-', ' '))
     );
@@ -135,24 +149,24 @@ begin
     returning id into next_institute_id;
   else
     begin
-      if coalesce(new.raw_user_meta_data->>'institute_id', '') <> '' then
-        next_institute_id := (new.raw_user_meta_data->>'institute_id')::uuid;
+      if coalesce(new.raw_app_meta_data->>'institute_id', '') <> '' then
+        next_institute_id := (new.raw_app_meta_data->>'institute_id')::uuid;
       end if;
     exception
       when others then
         next_institute_id := null;
     end;
 
-    if next_institute_id is null and coalesce(new.raw_user_meta_data->>'subdomain', '') <> '' then
+    if next_institute_id is null and coalesce(new.raw_app_meta_data->>'subdomain', '') <> '' then
       select id into next_institute_id
       from public.institutes
-      where subdomain = lower(new.raw_user_meta_data->>'subdomain')
+      where subdomain = lower(new.raw_app_meta_data->>'subdomain')
       limit 1;
     end if;
 
-    if next_institute_id is null and coalesce(new.raw_user_meta_data->>'invited_by_admin_id', '') <> '' then
+    if next_institute_id is null and coalesce(new.raw_app_meta_data->>'invited_by_admin_id', '') <> '' then
       begin
-        invited_by_admin_id := (new.raw_user_meta_data->>'invited_by_admin_id')::uuid;
+        invited_by_admin_id := (new.raw_app_meta_data->>'invited_by_admin_id')::uuid;
       exception
         when others then
           invited_by_admin_id := null;
@@ -278,6 +292,11 @@ create table if not exists public.enrollments (
   course_id uuid not null references public.courses(id) on delete cascade,
   institute_id uuid references public.institutes(id) on delete set null,
   enrolled_at timestamptz not null default timezone('utc', now()),
+  access_status text not null default 'active',
+  payment_status text not null default 'paid',
+  access_ends_at timestamptz,
+  payment_due_at timestamptz,
+  last_payment_at timestamptz,
   primary key (student_id, course_id)
 );
 
@@ -285,6 +304,45 @@ alter table public.enrollments add column if not exists enrolled_at timestamptz;
 update public.enrollments set enrolled_at = timezone('utc', now()) where enrolled_at is null;
 alter table public.enrollments alter column enrolled_at set default timezone('utc', now());
 alter table public.enrollments alter column enrolled_at set not null;
+alter table public.enrollments add column if not exists access_status text;
+alter table public.enrollments add column if not exists payment_status text;
+alter table public.enrollments add column if not exists access_ends_at timestamptz;
+alter table public.enrollments add column if not exists payment_due_at timestamptz;
+alter table public.enrollments add column if not exists last_payment_at timestamptz;
+update public.enrollments set access_status = 'active' where access_status is null;
+update public.enrollments set payment_status = 'paid' where payment_status is null;
+alter table public.enrollments alter column access_status set default 'active';
+alter table public.enrollments alter column access_status set not null;
+alter table public.enrollments alter column payment_status set default 'paid';
+alter table public.enrollments alter column payment_status set not null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'enrollments_access_status_check'
+      and conrelid = 'public.enrollments'::regclass
+  ) then
+    alter table public.enrollments
+      add constraint enrollments_access_status_check
+      check (access_status in ('active', 'payment_due', 'expired', 'completed', 'suspended'));
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'enrollments_payment_status_check'
+      and conrelid = 'public.enrollments'::regclass
+  ) then
+    alter table public.enrollments
+      add constraint enrollments_payment_status_check
+      check (payment_status in ('paid', 'due', 'overdue', 'pending'));
+  end if;
+end $$;
 
 create table if not exists public.notes (
   id uuid primary key default gen_random_uuid(),
@@ -527,6 +585,27 @@ set institute_id = coalesce(
 )
 where r.institute_id is null;
 
+create or replace function public.enrollment_has_active_access(
+  p_student_id uuid,
+  p_course_id uuid,
+  p_institute_id uuid
+)
+returns boolean as $$
+  select exists (
+    select 1
+    from public.enrollments e
+    where e.student_id = p_student_id
+      and e.course_id = p_course_id
+      and e.institute_id = p_institute_id
+      and coalesce(e.access_status, 'active') = 'active'
+      and coalesce(e.payment_status, 'paid') = 'paid'
+      and (e.access_ends_at is null or e.access_ends_at > timezone('utc', now()))
+      and (e.payment_due_at is null or e.payment_due_at > timezone('utc', now()))
+    limit 1
+  );
+$$ language sql stable security definer
+set search_path = public, pg_temp;
+
 alter table public.courses enable row level security;
 alter table public.notes enable row level security;
 alter table public.materials enable row level security;
@@ -549,15 +628,17 @@ create policy "Users and admins can read profiles" on public.profiles
 drop policy if exists "Users can update own profile" on public.profiles;
 drop policy if exists "Admins can update institute profiles" on public.profiles;
 drop policy if exists "Users and admins can update profiles" on public.profiles;
-create policy "Users and admins can update profiles" on public.profiles
+create policy "Admins can update institute profiles" on public.profiles
   for update
   using (
-    (select auth.uid()) = id
-    or (public.is_admin() and institute_id = public.get_my_institute_id())
+    public.is_admin()
+    and institute_id = public.get_my_institute_id()
+    and role = 'student'
   )
   with check (
-    (select auth.uid()) = id
-    or (public.is_admin() and institute_id = public.get_my_institute_id())
+    public.is_admin()
+    and institute_id = public.get_my_institute_id()
+    and role = 'student'
   );
 
 drop policy if exists "Users can read own user row" on public.users;
@@ -627,13 +708,7 @@ create policy "Users can read visible notes" on public.notes
     or (
       (select auth.uid()) is not null
       and institute_id = public.get_my_institute_id()
-      and exists (
-        select 1
-        from public.enrollments
-        where student_id = (select auth.uid())
-          and course_id = public.notes.course_id
-          and institute_id = public.notes.institute_id
-      )
+      and public.enrollment_has_active_access((select auth.uid()), public.notes.course_id, public.notes.institute_id)
     )
   );
 
@@ -659,18 +734,12 @@ drop policy if exists "Users can read visible materials" on public.materials;
 create policy "Users can read visible materials" on public.materials
   for select
   using (
-    visibility = 'public'
+    (visibility = 'public' and file_url not like 'bunny-stream:%')
     or (public.is_admin() and institute_id = public.get_my_institute_id())
     or (
       (select auth.uid()) is not null
       and institute_id = public.get_my_institute_id()
-      and exists (
-        select 1
-        from public.enrollments
-        where student_id = (select auth.uid())
-          and course_id = public.materials.course_id
-          and institute_id = public.materials.institute_id
-      )
+      and public.enrollment_has_active_access((select auth.uid()), public.materials.course_id, public.materials.institute_id)
     )
   );
 
@@ -694,7 +763,14 @@ create policy "Admins can delete tests" on public.tests
 drop policy if exists "Authenticated users can read tests" on public.tests;
 create policy "Authenticated users can read tests" on public.tests
   for select
-  using ((select auth.uid()) is not null and institute_id = public.get_my_institute_id());
+  using (
+    (public.is_admin() and institute_id = public.get_my_institute_id())
+    or (
+      (select auth.uid()) is not null
+      and institute_id = public.get_my_institute_id()
+      and public.enrollment_has_active_access((select auth.uid()), public.tests.course_id, public.tests.institute_id)
+    )
+  );
 
 drop policy if exists "Students can read own enrollments" on public.enrollments;
 drop policy if exists "Admins can manage enrollments" on public.enrollments;
@@ -728,7 +804,18 @@ drop policy if exists "Students and admins can read results" on public.results;
 create policy "Students and admins can read results" on public.results
   for select
   using (
-    ((select auth.uid()) = student_id or public.is_admin())
+    (
+      public.is_admin()
+      or (
+        (select auth.uid()) = student_id
+        and exists (
+          select 1
+          from public.tests t
+          where t.id = public.results.test_id
+            and public.enrollment_has_active_access((select auth.uid()), t.course_id, public.results.institute_id)
+        )
+      )
+    )
     and institute_id = public.get_my_institute_id()
   );
 
@@ -807,6 +894,9 @@ create index if not exists idx_admission_payments_institute_id on public.admissi
 create index if not exists idx_admission_payments_course_id on public.admission_payments(course_id);
 create index if not exists idx_admission_payments_status on public.admission_payments(status);
 create index if not exists idx_enrollments_course_id on public.enrollments(course_id);
+create index if not exists idx_enrollments_access_lookup on public.enrollments(student_id, course_id, institute_id, access_status, payment_status);
+create index if not exists idx_enrollments_access_ends_at on public.enrollments(access_ends_at) where access_ends_at is not null;
+create index if not exists idx_enrollments_payment_due_at on public.enrollments(payment_due_at) where payment_due_at is not null;
 create index if not exists idx_notes_course_id on public.notes(course_id);
 create index if not exists idx_materials_course_id on public.materials(course_id);
 create index if not exists idx_tests_course_id on public.tests(course_id);

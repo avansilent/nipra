@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createSupabaseRouteClient } from "../../../../../lib/supabase/route";
 import { createSupabaseServiceClient } from "../../../../../lib/supabase/service";
 import { normalizeResourceVisibility } from "../../../../../lib/resourceVisibility";
+import { isBunnyStreamReference } from "../../../../../lib/bunnyStreamReference";
+import { getEnrollmentAccessMessage, isEnrollmentAccessActive, type EnrollmentAccessRow } from "../../../../../lib/enrollmentAccess";
 
 type RouteParams = {
   params: Promise<{ materialId: string }>;
@@ -48,6 +50,10 @@ export async function GET(_request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Material not found" }, { status: 404 });
     }
 
+    if (isBunnyStreamReference(material.file_url)) {
+      return NextResponse.json({ error: "Use the secure video player to open this lesson." }, { status: 400 });
+    }
+
     const visibility = normalizeResourceVisibility(material.visibility);
 
     if (visibility === "public") {
@@ -70,11 +76,10 @@ export async function GET(_request: Request, { params }: RouteParams) {
       .eq("id", user.id)
       .maybeSingle();
 
-    const role = normalizeRole(profile?.role ?? user.app_metadata?.role ?? user.user_metadata?.role ?? null);
+    const role = normalizeRole(profile?.role ?? user.app_metadata?.role ?? null);
     const instituteId =
       profile?.institute_id ??
       (user.app_metadata?.institute_id as string | undefined) ??
-      (user.user_metadata?.institute_id as string | undefined) ??
       null;
 
     if (!role || !instituteId || material.institute_id !== instituteId) {
@@ -84,7 +89,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     if (role === "student") {
       const { data: enrollment } = await supabase
         .from("enrollments")
-        .select("student_id")
+        .select("*")
         .eq("student_id", user.id)
         .eq("course_id", material.course_id)
         .eq("institute_id", instituteId)
@@ -92,6 +97,10 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
       if (!enrollment) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      if (!isEnrollmentAccessActive(enrollment as EnrollmentAccessRow)) {
+        return NextResponse.json({ error: getEnrollmentAccessMessage(enrollment as EnrollmentAccessRow) }, { status: 403 });
       }
     }
 

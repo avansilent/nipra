@@ -13,6 +13,14 @@ import {
 import { useAuth } from "../../app/AuthProvider";
 import { defaultHomeContent, mergeHomeContent } from "../../data/homeContent";
 import { defaultSiteSettings, mergeSiteSettings } from "../../data/siteSettings";
+import { isBunnyStreamReference } from "../../lib/bunnyStreamReference";
+import {
+  getEnrollmentAccessLabel,
+  getEnrollmentAccessTone,
+  isEnrollmentAccessActive,
+  isEnrollmentAccessColumnError,
+  type EnrollmentAccessRow,
+} from "../../lib/enrollmentAccess";
 import { formatResourceVisibility, type ResourceVisibility } from "../../lib/resourceVisibility";
 import { createSupabaseBrowserClient } from "../../lib/supabase/browser";
 import type { Faq, HomeContent, Program, Testimonial } from "../../types/home";
@@ -45,7 +53,7 @@ type EnrollmentRow = {
   student_id: string;
   course_id: string;
   enrolled_at: string;
-};
+} & EnrollmentAccessRow;
 
 type GeneratedCredentials = {
   name: string;
@@ -59,6 +67,13 @@ type StudentFormState = {
   email: string;
   loginId: string;
   password: string;
+};
+
+type AssignmentFormState = {
+  studentId: string;
+  courseId: string;
+  accessEndsAt: string;
+  paymentDueAt: string;
 };
 
 type ResourceRow = {
@@ -109,6 +124,15 @@ type ResourceUploadFormState = {
   file: File | null;
 };
 
+type VideoUploadFormState = {
+  courseId: string;
+  title: string;
+  visibility: ResourceVisibility;
+  libraryId: string;
+  videoId: string;
+  file: File | null;
+};
+
 type TestFormState = {
   title: string;
   courseId: string;
@@ -128,12 +152,21 @@ type AnnouncementFormState = {
 
 type ResourceKind = "note" | "material";
 
+const defaultVideoLibraryId = process.env.NEXT_PUBLIC_BUNNY_STREAM_LIBRARY_ID ?? "";
+
 const emptyStudentForm: StudentFormState = {
   name: "",
   email: "",
   loginId: "",
   password: "",
 };
+
+const emptyAssignmentForm = (): AssignmentFormState => ({
+  studentId: "",
+  courseId: "",
+  accessEndsAt: "",
+  paymentDueAt: "",
+});
 
 const emptyProgram = (): Program => ({
   id: `program-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -161,6 +194,15 @@ const emptyResourceForm = (): ResourceUploadFormState => ({
   courseId: "",
   title: "",
   visibility: "student",
+  file: null,
+});
+
+const emptyVideoForm = (): VideoUploadFormState => ({
+  courseId: "",
+  title: "",
+  visibility: "student",
+  libraryId: defaultVideoLibraryId,
+  videoId: "",
   file: null,
 });
 
@@ -226,6 +268,15 @@ function formatDate(value?: string | null) {
   }
 
   return date.toLocaleDateString();
+}
+
+function dateInputToAccessTimestamp(value: string) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(`${value}T23:59:59.999`);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
 function formatDateTime(value?: string | null) {
@@ -301,6 +352,7 @@ export default function AdminWorkspace() {
   const [enrollments, setEnrollments] = useState<EnrollmentRow[]>([]);
   const [notes, setNotes] = useState<ResourceRow[]>([]);
   const [materials, setMaterials] = useState<ResourceRow[]>([]);
+  const [videos, setVideos] = useState<ResourceRow[]>([]);
   const [tests, setTests] = useState<TestRow[]>([]);
   const [results, setResults] = useState<ResultRow[]>([]);
   const [announcements, setAnnouncements] = useState<AnnouncementRow[]>([]);
@@ -321,11 +373,13 @@ export default function AdminWorkspace() {
     status: "draft" as CourseRow["status"],
     cta_label: "View Course",
   });
-  const [assignmentForm, setAssignmentForm] = useState({ studentId: "", courseId: "" });
+  const [assignmentForm, setAssignmentForm] = useState<AssignmentFormState>(emptyAssignmentForm);
   const [noteForm, setNoteForm] = useState<ResourceUploadFormState>(emptyResourceForm);
   const [materialForm, setMaterialForm] = useState<ResourceUploadFormState>(emptyResourceForm);
+  const [videoForm, setVideoForm] = useState<VideoUploadFormState>(emptyVideoForm);
   const [notePickerKey, setNotePickerKey] = useState(0);
   const [materialPickerKey, setMaterialPickerKey] = useState(0);
+  const [videoPickerKey, setVideoPickerKey] = useState(0);
   const [testForm, setTestForm] = useState<TestFormState>(emptyTestForm);
   const [editingTestId, setEditingTestId] = useState<string | null>(null);
   const [resultForm, setResultForm] = useState<ResultFormState>(emptyResultForm);
@@ -360,7 +414,7 @@ export default function AdminWorkspace() {
       withTimeout(
         supabase
           .from("enrollments")
-          .select("student_id, course_id, enrolled_at")
+          .select("*")
           .eq("institute_id", tenantId)
           .order("enrolled_at", { ascending: false })
       ),
@@ -448,8 +502,11 @@ export default function AdminWorkspace() {
       throw new Error(announcementsError.message);
     }
 
+    const normalizedMaterials = (materialRows ?? []) as ResourceRow[];
+
     setNotes((noteRows ?? []) as ResourceRow[]);
-    setMaterials((materialRows ?? []) as ResourceRow[]);
+    setMaterials(normalizedMaterials.filter((row) => !isBunnyStreamReference(row.file_url)));
+    setVideos(normalizedMaterials.filter((row) => isBunnyStreamReference(row.file_url)));
     const normalizedTests = (testRows ?? []) as TestRow[];
     const normalizedResults = (resultRows ?? []) as ResultSelectRow[];
 
@@ -581,8 +638,9 @@ export default function AdminWorkspace() {
   const publishedCourseCount = courses.filter((course) => course.status === "published").length;
   const draftCourseCount = courses.filter((course) => course.status === "draft").length;
   const archivedCourseCount = courses.filter((course) => course.status === "archived").length;
+  const activeEnrollmentCount = enrollments.filter((enrollment) => isEnrollmentAccessActive(enrollment, workspaceSnapshotAt || Date.now())).length;
   const unassignedCourseCount = courses.filter((course) => !enrollments.some((entry) => entry.course_id === course.id)).length;
-  const totalResources = notes.length + materials.length;
+  const totalResources = notes.length + materials.length + videos.length;
   const upcomingTestsCount = tests.filter((test) => new Date(test.test_date).getTime() >= upcomingTestCutoff).length;
   const thisWeekTestCount = tests.filter((test) => {
     const value = new Date(test.test_date).getTime();
@@ -611,7 +669,7 @@ export default function AdminWorkspace() {
     {
       label: "Learning assets",
       value: totalResources,
-      helper: `${notes.length} notes and ${materials.length} materials live`,
+      helper: `${notes.length} notes, ${materials.length} books, ${videos.length} videos live`,
       accent: "slate" as const,
     },
     {
@@ -661,7 +719,7 @@ export default function AdminWorkspace() {
     totalResources === 0
       ? {
           title: "No study resources uploaded yet",
-          description: "Students will have a cleaner experience once notes or materials are attached to courses.",
+          description: "Students will have a cleaner experience once notes, books, or videos are attached to courses.",
           action: "Open resources",
           tab: "resources" as const,
         }
@@ -947,21 +1005,41 @@ export default function AdminWorkspace() {
     clearFeedback();
     setBusy(true);
     try {
-      const { error: insertError } = await supabase.from("enrollments").upsert(
-        {
-          student_id: assignmentForm.studentId,
-          course_id: assignmentForm.courseId,
-          institute_id: instituteId,
-        },
-        { onConflict: "student_id,course_id" }
-      );
+      const enrollmentPayload = {
+        student_id: assignmentForm.studentId,
+        course_id: assignmentForm.courseId,
+        institute_id: instituteId,
+        access_status: "active",
+        payment_status: "paid",
+        access_ends_at: dateInputToAccessTimestamp(assignmentForm.accessEndsAt),
+        payment_due_at: dateInputToAccessTimestamp(assignmentForm.paymentDueAt),
+        last_payment_at: new Date().toISOString(),
+      };
+
+      let { error: insertError } = await supabase
+        .from("enrollments")
+        .upsert(enrollmentPayload, { onConflict: "student_id,course_id" });
+
+      let savedWithAccessControls = true;
+      if (insertError && isEnrollmentAccessColumnError(insertError.message)) {
+        savedWithAccessControls = false;
+        const fallbackResult = await supabase.from("enrollments").upsert(
+          {
+            student_id: assignmentForm.studentId,
+            course_id: assignmentForm.courseId,
+            institute_id: instituteId,
+          },
+          { onConflict: "student_id,course_id" }
+        );
+        insertError = fallbackResult.error;
+      }
 
       if (insertError) {
         throw new Error(insertError.message);
       }
 
-      setAssignmentForm({ studentId: "", courseId: "" });
-      setMessage("Enrollment saved.");
+      setAssignmentForm(emptyAssignmentForm());
+      setMessage(savedWithAccessControls ? "Enrollment saved." : "Enrollment saved. Apply the latest Supabase schema to save due and end dates.");
       await loadCourses(instituteId);
     } catch (assignmentError) {
       setError(assignmentError instanceof Error ? assignmentError.message : "Unable to assign student");
@@ -1046,6 +1124,87 @@ export default function AdminWorkspace() {
     }
   };
 
+  const handleEnrollmentAccessUpdate = async (studentId: string, courseId: string, patch: EnrollmentAccessRow) => {
+    if (!instituteId) {
+      return;
+    }
+
+    clearFeedback();
+    setBusy(true);
+    try {
+      const { error: updateError } = await supabase
+        .from("enrollments")
+        .update(patch)
+        .eq("student_id", studentId)
+        .eq("course_id", courseId)
+        .eq("institute_id", instituteId);
+
+      if (updateError) {
+        if (isEnrollmentAccessColumnError(updateError.message)) {
+          throw new Error("Apply the latest Supabase schema before changing course access or fee due status.");
+        }
+        throw new Error(updateError.message);
+      }
+
+      setMessage("Enrollment access updated.");
+      await loadCourses(instituteId);
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : "Unable to update enrollment access");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleVideoUpload = async () => {
+    if (!instituteId) {
+      return;
+    }
+
+    if (!videoForm.courseId || !videoForm.title.trim()) {
+      setError("Select a course and add a video title.");
+      return;
+    }
+
+    if (!videoForm.videoId.trim() && !videoForm.file) {
+      setError("Paste an existing Bunny video ID or choose a video file.");
+      return;
+    }
+
+    clearFeedback();
+    setBusy(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("courseId", videoForm.courseId);
+      formData.append("title", videoForm.title.trim());
+      formData.append("visibility", videoForm.visibility);
+      formData.append("libraryId", videoForm.libraryId.trim());
+      formData.append("videoId", videoForm.videoId.trim());
+      if (videoForm.file) {
+        formData.append("file", videoForm.file);
+      }
+
+      const response = await fetch("/api/admin/videos/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Unable to publish video");
+      }
+
+      setVideoForm(emptyVideoForm());
+      setVideoPickerKey((prev) => prev + 1);
+      setMessage("Video published to the student portal.");
+      await loadOperationalData(instituteId);
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Unable to publish video");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleDeleteResource = async (kind: ResourceKind, row: ResourceRow) => {
     if (!instituteId) {
       return;
@@ -1076,6 +1235,38 @@ export default function AdminWorkspace() {
       await loadOperationalData(instituteId);
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : `Unable to delete ${kind}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDeleteVideo = async (video: ResourceRow) => {
+    if (!instituteId) {
+      return;
+    }
+
+    if (!window.confirm("Remove this video from the student portal?")) {
+      return;
+    }
+
+    clearFeedback();
+    setBusy(true);
+
+    try {
+      const { error: deleteError } = await supabase
+        .from("materials")
+        .delete()
+        .eq("id", video.id)
+        .eq("institute_id", instituteId);
+
+      if (deleteError) {
+        throw new Error(deleteError.message);
+      }
+
+      setMessage("Video removed from the student portal.");
+      await loadOperationalData(instituteId);
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Unable to remove video");
     } finally {
       setBusy(false);
     }
@@ -1762,7 +1953,7 @@ export default function AdminWorkspace() {
               <>
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   <AdminMetricCard label="Draft courses" value={draftCourseCount} helper="Records still waiting for publish approval" accent="stone" />
-                  <AdminMetricCard label="Enrollments" value={enrollments.length} helper="Student-to-course mappings currently active" accent="slate" />
+                  <AdminMetricCard label="Enrollments" value={activeEnrollmentCount} helper={`${enrollments.length} total mappings`} accent="slate" />
                   <AdminMetricCard label="Scheduled tests" value={tests.length} helper={`${upcomingTestsCount} still upcoming`} accent="stone" />
                   <AdminMetricCard label="Recorded results" value={results.length} helper="Marks already visible to students" accent="slate" />
                 </div>
@@ -1785,22 +1976,34 @@ export default function AdminWorkspace() {
                   </AdminPanelCard>
 
                   <AdminPanelCard eyebrow="Enrollment Desk" title="Assign students to live courses" description="The mapping here decides what each student sees inside the private portal.">
-                    <div className="grid gap-4">
+                    <div className="grid gap-4 md:grid-cols-2">
                       <Field label="Student"><select className={inputClass} value={assignmentForm.studentId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, studentId: event.target.value }))}><option value="">Select student</option>{students.map((student) => (<option key={student.id} value={student.id}>{student.name}</option>))}</select></Field>
                       <Field label="Course"><select className={inputClass} value={assignmentForm.courseId} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, courseId: event.target.value }))}><option value="">Select course</option>{courses.map((course) => (<option key={course.id} value={course.id}>{course.title}</option>))}</select></Field>
+                      <Field label="Course ends" hint="Optional. Portal locks after this date."><input type="date" className={inputClass} value={assignmentForm.accessEndsAt} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, accessEndsAt: event.target.value }))} /></Field>
+                      <Field label="Fee due on" hint="Optional. Portal locks after this date until restored."><input type="date" className={inputClass} value={assignmentForm.paymentDueAt} onChange={(event) => setAssignmentForm((prev) => ({ ...prev, paymentDueAt: event.target.value }))} /></Field>
                     </div>
                     <div className="mt-5 flex flex-wrap gap-3">
                       <button type="button" onClick={() => void handleAssignStudent()} className={primaryButtonClass} disabled={busy}>Save Enrollment</button>
-                      <StatusBadge tone="neutral">{enrollments.length} enrollments</StatusBadge>
+                      <StatusBadge tone="neutral">{activeEnrollmentCount} active / {enrollments.length} total</StatusBadge>
                     </div>
                     <div className="mt-5 space-y-3">
                       {enrollments.slice(0, 6).map((enrollment) => (
                         <div key={`${enrollment.student_id}-${enrollment.course_id}`} className={`${nestedCardClass} flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between`}>
-                          <div>
+                          <div className="min-w-0">
                             <p className="font-semibold text-slate-900">{studentNameById.get(enrollment.student_id) ?? enrollment.student_id} → {courseTitleById.get(enrollment.course_id) ?? enrollment.course_id}</p>
                             <p className="mt-1 text-sm text-slate-600">Assigned on {formatDate(enrollment.enrolled_at)}</p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <StatusBadge tone={getEnrollmentAccessTone(enrollment)}>{getEnrollmentAccessLabel(enrollment)}</StatusBadge>
+                              {enrollment.payment_due_at ? <StatusBadge tone="warning">Due {formatDate(enrollment.payment_due_at)}</StatusBadge> : null}
+                              {enrollment.access_ends_at ? <StatusBadge tone="neutral">Ends {formatDate(enrollment.access_ends_at)}</StatusBadge> : null}
+                            </div>
                           </div>
-                          <button type="button" onClick={() => void handleRemoveEnrollment(enrollment.student_id, enrollment.course_id)} className={dangerButtonClass}>Remove</button>
+                          <div className="flex flex-wrap gap-2 lg:justify-end">
+                            <button type="button" onClick={() => void handleEnrollmentAccessUpdate(enrollment.student_id, enrollment.course_id, { access_status: "active", payment_status: "paid", access_ends_at: null, payment_due_at: null, last_payment_at: new Date().toISOString() })} className={subtleButtonClass} disabled={busy}>Restore</button>
+                            <button type="button" onClick={() => void handleEnrollmentAccessUpdate(enrollment.student_id, enrollment.course_id, { access_status: "payment_due", payment_status: "due", payment_due_at: new Date().toISOString() })} className={secondaryButtonClass} disabled={busy}>Fee Due</button>
+                            <button type="button" onClick={() => void handleEnrollmentAccessUpdate(enrollment.student_id, enrollment.course_id, { access_status: "completed", access_ends_at: new Date().toISOString() })} className={secondaryButtonClass} disabled={busy}>End Course</button>
+                            <button type="button" onClick={() => void handleRemoveEnrollment(enrollment.student_id, enrollment.course_id)} className={dangerButtonClass} disabled={busy}>Remove</button>
+                          </div>
                         </div>
                       ))}
                       {enrollments.length === 0 ? <EmptyState title="No enrollments yet" description="Assign the first student to connect academic content with the portal." /> : null}
@@ -1953,9 +2156,31 @@ export default function AdminWorkspace() {
                       <button type="button" onClick={() => { setMaterialForm(emptyResourceForm()); setMaterialPickerKey((prev) => prev + 1); }} className={subtleButtonClass}>Clear</button>
                     </div>
                   </AdminPanelCard>
+
+                  <AdminPanelCard eyebrow="Video Upload" title="Publish Bunny Stream lessons" description="Upload a video to Bunny Stream or paste an existing Bunny video ID. Students can watch only inside their assigned course portal.">
+                    <div className="grid gap-4">
+                      <Field label="Course"><select className={inputClass} value={videoForm.courseId} onChange={(event) => setVideoForm((prev) => ({ ...prev, courseId: event.target.value }))}><option value="">Select course</option>{courses.map((course) => (<option key={course.id} value={course.id}>{course.title}</option>))}</select></Field>
+                      <Field label="Video title"><input className={inputClass} value={videoForm.title} onChange={(event) => setVideoForm((prev) => ({ ...prev, title: event.target.value }))} placeholder="Physics Lesson 1" /></Field>
+                      <Field label="Visible in"><select className={inputClass} value={videoForm.visibility} onChange={(event) => setVideoForm((prev) => ({ ...prev, visibility: event.target.value as ResourceVisibility }))}><option value="student">Student portal only</option></select></Field>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <Field label="Library ID" hint="Leave blank when server env has the default library."><input className={inputClass} value={videoForm.libraryId} onChange={(event) => setVideoForm((prev) => ({ ...prev, libraryId: event.target.value }))} placeholder="123456" /></Field>
+                        <Field label="Video ID" hint="Use this for an existing Bunny Stream video."><input className={inputClass} value={videoForm.videoId} onChange={(event) => setVideoForm((prev) => ({ ...prev, videoId: event.target.value }))} placeholder="bunny-video-guid" /></Field>
+                      </div>
+                      <Field label="Video file" hint={videoForm.file ? videoForm.file.name : "Optional when using an existing Bunny video ID."}>
+                        <label className={`${secondaryButtonClass} w-full cursor-pointer`}>
+                          Choose Video
+                          <input key={videoPickerKey} type="file" accept="video/*" className="hidden" onChange={(event) => setVideoForm((prev) => ({ ...prev, file: event.target.files?.[0] ?? null }))} />
+                        </label>
+                      </Field>
+                    </div>
+                    <div className="mt-5 flex flex-wrap gap-3">
+                      <button type="button" onClick={() => void handleVideoUpload()} className={primaryButtonClass} disabled={busy}>Publish Video</button>
+                      <button type="button" onClick={() => { setVideoForm(emptyVideoForm()); setVideoPickerKey((prev) => prev + 1); }} className={subtleButtonClass}>Clear</button>
+                    </div>
+                  </AdminPanelCard>
                 </div>
 
-                <AdminPanelCard eyebrow="Resource Library" title="Manage uploaded notes and books" description="Delete outdated files, verify where each PDF appears, and keep both the public library and portal shelves clean.">
+                <AdminPanelCard eyebrow="Resource Library" title="Manage uploaded notes, books, and videos" description="Delete outdated files, verify where each item appears, and keep both the public library and portal shelves clean.">
                   <div className="grid gap-5 xl:grid-cols-2">
                     <div>
                       <div className="mb-3 flex items-center justify-between">
@@ -2001,6 +2226,32 @@ export default function AdminWorkspace() {
                                 </div>
                               </div>
                               <button type="button" onClick={() => void handleDeleteResource("material", material)} className={dangerButtonClass}>Delete</button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-3 flex items-center justify-between">
+                        <h3 className="text-base font-semibold text-slate-950">Videos</h3>
+                        <StatusBadge tone="neutral">{videos.length}</StatusBadge>
+                      </div>
+                      <div className="space-y-3">
+                        {videos.length === 0 ? (
+                          <EmptyState title="No videos published" description="Publish the first Bunny Stream lesson above to make it available inside assigned student portals." />
+                        ) : (
+                          videos.map((video) => (
+                            <div key={video.id} className={`${nestedCardClass} flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between`}>
+                              <div>
+                                <p className="font-semibold text-slate-900">{video.title}</p>
+                                <p className="mt-1 text-sm text-slate-600">{courseTitleById.get(video.course_id) ?? "Unknown course"} - {formatDate(video.created_at)}</p>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  <StatusBadge tone={video.visibility === "public" ? "success" : "neutral"}>{formatResourceVisibility(video.visibility)}</StatusBadge>
+                                  <StatusBadge tone="success">Bunny Stream</StatusBadge>
+                                </div>
+                              </div>
+                              <button type="button" onClick={() => void handleDeleteVideo(video)} className={dangerButtonClass}>Remove</button>
                             </div>
                           ))
                         )}

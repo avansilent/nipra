@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useAdaptiveMotion } from "../hooks/useAdaptiveMotion";
+import { isEnrollmentAccessActive, type EnrollmentAccessRow } from "../lib/enrollmentAccess";
 import { balancedItemReveal, balancedSectionReveal, hoverLift, itemReveal, sectionReveal, viewportOnce } from "../lib/motion";
 import { createSupabaseBrowserClient } from "../lib/supabase/browser";
 
@@ -13,7 +14,7 @@ type CourseRow = {
   description: string | null;
 };
 
-type EnrollmentSelectRow = { course: CourseRow | CourseRow[] | null };
+type EnrollmentSelectRow = { course: CourseRow | CourseRow[] | null } & EnrollmentAccessRow;
 
 const softPortalActionClass =
   "inline-flex w-full items-center justify-center rounded-full border border-slate-200/75 bg-white/96 px-4 py-2.5 text-[0.92rem] font-semibold text-slate-900 shadow-[0_12px_24px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_16px_28px_rgba(15,23,42,0.06)] sm:w-auto sm:px-5 sm:py-3 sm:text-sm";
@@ -58,7 +59,6 @@ export default function AssignedCoursesSection() {
         const instituteId =
           profile?.institute_id ??
           (user.app_metadata?.institute_id as string | undefined) ??
-          (user.user_metadata?.institute_id as string | undefined) ??
           null;
 
         if (!instituteId) {
@@ -68,7 +68,7 @@ export default function AssignedCoursesSection() {
 
         const { data: enrollmentRows, error: enrollmentError } = await supabase
           .from("enrollments")
-          .select("course:course_id (id, title, description)")
+          .select("*, course:course_id (id, title, description)")
           .eq("student_id", user.id)
           .eq("institute_id", instituteId);
 
@@ -77,7 +77,7 @@ export default function AssignedCoursesSection() {
           return;
         }
 
-        const enrolledCourses = ((enrollmentRows ?? []) as EnrollmentSelectRow[]).flatMap((row) => {
+        const enrolledCourses = ((enrollmentRows ?? []) as EnrollmentSelectRow[]).filter((row) => isEnrollmentAccessActive(row)).flatMap((row) => {
           if (!row.course) {
             return [];
           }

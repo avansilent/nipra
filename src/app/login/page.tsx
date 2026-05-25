@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { normalizeMobileForOtp } from "../../lib/auth/phone";
 import { createSupabaseBrowserClient } from "../../lib/supabase/browser";
 import { useAuth } from "../AuthProvider";
 
@@ -12,10 +13,6 @@ const loginViewportClassName = "mx-auto w-full max-w-[25.5rem]";
 const loginLayoutClassName = "flex justify-center";
 const loginCardClassName =
   "login-card mx-auto w-full max-w-[25.5rem] rounded-[2rem] bg-white/98 p-5 shadow-[0_18px_42px_rgba(15,23,42,0.05)] sm:p-6";
-const loginSegmentedControlClassName =
-  "login-segmented-control grid grid-cols-2 gap-1.5 rounded-[1.15rem] bg-[#eef2f6] p-1";
-const loginSegmentTabClassName =
-  "login-segment-tab inline-flex min-h-11 items-center justify-center rounded-[0.9rem] px-4 text-sm font-semibold transition-[background-color,color,box-shadow,transform] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-100 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
 const loginInputClassName =
   "login-input w-full min-h-11 appearance-none rounded-[1rem] border border-slate-200/80 bg-white px-4 py-3 text-[15px] text-slate-700 shadow-[0_6px_16px_rgba(15,23,42,0.04)] outline-none transition-[box-shadow,border-color] duration-300 placeholder:text-slate-400 focus:border-sky-200 focus:shadow-[0_0_0_4px_rgba(14,165,233,0.06),0_10px_20px_rgba(15,23,42,0.05)]";
 const loginPrimaryButtonClassName =
@@ -29,6 +26,9 @@ type LoadingAction = "google" | "password" | "phone-send" | "phone-verify" | nul
 
 const defaultGoogleOAuthError =
   "Google sign-in could not be completed. Check the Google provider setup in Supabase and try again.";
+const rememberedMobileStorageKey = "nipra-remembered-mobile-v1";
+const phoneOtpSendStoragePrefix = "nipra-phone-otp-sent-at:";
+const phoneOtpCooldownMs = 60_000;
 
 function formatOAuthCallbackMessage(message: string | null) {
   if (!message) {
@@ -46,23 +46,75 @@ function formatOAuthCallbackMessage(message: string | null) {
   return message;
 }
 
-function normalizeMobileForOtp(value: string) {
-  const trimmed = value.trim();
-  const digits = trimmed.replace(/\D/g, "");
-
-  if (trimmed.startsWith("+") && digits.length >= 10 && digits.length <= 15) {
-    return `+${digits}`;
+function maskMobileNumber(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length <= 4) {
+    return value;
   }
 
-  if (digits.length === 10) {
-    return `+91${digits}`;
+  return `${value.startsWith("+") ? "+" : ""}${digits.slice(0, Math.max(0, digits.length - 10))}${digits.slice(-10, -7)}***${digits.slice(-4)}`;
+}
+
+function readRememberedMobile() {
+  if (typeof window === "undefined") {
+    return "";
   }
 
-  if (digits.length === 12 && digits.startsWith("91")) {
-    return `+${digits}`;
+  try {
+    return window.localStorage.getItem(rememberedMobileStorageKey) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function subscribeRememberedMobile(callback: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
   }
 
-  return null;
+  window.addEventListener("storage", callback);
+  return () => window.removeEventListener("storage", callback);
+}
+
+function rememberVerifiedMobile(phone: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(rememberedMobileStorageKey, phone);
+  } catch {
+    // Session still works even if browser storage is blocked.
+  }
+}
+
+function getOtpCooldownRemaining(phone: string) {
+  if (typeof window === "undefined") {
+    return 0;
+  }
+
+  try {
+    const sentAt = Number(window.localStorage.getItem(`${phoneOtpSendStoragePrefix}${phone}`) ?? 0);
+    if (!Number.isFinite(sentAt) || sentAt <= 0) {
+      return 0;
+    }
+
+    return Math.max(0, phoneOtpCooldownMs - (Date.now() - sentAt));
+  } catch {
+    return 0;
+  }
+}
+
+function rememberOtpSend(phone: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(`${phoneOtpSendStoragePrefix}${phone}`, String(Date.now()));
+  } catch {
+    // Supabase still applies its own OTP rate limits.
+  }
 }
 
 function formatPhoneOtpError(error: unknown) {
@@ -258,7 +310,8 @@ const withTimeout = async <T,>(
 function LoginContent() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const rememberedMobile = useSyncExternalStore(subscribeRememberedMobile, readRememberedMobile, () => "");
+  const [phoneNumber, setPhoneNumber] = useState<string | null>(null);
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [loadingAction, setLoadingAction] = useState<LoadingAction>(null);
@@ -292,6 +345,12 @@ function LoginContent() {
   const loginMethod = isForcedStudentLogin ? "phone" : requestedLoginMethod;
   const isStudentPasswordLogin = !isAdminLogin && loginMethod === "password";
   const isForcedPhoneLogin = !isAdminLogin && isForcedStudentLogin;
+  const mobileInputValue = phoneNumber ?? rememberedMobile;
+  const authenticatedPhone = user?.phone ? normalizeMobileForOtp(user.phone) : null;
+  const typedPhone = normalizeMobileForOtp(mobileInputValue);
+  const activePhoneSession =
+    !isAdminLogin && Boolean(user && authenticatedPhone && typedPhone && authenticatedPhone === typedPhone);
+  const rememberedPhoneLabel = typedPhone ? maskMobileNumber(typedPhone) : null;
   const callbackUrl = searchParams.get("callbackUrl");
   const buildStudentLoginHref = (method: "phone" | "password", force = false) => {
     const params = new URLSearchParams({ type: "student", method });
@@ -303,10 +362,8 @@ function LoginContent() {
     }
     return `/login?${params.toString()}`;
   };
-  const studentLoginHref = buildStudentLoginHref("phone");
   const studentPasswordLoginHref = buildStudentLoginHref("password");
   const studentPhoneLoginHref = buildStudentLoginHref("phone", isForcedStudentLogin);
-  const adminLoginHref = callbackUrl ? `/login?type=admin&callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login?type=admin";
 
   const getPreferredRedirect = useCallback(
     (nextRole?: string | null) => {
@@ -362,18 +419,14 @@ function LoginContent() {
     }
   ) => {
     const metadataInstituteId =
-      (currentUser.app_metadata?.institute_id as string | undefined) ??
-      (currentUser.user_metadata?.institute_id as string | undefined);
+      (currentUser.app_metadata?.institute_id as string | undefined);
 
     if (metadataInstituteId) {
       return metadataInstituteId;
     }
 
     const metadataSubdomain =
-      (currentUser.app_metadata?.subdomain as string | undefined) ??
-      (currentUser.user_metadata?.subdomain as string | undefined) ??
-      getRuntimeSubdomain() ??
-      undefined;
+      (currentUser.app_metadata?.subdomain as string | undefined) ?? getRuntimeSubdomain() ?? undefined;
 
     if (!metadataSubdomain) {
       return null;
@@ -406,9 +459,7 @@ function LoginContent() {
     }
 
     const metadataRole = normalizeRole(
-      (currentUser.app_metadata?.role as string | undefined) ??
-        (currentUser.user_metadata?.role as string | undefined) ??
-        null
+      (currentUser.app_metadata?.role as string | undefined) ?? null
     );
 
     if (metadataRole) {
@@ -497,11 +548,14 @@ function LoginContent() {
     }
 
     if (isForcedPhoneLogin) {
+      if (authenticatedPhone) {
+        forceNavigate(getPreferredRedirect(role ?? "student"));
+      }
       return;
     }
 
     forceNavigate(getPreferredRedirect(role));
-  }, [authLoading, forceNavigate, getPreferredRedirect, isForcedPhoneLogin, role, user]);
+  }, [authLoading, authenticatedPhone, forceNavigate, getPreferredRedirect, isForcedPhoneLogin, role, user]);
 
   useEffect(() => {
     void resolveUserRole();
@@ -520,7 +574,7 @@ function LoginContent() {
       return;
     }
 
-    const normalizedPhone = normalizeMobileForOtp(phoneNumber);
+    const normalizedPhone = normalizeMobileForOtp(mobileInputValue);
     if (!normalizedPhone) {
       setError("Enter a valid 10-digit mobile number.");
       return;
@@ -528,25 +582,37 @@ function LoginContent() {
 
     setError(null);
 
+    if (user && authenticatedPhone === normalizedPhone) {
+      rememberVerifiedMobile(normalizedPhone);
+      forceNavigate(getPreferredRedirect(role ?? "student"));
+      return;
+    }
+
     if (!otpSent) {
+      const cooldownRemaining = getOtpCooldownRemaining(normalizedPhone);
+      if (cooldownRemaining > 0) {
+        const seconds = Math.ceil(cooldownRemaining / 1000);
+        setError(`OTP was already sent to this number. Please wait ${seconds}s before requesting again.`);
+        return;
+      }
+
       setLoadingAction("phone-send");
       try {
-        const { error: otpError } = await withTimeout(
-          supabase.auth.signInWithOtp({
-            phone: normalizedPhone,
-            options: {
-              data: {
-                role: "student",
-              },
-            },
+        const response = await withTimeout(
+          fetch("/api/auth/phone/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone: normalizedPhone }),
           }),
           8000
         );
+        const payload = await response.json();
 
-        if (otpError) {
-          throw otpError;
+        if (!response.ok) {
+          throw new Error(payload.error ?? "Unable to send OTP.");
         }
 
+        rememberOtpSend(normalizedPhone);
         setOtpSent(true);
       } catch (otpError) {
         setError(formatPhoneOtpError(otpError));
@@ -564,21 +630,22 @@ function LoginContent() {
 
     setLoadingAction("phone-verify");
     try {
-      const { data: verifyData, error: verifyError } = await withTimeout(
-        supabase.auth.verifyOtp({
-          phone: normalizedPhone,
-          token: normalizedOtp,
-          type: "sms",
+      const response = await withTimeout(
+        fetch("/api/auth/phone/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: normalizedPhone, token: normalizedOtp }),
         }),
         8000
       );
+      const payload = await response.json();
 
-      if (verifyError) {
-        throw verifyError;
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Unable to verify OTP.");
       }
 
-      const resolvedRole = await resolveUserRoleForUser(verifyData.user ?? null);
-      forceNavigate(getPreferredRedirect(resolvedRole ?? "student"));
+      rememberVerifiedMobile(normalizedPhone);
+      forceNavigate(getPreferredRedirect(payload.role ?? "student"));
     } catch (verifyError) {
       setError(formatPhoneOtpError(verifyError));
     } finally {
@@ -720,31 +787,6 @@ function LoginContent() {
                 </h1>
               </div>
 
-              <nav className={loginSegmentedControlClassName} aria-label="Choose portal type">
-                <Link
-                  href={studentLoginHref}
-                  aria-current={!isAdminLogin ? "page" : undefined}
-                  className={`${loginSegmentTabClassName} ${
-                    !isAdminLogin
-                      ? "bg-white text-slate-700 shadow-[0_6px_14px_rgba(15,23,42,0.05)]"
-                      : "bg-transparent text-slate-500 hover:bg-white/70 hover:text-slate-600"
-                  }`}
-                >
-                  Student
-                </Link>
-                <Link
-                  href={adminLoginHref}
-                  aria-current={isAdminLogin ? "page" : undefined}
-                  className={`${loginSegmentTabClassName} ${
-                    isAdminLogin
-                      ? "bg-white text-slate-700 shadow-[0_6px_14px_rgba(15,23,42,0.05)]"
-                      : "bg-transparent text-slate-500 hover:bg-white/70 hover:text-slate-600"
-                  }`}
-                >
-                  Admin
-                </Link>
-              </nav>
-
               <form
                 onSubmit={isAdminLogin || isStudentPasswordLogin ? handleSubmit : handlePhoneOtpSubmit}
                 autoComplete="on"
@@ -804,7 +846,7 @@ function LoginContent() {
                           inputMode="numeric"
                           autoComplete="tel"
                           placeholder="10-digit mobile number"
-                          value={phoneNumber}
+                          value={mobileInputValue}
                           onChange={(event) => {
                             setPhoneNumber(event.target.value);
                             setOtpSent(false);
@@ -813,6 +855,13 @@ function LoginContent() {
                           className={loginInputClassName}
                           required
                         />
+                        {!otpSent && rememberedPhoneLabel ? (
+                          <p className="text-xs leading-5 text-slate-500">
+                            {activePhoneSession
+                              ? `Verified on this device: ${rememberedPhoneLabel}`
+                              : `Remembered mobile: ${rememberedPhoneLabel}`}
+                          </p>
+                        ) : null}
                       </div>
 
                       {otpSent ? (
@@ -862,6 +911,8 @@ function LoginContent() {
                         </span>
                       ) : otpSent ? (
                         "Verify OTP"
+                      ) : activePhoneSession ? (
+                        "Continue"
                       ) : (
                         "Send OTP"
                       )}

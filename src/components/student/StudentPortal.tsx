@@ -3,6 +3,14 @@
 import Link from "next/link";
 import { useDeferredValue, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "../../app/AuthProvider";
+import { isBunnyStreamReference } from "../../lib/bunnyStreamReference";
+import {
+  getEnrollmentAccessLabel,
+  getEnrollmentAccessMessage,
+  getEnrollmentAccessTone,
+  isEnrollmentAccessActive,
+  type EnrollmentAccessRow,
+} from "../../lib/enrollmentAccess";
 import { formatResourceVisibility, type ResourceVisibility } from "../../lib/resourceVisibility";
 import { createSupabaseBrowserClient } from "../../lib/supabase/browser";
 
@@ -13,8 +21,11 @@ type CourseRow = {
 };
 
 type EnrollmentSelectRow = {
+  student_id?: string;
+  course_id?: string;
+  enrolled_at?: string;
   course: CourseRow | CourseRow[] | null;
-};
+} & EnrollmentAccessRow;
 
 type TestRow = {
   id: string;
@@ -27,7 +38,7 @@ type ResultSelectRow = {
   test_id: string;
   marks: number;
   recorded_at?: string;
-  test: { title: string; test_date: string } | Array<{ title: string; test_date: string }> | null;
+  test: { title: string; test_date: string; course_id?: string | null } | Array<{ title: string; test_date: string; course_id?: string | null }> | null;
 };
 
 type ResultRow = {
@@ -54,7 +65,17 @@ type AnnouncementRow = {
   created_at: string;
 };
 
+type ActiveVideo = {
+  id: string;
+  title: string;
+  embedUrl: string;
+};
+
 type TimelineFilter = "all" | "upcoming" | "completed" | "missed";
+
+type BlockedEnrollmentRow = EnrollmentSelectRow & {
+  course: CourseRow;
+};
 
 const shellSurfaceClass =
   "student-surface min-w-0 overflow-hidden rounded-[32px] bg-white/94 p-5 shadow-[0_20px_52px_rgba(226,232,240,0.9)] sm:p-6";
@@ -171,16 +192,20 @@ export default function StudentPortal() {
   const [ready, setReady] = useState(false);
   const [lastLogin, setLastLogin] = useState<string | null>(null);
   const [courses, setCourses] = useState<CourseRow[]>([]);
+  const [blockedEnrollments, setBlockedEnrollments] = useState<BlockedEnrollmentRow[]>([]);
   const [tests, setTests] = useState<TestRow[]>([]);
   const [results, setResults] = useState<ResultRow[]>([]);
   const [notes, setNotes] = useState<ResourceRow[]>([]);
   const [materials, setMaterials] = useState<ResourceRow[]>([]);
+  const [videos, setVideos] = useState<ResourceRow[]>([]);
+  const [activeVideo, setActiveVideo] = useState<ActiveVideo | null>(null);
   const [announcements, setAnnouncements] = useState<AnnouncementRow[]>([]);
   const [timelineFilter, setTimelineFilter] = useState<TimelineFilter>("all");
   const [resourceQuery, setResourceQuery] = useState("");
   const [statusTime, setStatusTime] = useState(0);
   const [downloadingNoteId, setDownloadingNoteId] = useState<string | null>(null);
   const [downloadingMaterialId, setDownloadingMaterialId] = useState<string | null>(null);
+  const [loadingVideoId, setLoadingVideoId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const deferredResourceQuery = useDeferredValue(resourceQuery.trim().toLowerCase());
 
@@ -215,14 +240,17 @@ export default function StudentPortal() {
         return;
       }
 
-      setLastLogin(userLastSignInAt);
+        setLastLogin(userLastSignInAt);
 
       if (!instituteId) {
         setCourses([]);
+        setBlockedEnrollments([]);
         setTests([]);
         setResults([]);
         setNotes([]);
         setMaterials([]);
+        setVideos([]);
+        setActiveVideo(null);
         setAnnouncements([]);
         setError("Google login works. Ask admin to assign courses.");
         setReady(true);
@@ -237,7 +265,7 @@ export default function StudentPortal() {
         const { data: enrollmentRows, error: enrollmentError } = await withTimeout(
           supabase
             .from("enrollments")
-            .select("course:course_id (id, title, description)")
+            .select("*, course:course_id (id, title, description)")
             .eq("student_id", userId)
             .eq("institute_id", instituteId)
         );
@@ -246,16 +274,19 @@ export default function StudentPortal() {
           throw new Error(enrollmentError.message);
         }
 
-        const enrolledCourses = ((enrollmentRows ?? []) as EnrollmentSelectRow[]).flatMap((row) => {
-          if (!row.course) {
-            return [];
-          }
-          return Array.isArray(row.course) ? row.course : [row.course];
-        });
+        const normalizedEnrollments = ((enrollmentRows ?? []) as EnrollmentSelectRow[]).flatMap((row) => {
+          const course = singleRelation(row.course);
+          return course ? [{ ...row, course }] : [];
+        }) as BlockedEnrollmentRow[];
+        const activeEnrollments = normalizedEnrollments.filter((row) => isEnrollmentAccessActive(row));
+        const inactiveEnrollments = normalizedEnrollments.filter((row) => !isEnrollmentAccessActive(row));
+        const enrolledCourses = activeEnrollments.map((row) => row.course);
 
         setCourses(enrolledCourses);
+        setBlockedEnrollments(inactiveEnrollments);
 
         const courseIds = enrolledCourses.map((course) => course.id);
+        const activeCourseIdSet = new Set(courseIds);
 
         if (courseIds.length > 0) {
           const settledCourseQueries = await Promise.allSettled([
@@ -271,7 +302,7 @@ export default function StudentPortal() {
             withTimeout(
               supabase
                 .from("results")
-                .select("test_id, marks, recorded_at, test:tests(title, test_date)")
+                .select("test_id, marks, recorded_at, test:tests(title, test_date, course_id)")
                 .eq("student_id", userId)
                 .eq("institute_id", instituteId)
                 .order("recorded_at", { ascending: false })
@@ -295,11 +326,23 @@ export default function StudentPortal() {
                 .in("visibility", ["student", "public"])
                 .in("course_id", courseIds)
                 .order("created_at", { ascending: false })
+                .not("file_url", "like", "bunny-stream:%")
+                .limit(12)
+            ),
+            withTimeout(
+              supabase
+                .from("materials")
+                .select("id, title, file_url, course_id, visibility, created_at")
+                .eq("institute_id", instituteId)
+                .in("visibility", ["student", "public"])
+                .in("course_id", courseIds)
+                .like("file_url", "bunny-stream:%")
+                .order("created_at", { ascending: false })
                 .limit(12)
             ),
           ]);
 
-          const [testsResult, resultsResult, notesResult, materialsResult] = settledCourseQueries;
+          const [testsResult, resultsResult, notesResult, materialsResult, videosResult] = settledCourseQueries;
 
           if (testsResult.status === "fulfilled") {
             if (testsResult.value.error) {
@@ -315,16 +358,22 @@ export default function StudentPortal() {
               throw new Error(resultsResult.value.error.message);
             }
 
-            const normalizedResults = ((resultsResult.value.data ?? []) as ResultSelectRow[]).map((row) => {
-              const test = singleRelation(row.test);
-              return {
-                test_id: row.test_id,
-                marks: Number(row.marks ?? 0),
-                recorded_at: row.recorded_at,
-                test_title: test?.title ?? null,
-                test_date: test?.test_date ?? null,
-              };
-            });
+            const normalizedResults = ((resultsResult.value.data ?? []) as ResultSelectRow[])
+              .map((row) => {
+                const test = singleRelation(row.test);
+                return {
+                  test,
+                  result: {
+                    test_id: row.test_id,
+                    marks: Number(row.marks ?? 0),
+                    recorded_at: row.recorded_at,
+                    test_title: test?.title ?? null,
+                    test_date: test?.test_date ?? null,
+                  },
+                };
+              })
+              .filter((row) => !row.test?.course_id || activeCourseIdSet.has(row.test.course_id))
+              .map((row) => row.result);
             setResults(normalizedResults);
           } else {
             setResults([]);
@@ -343,15 +392,31 @@ export default function StudentPortal() {
             if (materialsResult.value.error) {
               throw new Error(materialsResult.value.error.message);
             }
-            setMaterials((materialsResult.value.data ?? []) as ResourceRow[]);
+            setMaterials(((materialsResult.value.data ?? []) as ResourceRow[]).filter((row) => !isBunnyStreamReference(row.file_url)));
           } else {
             setMaterials([]);
+          }
+
+          if (videosResult.status === "fulfilled") {
+            if (videosResult.value.error) {
+              throw new Error(videosResult.value.error.message);
+            }
+            const normalizedVideos = ((videosResult.value.data ?? []) as ResourceRow[]).filter((row) => isBunnyStreamReference(row.file_url));
+            setVideos(normalizedVideos);
+            setActiveVideo((currentVideo) =>
+              currentVideo && normalizedVideos.some((video) => video.id === currentVideo.id) ? currentVideo : null
+            );
+          } else {
+            setVideos([]);
+            setActiveVideo(null);
           }
         } else {
           setTests([]);
           setResults([]);
           setNotes([]);
           setMaterials([]);
+          setVideos([]);
+          setActiveVideo(null);
         }
 
         try {
@@ -390,7 +455,7 @@ export default function StudentPortal() {
   }, [user]);
 
   const firstName = displayName.split(" ")[0] || "Student";
-  const resourceCount = notes.length + materials.length;
+  const resourceCount = notes.length + materials.length + videos.length;
   const nextTest = tests.find((test) => new Date(test.test_date) >= new Date()) ?? null;
   const upcomingCount = tests.filter((test) => new Date(test.test_date) >= new Date()).length;
   const averageMarks = results.length > 0 ? Math.round(results.reduce((sum, item) => sum + Number(item.marks || 0), 0) / results.length) : 0;
@@ -435,6 +500,10 @@ export default function StudentPortal() {
   const chartPolyline = useMemo(() => chartPointItems.map((point) => `${point.x},${point.y}`).join(" "), [chartPointItems]);
   const chartFill = chartPolyline ? `8,92 ${chartPolyline} 92,92` : "";
   const latestAnnouncement = announcements[0] ?? null;
+  const primaryBlockedEnrollment = blockedEnrollments[0] ?? null;
+  const blockedCoursePaymentHref = primaryBlockedEnrollment
+    ? `/join?interest=${encodeURIComponent(primaryBlockedEnrollment.course.title)}#admission`
+    : "/join#admission";
 
   const courseTitleById = useMemo(() => new Map(courses.map((course) => [course.id, course.title])), [courses]);
   const filteredNotes = useMemo(
@@ -450,6 +519,13 @@ export default function StudentPortal() {
         ? materials.filter((material) => `${material.title} ${courseTitleById.get(material.course_id) ?? ""}`.toLowerCase().includes(deferredResourceQuery))
         : materials,
     [courseTitleById, deferredResourceQuery, materials]
+  );
+  const filteredVideos = useMemo(
+    () =>
+      deferredResourceQuery
+        ? videos.filter((video) => `${video.title} ${courseTitleById.get(video.course_id) ?? ""}`.toLowerCase().includes(deferredResourceQuery))
+        : videos,
+    [courseTitleById, deferredResourceQuery, videos]
   );
 
   const handleNoteDownload = async (noteId: string) => {
@@ -485,6 +561,29 @@ export default function StudentPortal() {
       setError(downloadError instanceof Error ? downloadError.message : "Unable to download material.");
     } finally {
       setDownloadingMaterialId(null);
+    }
+  };
+
+  const handleVideoOpen = async (video: ResourceRow) => {
+    try {
+      setLoadingVideoId(video.id);
+      const response = await fetch(`/api/videos/${encodeURIComponent(video.id)}/embed`);
+      const data = await response.json();
+
+      if (!response.ok || !data?.embedUrl) {
+        throw new Error(data?.error ?? "Unable to open video.");
+      }
+
+      setActiveVideo({
+        id: video.id,
+        title: data.title ?? video.title,
+        embedUrl: data.embedUrl,
+      });
+      setError(null);
+    } catch (videoError) {
+      setError(videoError instanceof Error ? videoError.message : "Unable to open video.");
+    } finally {
+      setLoadingVideoId(null);
     }
   };
 
@@ -532,6 +631,49 @@ export default function StudentPortal() {
     );
   }
 
+  if (courses.length === 0 && blockedEnrollments.length > 0) {
+    return (
+      <section className="student-portal-shell relative mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+        <div className="pointer-events-none absolute -top-10 left-0 h-48 w-48 rounded-full bg-stone-200/45 blur-3xl" />
+        <div className="student-surface rounded-[32px] bg-white/94 p-6 shadow-[0_24px_60px_rgba(226,232,240,0.88)] sm:p-8">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="rounded-full bg-amber-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700">Access paused</span>
+            <StatusBadge tone="danger">{blockedEnrollments.length} course{blockedEnrollments.length === 1 ? "" : "s"} locked</StatusBadge>
+          </div>
+          <h1 className="mt-5 max-w-3xl text-3xl font-semibold tracking-[-0.06em] text-slate-700 sm:text-4xl">
+            Complete payment or choose a course to reopen your portal.
+          </h1>
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">
+            Your private dashboard is hidden until course access becomes active again.
+          </p>
+
+          <div className="mt-6 grid gap-3">
+            {blockedEnrollments.slice(0, 4).map((enrollment) => (
+              <article key={`${enrollment.student_id ?? "student"}-${enrollment.course.id}`} className={softCardClass}>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900">{enrollment.course.title}</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">{getEnrollmentAccessMessage(enrollment)}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {enrollment.payment_due_at ? <StatusBadge tone="warning">Due {formatDate(enrollment.payment_due_at)}</StatusBadge> : null}
+                      {enrollment.access_ends_at ? <StatusBadge tone="neutral">Ended {formatDate(enrollment.access_ends_at)}</StatusBadge> : null}
+                    </div>
+                  </div>
+                  <StatusBadge tone={getEnrollmentAccessTone(enrollment)}>{getEnrollmentAccessLabel(enrollment)}</StatusBadge>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link href={blockedCoursePaymentHref} className={primaryButtonClass}>Pay Due</Link>
+            <Link href="/courses" className={secondaryButtonClass}>Choose Course</Link>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="student-portal-shell relative mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <div className="pointer-events-none absolute -top-10 left-0 h-48 w-48 rounded-full bg-stone-200/45 blur-3xl" />
@@ -561,7 +703,7 @@ export default function StudentPortal() {
               <div className="mt-5 flex flex-wrap gap-3">
                 <StatusBadge tone="success">{courses.length} assigned courses</StatusBadge>
                 <StatusBadge tone={upcomingCount > 0 ? "warning" : "neutral"}>{upcomingCount} upcoming tests</StatusBadge>
-                <StatusBadge tone="neutral">{resourceCount} resource files</StatusBadge>
+                <StatusBadge tone="neutral">{resourceCount} learning assets</StatusBadge>
               </div>
             </div>
 
@@ -597,7 +739,7 @@ export default function StudentPortal() {
             <MetricCard label="Courses" value={courses.length} helper="Assigned" />
             <MetricCard label="Tests" value={upcomingCount} helper={`${completedCount} done, ${missedCount} missed`} />
             <MetricCard label="Average" value={averageMarks} helper={results.length > 0 ? `Best ${bestMarks}` : "No marks yet"} />
-            <MetricCard label="Files" value={resourceCount} helper={`${announcements.length} updates`} />
+            <MetricCard label="Assets" value={resourceCount} helper={`${videos.length} videos, ${announcements.length} updates`} />
           </div>
         </div>
 
@@ -681,14 +823,64 @@ export default function StudentPortal() {
             >
               <div className="mb-5">
                 <label className="block">
-                  <span className="sr-only">Search notes and books</span>
+                  <span className="sr-only">Search notes, books, and videos</span>
                   <input
                     value={resourceQuery}
                     onChange={(event) => setResourceQuery(event.target.value)}
-                    placeholder="Search notes or books by name or course"
+                    placeholder="Search notes, books, or videos by name or course"
                     className="w-full rounded-[20px] bg-[#f8fafd] px-4 py-3 text-sm text-slate-700 outline-none shadow-[0_10px_24px_rgba(226,232,240,0.78)] transition duration-300 focus:bg-white focus:shadow-[0_0_0_4px_rgba(186,230,253,0.55),0_14px_28px_rgba(226,232,240,0.9)]"
                   />
                 </label>
+              </div>
+              <div className="mb-5">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-base font-semibold text-slate-950">Videos</h3>
+                  <StatusBadge tone="neutral">{filteredVideos.length}</StatusBadge>
+                </div>
+                {activeVideo ? (
+                  <div className="mb-4 overflow-hidden rounded-[24px] bg-slate-950 shadow-[0_18px_38px_rgba(15,23,42,0.18)]">
+                    <div className="aspect-video w-full">
+                      <iframe
+                        key={activeVideo.embedUrl}
+                        src={activeVideo.embedUrl}
+                        title={activeVideo.title}
+                        className="h-full w-full border-0"
+                        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+                        allowFullScreen
+                        loading="lazy"
+                      />
+                    </div>
+                  </div>
+                ) : null}
+                <div className="grid gap-3 md:grid-cols-2">
+                  {filteredVideos.length === 0 ? (
+                    <EmptyState title="No videos" description={videos.length === 0 ? "Course videos will appear here." : "Try another search."} />
+                  ) : (
+                    filteredVideos.slice(0, 6).map((video) => (
+                      <div key={video.id} className={softCardClass}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-semibold text-slate-900">{video.title}</p>
+                            <p className="mt-1 text-sm text-slate-600">{courseTitleById.get(video.course_id) ?? "Course"}</p>
+                          </div>
+                          <StatusBadge tone={activeVideo?.id === video.id ? "success" : "neutral"}>
+                            {activeVideo?.id === video.id ? "Playing" : "Video"}
+                          </StatusBadge>
+                        </div>
+                        <div className="mt-4">
+                          <button
+                            type="button"
+                            onClick={() => void handleVideoOpen(video)}
+                            className={primaryButtonClass}
+                            disabled={loadingVideoId === video.id}
+                          >
+                            {loadingVideoId === video.id ? "Opening..." : "Watch"}
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
               <div className="grid gap-5 lg:grid-cols-2">
                 <div>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseRouteClient } from "../../../../../../lib/supabase/route";
+import { checkRateLimit, getClientIp, rateLimitHeaders } from "../../../../../../lib/security/rateLimit";
 import {
   buildAdmissionToken,
   createAdmissionOrderReceipt,
@@ -20,10 +21,13 @@ async function resolveAuthenticatedStudentUserId() {
     throw new PublicAdmissionError("Please sign in as a student before starting payment.", 401);
   }
 
-  const metadataRole =
-    (user.app_metadata?.role as string | undefined) ??
-    (user.user_metadata?.role as string | undefined) ??
-    "student";
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const metadataRole = profile?.role ?? (user.app_metadata?.role as string | undefined) ?? "student";
 
   if (metadataRole === "admin") {
     throw new PublicAdmissionError("Sign in with a student account before paying for a course.", 403);
@@ -38,9 +42,17 @@ async function resolveAuthenticatedStudentUserId() {
 
 export async function POST(request: Request) {
   try {
+    const ipLimit = checkRateLimit(`razorpay:create:${getClientIp(request)}`, { limit: 12, windowMs: 15 * 60 * 1000 });
+    if (!ipLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many payment attempts. Please wait before trying again." },
+        { status: 429, headers: rateLimitHeaders(ipLimit) }
+      );
+    }
+
+    const studentUserId = await resolveAuthenticatedStudentUserId();
     const body = (await request.json()) as Record<string, unknown>;
     const draft = await resolveAdmissionDraft(body);
-    const studentUserId = await resolveAuthenticatedStudentUserId();
     const receipt = createAdmissionOrderReceipt();
     const razorpay = getRazorpayClient();
 

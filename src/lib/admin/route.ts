@@ -1,3 +1,4 @@
+import { randomInt } from "node:crypto";
 import { createSupabaseRouteClient } from "../supabase/route";
 import { createSupabaseServiceClient } from "../supabase/service";
 
@@ -64,7 +65,7 @@ export function sanitizeLoginId(value: string) {
 
 export function createTempPassword(length = 12) {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
-  return Array.from({ length }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
+  return Array.from({ length }, () => alphabet[randomInt(0, alphabet.length)]).join("");
 }
 
 export function createStudentEmail(loginId: string) {
