@@ -1,5 +1,6 @@
 import "./globals.css";
 import { execSync } from "node:child_process";
+import Link from "next/link";
 import Navbar from "./Navbar";
 import type { Metadata } from "next";
 import { Providers } from "./Providers";
@@ -207,6 +208,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   <span className="text-slate-900">{siteSettings.siteName}</span>
                 </div>
                 <p className="mt-3 text-sm leading-relaxed text-slate-600">{siteSettings.footerNotice}</p>
+                <nav className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs font-medium text-slate-500" aria-label="Legal links">
+                  <Link href="/terms-and-conditions" className="transition hover:text-slate-900">
+                    Terms &amp; Conditions
+                  </Link>
+                </nav>
                 <p className="mt-2 text-xs text-slate-500">&copy; {new Date().getFullYear()} {siteSettings.siteName}. All rights reserved.</p>
                 <p className="mt-1 text-xs text-slate-500">Powered by Dark Astra</p>
               </div>

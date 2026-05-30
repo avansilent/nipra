@@ -1137,6 +1137,51 @@ select {
   color: var(--ink-3);
 }
 
+.legal-page-shell {
+  isolation: isolate;
+}
+
+.legal-document {
+  color: #475569;
+  overflow-wrap: anywhere;
+}
+
+.legal-document [data-custom-class='body'] {
+  max-width: 100%;
+}
+
+.legal-document h1,
+.legal-document h2,
+.legal-document h3 {
+  margin: 0.8rem 0 0.5rem;
+  line-height: 1.25 !important;
+  letter-spacing: 0;
+}
+
+.legal-document a {
+  color: #0284c7 !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.legal-document p,
+.legal-document div,
+.legal-document span {
+  max-width: 100%;
+}
+
+.legal-document ul,
+.legal-document ol {
+  margin: 0.75rem 0 0.75rem 1.25rem;
+  padding-left: 1rem;
+}
+
+.legal-document table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 .hero-premium {
   background: linear-gradient(120deg, #0b1024 0%, #1e3a8a 55%, #0284c7 100%);
   position: relative;
