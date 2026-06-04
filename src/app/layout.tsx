@@ -7,6 +7,7 @@ import { Providers } from "./Providers";
 import { Inter } from "next/font/google";
 import { fetchSiteSettings } from "../lib/siteSettings";
 import { resolveLogoSrc } from "../lib/branding";
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -227,6 +228,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </div>
           </div>
         </Providers>
+        <Analytics />
       </body>
     </html>
   );
