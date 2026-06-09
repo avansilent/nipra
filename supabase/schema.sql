@@ -226,6 +226,22 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
+do $$
+declare
+  only_institute_id uuid;
+begin
+  if (select count(*) from public.institutes) = 1 then
+    select id into only_institute_id
+    from public.institutes
+    limit 1;
+
+    update public.profiles
+    set institute_id = only_institute_id
+    where role = 'admin'
+      and institute_id is null;
+  end if;
+end $$;
+
 create table if not exists public.site_content (
   id uuid primary key default gen_random_uuid(),
   key text unique not null,
@@ -901,3 +917,258 @@ create index if not exists idx_notes_course_id on public.notes(course_id);
 create index if not exists idx_materials_course_id on public.materials(course_id);
 create index if not exists idx_tests_course_id on public.tests(course_id);
 create index if not exists idx_results_test_id on public.results(test_id);
+
+-- Online/offline class system - Phase 1 append only.
+-- Live classes use Google Meet / Zoom links for now. Bunny Stream remains for
+-- recorded videos uploaded after class, not for the live meeting link.
+
+alter table public.courses add column if not exists mode text;
+
+update public.courses
+set mode = 'offline'
+where mode is null;
+
+alter table public.courses alter column mode set default 'offline';
+alter table public.courses alter column mode set not null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'courses_mode_check'
+      and conrelid = 'public.courses'::regclass
+  ) then
+    alter table public.courses
+      add constraint courses_mode_check
+      check (mode in ('online', 'offline', 'hybrid'));
+  end if;
+end $$;
+
+create table if not exists public.class_sessions (
+  id uuid primary key default gen_random_uuid(),
+  institute_id uuid not null references public.institutes(id) on delete cascade,
+  course_id uuid not null references public.courses(id) on delete cascade,
+  title text not null,
+  description text,
+  session_date date not null,
+  start_time time not null,
+  end_time time not null,
+  live_provider text not null default 'google_meet'
+    check (live_provider in ('google_meet', 'zoom', 'other')),
+  status text not null default 'scheduled'
+    check (status in ('scheduled', 'live', 'completed', 'cancelled')),
+  sort_order integer not null default 0,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  check (end_time > start_time)
+);
+
+create index if not exists idx_class_sessions_institute on public.class_sessions(institute_id);
+create index if not exists idx_class_sessions_course on public.class_sessions(course_id);
+create index if not exists idx_class_sessions_date on public.class_sessions(session_date);
+create index if not exists idx_class_sessions_status on public.class_sessions(status);
+
+create table if not exists public.class_session_meeting_links (
+  id uuid primary key default gen_random_uuid(),
+  institute_id uuid not null references public.institutes(id) on delete cascade,
+  session_id uuid not null references public.class_sessions(id) on delete cascade,
+  provider text not null default 'google_meet'
+    check (provider in ('google_meet', 'zoom', 'other')),
+  join_url text not null,
+  host_url text,
+  meeting_id text,
+  passcode text,
+  join_window_opens_at timestamptz,
+  join_window_closes_at timestamptz,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  unique (session_id),
+  check (join_window_closes_at is null or join_window_opens_at is null or join_window_closes_at > join_window_opens_at)
+);
+
+create index if not exists idx_meeting_links_institute on public.class_session_meeting_links(institute_id);
+create index if not exists idx_meeting_links_session on public.class_session_meeting_links(session_id);
+
+create table if not exists public.session_recordings (
+  id uuid primary key default gen_random_uuid(),
+  institute_id uuid not null references public.institutes(id) on delete cascade,
+  session_id uuid not null references public.class_sessions(id) on delete cascade,
+  recording_provider text not null default 'bunny_stream'
+    check (recording_provider in ('bunny_stream', 'external_link')),
+  title text,
+  bunny_video_id text,
+  bunny_library_id text,
+  external_url text,
+  available_from timestamptz,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  unique (session_id)
+);
+
+create index if not exists idx_session_recordings_institute on public.session_recordings(institute_id);
+create index if not exists idx_session_recordings_session on public.session_recordings(session_id);
+
+create table if not exists public.session_materials (
+  id uuid primary key default gen_random_uuid(),
+  institute_id uuid not null references public.institutes(id) on delete cascade,
+  session_id uuid not null references public.class_sessions(id) on delete cascade,
+  material_type text not null check (material_type in ('note', 'book', 'link', 'pdf')),
+  title text not null,
+  description text,
+  file_path text,
+  external_url text,
+  visible_from timestamptz,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+create index if not exists idx_session_materials_institute on public.session_materials(institute_id);
+create index if not exists idx_session_materials_session on public.session_materials(session_id);
+
+create table if not exists public.assignments (
+  id uuid primary key default gen_random_uuid(),
+  institute_id uuid not null references public.institutes(id) on delete cascade,
+  session_id uuid references public.class_sessions(id) on delete set null,
+  course_id uuid not null references public.courses(id) on delete cascade,
+  title text not null,
+  description text,
+  instructions text,
+  file_path text,
+  due_date timestamptz,
+  max_marks integer not null default 100 check (max_marks > 0),
+  is_published boolean not null default false,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+create index if not exists idx_assignments_institute on public.assignments(institute_id);
+create index if not exists idx_assignments_course on public.assignments(course_id);
+create index if not exists idx_assignments_session on public.assignments(session_id);
+
+create table if not exists public.assignment_submissions (
+  id uuid primary key default gen_random_uuid(),
+  institute_id uuid not null references public.institutes(id) on delete cascade,
+  assignment_id uuid not null references public.assignments(id) on delete cascade,
+  student_id uuid not null references public.users(id) on delete cascade,
+  text_response text,
+  file_path text,
+  submitted_at timestamptz not null default timezone('utc', now()),
+  marks_obtained numeric check (marks_obtained is null or marks_obtained >= 0),
+  feedback text,
+  graded_at timestamptz,
+  graded_by uuid references public.profiles(id) on delete set null,
+  unique (assignment_id, student_id)
+);
+
+create index if not exists idx_submissions_institute on public.assignment_submissions(institute_id);
+create index if not exists idx_submissions_assignment on public.assignment_submissions(assignment_id);
+create index if not exists idx_submissions_student on public.assignment_submissions(student_id);
+
+create table if not exists public.session_attendance (
+  id uuid primary key default gen_random_uuid(),
+  institute_id uuid not null references public.institutes(id) on delete cascade,
+  session_id uuid not null references public.class_sessions(id) on delete cascade,
+  student_id uuid not null references public.users(id) on delete cascade,
+  joined_at timestamptz not null default timezone('utc', now()),
+  unique (session_id, student_id)
+);
+
+create index if not exists idx_attendance_institute on public.session_attendance(institute_id);
+create index if not exists idx_attendance_session on public.session_attendance(session_id);
+create index if not exists idx_attendance_student on public.session_attendance(student_id);
+
+create or replace function public.set_online_class_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = timezone('utc', now());
+  return new;
+end;
+$$ language plpgsql
+set search_path = public, pg_temp;
+
+drop trigger if exists set_class_sessions_updated_at on public.class_sessions;
+create trigger set_class_sessions_updated_at
+  before update on public.class_sessions
+  for each row execute procedure public.set_online_class_updated_at();
+
+drop trigger if exists set_meeting_links_updated_at on public.class_session_meeting_links;
+create trigger set_meeting_links_updated_at
+  before update on public.class_session_meeting_links
+  for each row execute procedure public.set_online_class_updated_at();
+
+drop trigger if exists set_session_recordings_updated_at on public.session_recordings;
+create trigger set_session_recordings_updated_at
+  before update on public.session_recordings
+  for each row execute procedure public.set_online_class_updated_at();
+
+drop trigger if exists set_assignments_updated_at on public.assignments;
+create trigger set_assignments_updated_at
+  before update on public.assignments
+  for each row execute procedure public.set_online_class_updated_at();
+
+alter table public.class_sessions enable row level security;
+alter table public.class_session_meeting_links enable row level security;
+alter table public.session_recordings enable row level security;
+alter table public.session_materials enable row level security;
+alter table public.assignments enable row level security;
+alter table public.assignment_submissions enable row level security;
+alter table public.session_attendance enable row level security;
+
+drop policy if exists "admin_class_sessions_all" on public.class_sessions;
+create policy "admin_class_sessions_all" on public.class_sessions
+  for all
+  using (public.is_admin() and institute_id = public.get_my_institute_id())
+  with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+drop policy if exists "student_class_sessions_read" on public.class_sessions;
+create policy "student_class_sessions_read" on public.class_sessions
+  for select
+  using (
+    public.enrollment_has_active_access(
+      (select auth.uid()),
+      course_id,
+      institute_id
+    )
+  );
+
+drop policy if exists "admin_meeting_links_all" on public.class_session_meeting_links;
+create policy "admin_meeting_links_all" on public.class_session_meeting_links
+  for all
+  using (public.is_admin() and institute_id = public.get_my_institute_id())
+  with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+drop policy if exists "admin_session_recordings_all" on public.session_recordings;
+create policy "admin_session_recordings_all" on public.session_recordings
+  for all
+  using (public.is_admin() and institute_id = public.get_my_institute_id())
+  with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+drop policy if exists "admin_session_materials_all" on public.session_materials;
+create policy "admin_session_materials_all" on public.session_materials
+  for all
+  using (public.is_admin() and institute_id = public.get_my_institute_id())
+  with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+drop policy if exists "admin_assignments_all" on public.assignments;
+create policy "admin_assignments_all" on public.assignments
+  for all
+  using (public.is_admin() and institute_id = public.get_my_institute_id())
+  with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+drop policy if exists "admin_submissions_all" on public.assignment_submissions;
+create policy "admin_submissions_all" on public.assignment_submissions
+  for all
+  using (public.is_admin() and institute_id = public.get_my_institute_id())
+  with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+drop policy if exists "admin_attendance_all" on public.session_attendance;
+create policy "admin_attendance_all" on public.session_attendance
+  for all
+  using (public.is_admin() and institute_id = public.get_my_institute_id())
+  with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+drop policy if exists "student_attendance_read_own" on public.session_attendance;
+create policy "student_attendance_read_own" on public.session_attendance
+  for select
+  using (student_id = (select auth.uid()));

@@ -28,12 +28,15 @@ import type { SiteSettings } from "../../types/site";
 import AdminMetricCard from "./AdminMetricCard";
 import AdminPanelCard from "./AdminPanelCard";
 import AdminSidebar from "./AdminSidebar";
+import CourseModeSelector, { normalizeCourseMode, type CourseMode } from "./CourseModeSelector";
+import SessionManager from "./SessionManager";
 import type { AdminTab } from "./adminTabs";
 
 type StudentRow = {
   id: string;
   name: string;
   email: string | null;
+  phone: string | null;
   login_id: string | null;
   role: string;
   created_at?: string;
@@ -46,6 +49,7 @@ type CourseRow = {
   price_text: string | null;
   status: "draft" | "published" | "archived";
   cta_label: string;
+  mode: CourseMode;
   created_at?: string;
 };
 
@@ -372,6 +376,7 @@ export default function AdminWorkspace() {
     price_text: "",
     status: "draft" as CourseRow["status"],
     cta_label: "View Course",
+    mode: "offline" as CourseMode,
   });
   const [assignmentForm, setAssignmentForm] = useState<AssignmentFormState>(emptyAssignmentForm);
   const [noteForm, setNoteForm] = useState<ResourceUploadFormState>(emptyResourceForm);
@@ -407,7 +412,7 @@ export default function AdminWorkspace() {
       withTimeout(
         supabase
           .from("courses")
-          .select("id, title, description, price_text, status, cta_label, created_at")
+          .select("id, title, description, price_text, status, cta_label, mode, created_at")
           .eq("institute_id", tenantId)
           .order("created_at", { ascending: false })
       ),
@@ -433,6 +438,7 @@ export default function AdminWorkspace() {
       status: (course.status ?? "draft") as CourseRow["status"],
       cta_label: course.cta_label ?? "View Course",
       price_text: course.price_text ?? "",
+      mode: normalizeCourseMode(course.mode),
     })));
     setEnrollments((enrollmentRows ?? []) as EnrollmentRow[]);
   }, [supabase]);
@@ -621,7 +627,7 @@ export default function AdminWorkspace() {
         return true;
       }
 
-      return [student.name, student.email ?? "", student.login_id ?? ""]
+      return [student.name, student.email ?? "", student.phone ?? "", student.login_id ?? ""]
         .join(" ")
         .toLowerCase()
         .includes(search);
@@ -921,13 +927,14 @@ export default function AdminWorkspace() {
         price_text: courseForm.price_text.trim() || null,
         status: courseForm.status,
         cta_label: courseForm.cta_label.trim() || "View Course",
+        mode: courseForm.mode,
       });
 
       if (insertError) {
         throw new Error(insertError.message);
       }
 
-      setCourseForm({ title: "", description: "", price_text: "", status: "draft", cta_label: "View Course" });
+      setCourseForm({ title: "", description: "", price_text: "", status: "draft", cta_label: "View Course", mode: "offline" });
       setMessage("Course created.");
       await loadCourses(instituteId);
     } catch (courseError) {
@@ -957,6 +964,7 @@ export default function AdminWorkspace() {
           price_text: course.price_text?.trim() || null,
           status: course.status,
           cta_label: course.cta_label.trim() || "View Course",
+          mode: course.mode,
         })
         .eq("id", course.id)
         .eq("institute_id", instituteId);
@@ -1901,7 +1909,7 @@ export default function AdminWorkspace() {
                 >
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex flex-1 flex-col gap-3 lg:flex-row lg:items-center">
-                      <input className={`${inputClass} lg:max-w-md`} value={studentSearch} onChange={(event) => setStudentSearch(event.target.value)} placeholder="Search by name, email, or login ID" />
+                      <input className={`${inputClass} lg:max-w-md`} value={studentSearch} onChange={(event) => setStudentSearch(event.target.value)} placeholder="Search by name, email, mobile, or login ID" />
                       <select className={inputClass} value={studentFilter} onChange={(event) => setStudentFilter(event.target.value as "all" | "recent") }>
                         <option value="all">All students</option>
                         <option value="recent">Added in last 30 days</option>
@@ -1917,6 +1925,7 @@ export default function AdminWorkspace() {
                           <tr>
                             <th className={tableHeaderCellClass}>Student</th>
                             <th className={tableHeaderCellClass}>Email</th>
+                            <th className={tableHeaderCellClass}>Mobile</th>
                             <th className={tableHeaderCellClass}>Login ID</th>
                             <th className={tableHeaderCellClass}>Created</th>
                             <th className={`${tableHeaderCellClass} text-right`}>Actions</th>
@@ -1930,6 +1939,7 @@ export default function AdminWorkspace() {
                                 <p className="mt-1 text-xs text-slate-500">Student account</p>
                               </td>
                               <td className={tableCellClass}>{student.email ?? "-"}</td>
+                              <td className={tableCellClass}>{student.phone ?? "-"}</td>
                               <td className={tableCellClass}>{student.login_id ?? "-"}</td>
                               <td className={tableCellClass}>{formatDate(student.created_at)}</td>
                               <td className={`${tableCellClass} min-w-[260px]`}>
@@ -1964,6 +1974,7 @@ export default function AdminWorkspace() {
                       <Field label="Course title"><input className={inputClass} value={courseForm.title} onChange={(event) => setCourseForm((prev) => ({ ...prev, title: event.target.value }))} placeholder="Board Foundation Batch" /></Field>
                       <Field label="Pricing text"><input className={inputClass} value={courseForm.price_text} onChange={(event) => setCourseForm((prev) => ({ ...prev, price_text: event.target.value }))} placeholder="₹1,500 / month" /></Field>
                       <Field label="Status"><select className={inputClass} value={courseForm.status} onChange={(event) => setCourseForm((prev) => ({ ...prev, status: event.target.value as CourseRow["status"] }))}><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></Field>
+                      <Field label="Mode"><CourseModeSelector className={inputClass} value={courseForm.mode} onChange={(mode) => setCourseForm((prev) => ({ ...prev, mode }))} /></Field>
                       <Field label="CTA label"><input className={inputClass} value={courseForm.cta_label} onChange={(event) => setCourseForm((prev) => ({ ...prev, cta_label: event.target.value }))} placeholder="View Course" /></Field>
                       <div className="md:col-span-2">
                         <Field label="Description"><textarea className={textareaClass} value={courseForm.description} onChange={(event) => setCourseForm((prev) => ({ ...prev, description: event.target.value }))} placeholder="Short description for admins and catalog editors" /></Field>
@@ -1971,7 +1982,7 @@ export default function AdminWorkspace() {
                     </div>
                     <div className="mt-5 flex flex-wrap gap-3">
                       <button type="button" disabled={busy} onClick={() => void handleCourseCreate()} className={primaryButtonClass}>Create Course</button>
-                      <button type="button" onClick={() => setCourseForm({ title: "", description: "", price_text: "", status: "draft", cta_label: "View Course" })} className={subtleButtonClass}>Clear Builder</button>
+                      <button type="button" onClick={() => setCourseForm({ title: "", description: "", price_text: "", status: "draft", cta_label: "View Course", mode: "offline" })} className={subtleButtonClass}>Clear Builder</button>
                     </div>
                   </AdminPanelCard>
 
@@ -2044,7 +2055,7 @@ export default function AdminWorkspace() {
                     <div className="space-y-4">
                       {courses.map((course) => (
                         <div key={course.id} className={nestedCardClass}>
-                          <div className="grid gap-4 xl:grid-cols-[1.1fr_1.5fr_0.8fr_0.8fr_0.8fr_auto]">
+                          <div className="grid gap-4 xl:grid-cols-[1.05fr_1.35fr_0.75fr_0.75fr_0.75fr_0.75fr_auto]">
                             <input className={inputClass} value={course.title} onChange={(event) => updateCourseField(course.id, "title", event.target.value)} />
                             <input className={inputClass} value={course.description ?? ""} onChange={(event) => updateCourseField(course.id, "description", event.target.value)} />
                             <input className={inputClass} value={course.price_text ?? ""} onChange={(event) => updateCourseField(course.id, "price_text", event.target.value)} />
@@ -2053,6 +2064,7 @@ export default function AdminWorkspace() {
                               <option value="published">Published</option>
                               <option value="archived">Archived</option>
                             </select>
+                            <CourseModeSelector className={inputClass} value={course.mode} onChange={(mode) => updateCourseField(course.id, "mode", mode)} />
                             <input className={inputClass} value={course.cta_label} onChange={(event) => updateCourseField(course.id, "cta_label", event.target.value)} />
                             <div className="flex flex-wrap gap-2 xl:justify-end">
                               <button type="button" onClick={() => void handleCourseSave(course)} className={secondaryButtonClass}>Save</button>
@@ -2061,12 +2073,26 @@ export default function AdminWorkspace() {
                           </div>
                           <div className="mt-3 flex flex-wrap gap-2">
                             <StatusBadge tone={course.status === "published" ? "success" : course.status === "draft" ? "warning" : "neutral"}>{course.status}</StatusBadge>
+                            <StatusBadge tone={course.mode === "online" ? "success" : course.mode === "hybrid" ? "warning" : "neutral"}>{course.mode}</StatusBadge>
                             <StatusBadge tone="neutral">{courseTitleById.get(course.id) ? "Tracked" : "Pending"}</StatusBadge>
                           </div>
                         </div>
                       ))}
                     </div>
                   )}
+                </AdminPanelCard>
+
+                <AdminPanelCard
+                  eyebrow="Class Sessions"
+                  title="Live class, material, and assignment control"
+                  description="Create Google Meet or Zoom sessions, manage session materials, and grade assignment submissions from the protected online class system."
+                >
+                  <SessionManager
+                    courses={courses}
+                    disabled={busy}
+                    onNotice={setMessage}
+                    onError={setError}
+                  />
                 </AdminPanelCard>
 
                 <div className="grid gap-5 xl:grid-cols-2">

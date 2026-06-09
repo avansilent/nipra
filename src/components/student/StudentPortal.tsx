@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useDeferredValue, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "../../app/AuthProvider";
 import { isBunnyStreamReference } from "../../lib/bunnyStreamReference";
 import {
@@ -13,6 +13,11 @@ import {
 } from "../../lib/enrollmentAccess";
 import { formatResourceVisibility, type ResourceVisibility } from "../../lib/resourceVisibility";
 import { createSupabaseBrowserClient } from "../../lib/supabase/browser";
+import AssignmentCard, { type StudentAssignment } from "./AssignmentCard";
+import AssignmentSubmitModal from "./AssignmentSubmitModal";
+import LiveClassCard, { type StudentLiveSession } from "./LiveClassCard";
+import LiveClassViewer from "./LiveClassViewer";
+import SessionMaterialsList from "./SessionMaterialsList";
 
 type CourseRow = {
   id: string;
@@ -122,6 +127,29 @@ function singleRelation<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value;
 }
 
+async function readApiResponse<T>(response: Response, fallback: string): Promise<T> {
+  const payload = (await response.json().catch(() => ({}))) as { error?: string };
+  if (!response.ok) {
+    throw new Error(payload.error ?? fallback);
+  }
+
+  return payload as T;
+}
+
+function getIstDateKey(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value ?? "0000";
+  const month = parts.find((part) => part.type === "month")?.value ?? "00";
+  const day = parts.find((part) => part.type === "day")?.value ?? "00";
+
+  return `${year}-${month}-${day}`;
+}
+
 function StatusBadge({
   children,
   tone = "neutral",
@@ -200,6 +228,13 @@ export default function StudentPortal() {
   const [videos, setVideos] = useState<ResourceRow[]>([]);
   const [activeVideo, setActiveVideo] = useState<ActiveVideo | null>(null);
   const [announcements, setAnnouncements] = useState<AnnouncementRow[]>([]);
+  const [liveUpcomingSessions, setLiveUpcomingSessions] = useState<StudentLiveSession[]>([]);
+  const [livePastSessions, setLivePastSessions] = useState<StudentLiveSession[]>([]);
+  const [studentAssignments, setStudentAssignments] = useState<StudentAssignment[]>([]);
+  const [onlineClassLoading, setOnlineClassLoading] = useState(false);
+  const [onlineClassError, setOnlineClassError] = useState<string | null>(null);
+  const [liveViewerSession, setLiveViewerSession] = useState<StudentLiveSession | null>(null);
+  const [activeAssignmentId, setActiveAssignmentId] = useState<string | null>(null);
   const [timelineFilter, setTimelineFilter] = useState<TimelineFilter>("all");
   const [resourceQuery, setResourceQuery] = useState("");
   const [statusTime, setStatusTime] = useState(0);
@@ -504,6 +539,15 @@ export default function StudentPortal() {
   const blockedCoursePaymentHref = primaryBlockedEnrollment
     ? `/join?interest=${encodeURIComponent(primaryBlockedEnrollment.course.title)}#admission`
     : "/join#admission";
+  const todayIstDateKey = getIstDateKey();
+  const todayMaterialSessions = useMemo(
+    () =>
+      livePastSessions
+        .filter((session) => session.status === "completed" && session.session_date === todayIstDateKey)
+        .slice(0, 4),
+    [livePastSessions, todayIstDateKey]
+  );
+  const visibleAssignments = useMemo(() => studentAssignments.slice(0, 8), [studentAssignments]);
 
   const courseTitleById = useMemo(() => new Map(courses.map((course) => [course.id, course.title])), [courses]);
   const filteredNotes = useMemo(
@@ -563,6 +607,61 @@ export default function StudentPortal() {
       setDownloadingMaterialId(null);
     }
   };
+
+  const loadOnlineClassData = useCallback(async () => {
+    if (!userId || role !== "student" || !instituteId) {
+      setLiveUpcomingSessions([]);
+      setLivePastSessions([]);
+      setStudentAssignments([]);
+      setOnlineClassLoading(false);
+      setOnlineClassError(null);
+      return;
+    }
+
+    setOnlineClassLoading(true);
+    setOnlineClassError(null);
+
+    try {
+      const [sessionsResponse, assignmentsResponse] = await Promise.all([
+        fetch("/api/student/sessions", { cache: "no-store" }),
+        fetch("/api/student/assignments", { cache: "no-store" }),
+      ]);
+      const sessionsPayload = await readApiResponse<{
+        upcoming?: StudentLiveSession[];
+        past?: StudentLiveSession[];
+        sessions?: StudentLiveSession[];
+      }>(sessionsResponse, "Unable to load live classes");
+      const assignmentsPayload = await readApiResponse<{ assignments?: StudentAssignment[] }>(
+        assignmentsResponse,
+        "Unable to load assignments"
+      );
+
+      setLiveUpcomingSessions(sessionsPayload.upcoming ?? []);
+      setLivePastSessions(sessionsPayload.past ?? []);
+      setStudentAssignments(assignmentsPayload.assignments ?? []);
+    } catch (loadError) {
+      setOnlineClassError(loadError instanceof Error ? loadError.message : "Unable to load live classes");
+      setLiveUpcomingSessions([]);
+      setLivePastSessions([]);
+      setStudentAssignments([]);
+    } finally {
+      setOnlineClassLoading(false);
+    }
+  }, [instituteId, role, userId]);
+
+  useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+
+    const loadTimer = window.setTimeout(() => {
+      void loadOnlineClassData();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(loadTimer);
+    };
+  }, [authLoading, loadOnlineClassData]);
 
   const handleVideoOpen = async (video: ResourceRow) => {
     try {
@@ -764,6 +863,67 @@ export default function StudentPortal() {
                         <StatusBadge tone="neutral">Portal ready</StatusBadge>
                       </div>
                     </article>
+                  ))}
+                </div>
+              )}
+            </PortalSection>
+
+            <PortalSection
+              title="Live Classes"
+              description="Join active classes and track the next scheduled sessions."
+              action={
+                <button type="button" className={secondaryButtonClass} onClick={() => void loadOnlineClassData()} disabled={onlineClassLoading}>
+                  Refresh
+                </button>
+              }
+            >
+              {onlineClassError ? (
+                <div className="mb-4 rounded-[22px] bg-amber-50/90 px-4 py-3 text-sm font-semibold text-amber-700">
+                  {onlineClassError}
+                </div>
+              ) : null}
+              {onlineClassLoading ? (
+                <div className={softCardClass}>
+                  <p className="text-sm text-slate-600">Loading live classes...</p>
+                </div>
+              ) : liveUpcomingSessions.length === 0 ? (
+                <EmptyState title="No live classes scheduled" description="Upcoming online or hybrid sessions will appear here." />
+              ) : (
+                <div className="space-y-3">
+                  {liveUpcomingSessions.slice(0, 6).map((session) => (
+                    <LiveClassCard key={session.id} session={session} onJoin={setLiveViewerSession} />
+                  ))}
+                </div>
+              )}
+            </PortalSection>
+
+            <PortalSection title="Today's Materials" description="Released notes and files from completed classes today.">
+              <SessionMaterialsList
+                sessions={todayMaterialSessions}
+                emptyTitle="No materials unlocked today"
+                emptyDescription="When a class ends today, its released materials will appear here."
+              />
+            </PortalSection>
+
+            <PortalSection
+              title="Assignments"
+              description="Submit work, update ungraded answers, and review graded feedback."
+              action={
+                <button type="button" className={secondaryButtonClass} onClick={() => void loadOnlineClassData()} disabled={onlineClassLoading}>
+                  Refresh
+                </button>
+              }
+            >
+              {onlineClassLoading ? (
+                <div className={softCardClass}>
+                  <p className="text-sm text-slate-600">Loading assignments...</p>
+                </div>
+              ) : visibleAssignments.length === 0 ? (
+                <EmptyState title="No assignments yet" description="Published assignments for your active courses will appear here." />
+              ) : (
+                <div className="space-y-3">
+                  {visibleAssignments.map((assignment) => (
+                    <AssignmentCard key={assignment.id} assignment={assignment} onOpen={(item) => setActiveAssignmentId(item.id)} />
                   ))}
                 </div>
               )}
@@ -1050,6 +1210,12 @@ export default function StudentPortal() {
           </div>
         </div>
       </div>
+      <LiveClassViewer session={liveViewerSession} onClose={() => setLiveViewerSession(null)} />
+      <AssignmentSubmitModal
+        assignmentId={activeAssignmentId}
+        onClose={() => setActiveAssignmentId(null)}
+        onSubmitted={() => void loadOnlineClassData()}
+      />
     </section>
   );
 }

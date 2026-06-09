@@ -10,7 +10,7 @@ type StudentInsertPayload = {
 
 export async function GET() {
   try {
-    const { routeClient, instituteId } = await getAdminRouteContext();
+    const { routeClient, serviceClient, instituteId } = await getAdminRouteContext();
 
     const { data: profileRows, error: profileError } = await routeClient
       .from("profiles")
@@ -38,7 +38,35 @@ export async function GET() {
       return NextResponse.json({ error: usersError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ students: students ?? [] });
+    const studentIdSet = new Set(studentIds);
+    const phoneByStudentId = new Map<string, string | null>();
+    const perPage = 1000;
+
+    for (let page = 1; page <= 20 && phoneByStudentId.size < studentIds.length; page += 1) {
+      const { data: authPage, error: authError } = await serviceClient.auth.admin.listUsers({ page, perPage });
+
+      if (authError) {
+        return NextResponse.json({ error: authError.message }, { status: 500 });
+      }
+
+      const authUsers = authPage.users ?? [];
+      for (const authUser of authUsers) {
+        if (studentIdSet.has(authUser.id)) {
+          phoneByStudentId.set(authUser.id, authUser.phone ?? null);
+        }
+      }
+
+      if (authUsers.length < perPage) {
+        break;
+      }
+    }
+
+    const studentsWithPhone = (students ?? []).map((student) => ({
+      ...student,
+      phone: phoneByStudentId.get(student.id) ?? null,
+    }));
+
+    return NextResponse.json({ students: studentsWithPhone });
   } catch (error) {
     const typedError = error as AdminRouteError;
     return NextResponse.json({ error: typedError.message ?? "Unable to fetch students" }, { status: typedError.status ?? 500 });
