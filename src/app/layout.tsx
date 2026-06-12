@@ -1,5 +1,4 @@
 import "./globals.css";
-import { execSync } from "node:child_process";
 import Link from "next/link";
 import Navbar from "./Navbar";
 import type { Metadata } from "next";
@@ -15,30 +14,6 @@ const inter = Inter({
   display: "swap",
   preload: true,
 });
-
-const siteVersion = "v12";
-
-function resolveBuildRef() {
-  const envSha =
-    process.env.NEXT_PUBLIC_COMMIT_SHA ||
-    process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ||
-    process.env.VERCEL_GIT_COMMIT_SHA ||
-    process.env.GITHUB_SHA;
-
-  if (envSha) {
-    return envSha.slice(0, 7);
-  }
-
-  try {
-    return execSync("git rev-parse --short=7 HEAD", {
-      stdio: ["ignore", "pipe", "ignore"],
-    })
-      .toString()
-      .trim();
-  } catch {
-    return "local";
-  }
-}
 
 export async function generateMetadata(): Promise<Metadata> {
   const siteSettings = await fetchSiteSettings();
@@ -73,7 +48,6 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const siteSettings = await fetchSiteSettings();
-  const buildRef = resolveBuildRef();
   const performanceCompatScript = `
     (function () {
       var perf = window.performance || {};
@@ -217,14 +191,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <p className="mt-1 text-xs text-slate-500">Powered by Dark Astra</p>
               </div>
             </footer>
-            <div
-              className="site-version-badge mb-2 mr-2 self-end rounded-full border border-slate-200/80 bg-white/95 px-2.5 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-slate-500 shadow-[0_8px_20px_rgba(15,23,42,0.08)]"
-              title={`Release ${siteVersion}, commit ${buildRef}`}
-            >
-              <span>{siteVersion}</span>
-              <span className="mx-1 text-slate-300">|</span>
-              <span>{buildRef}</span>
-            </div>
           </div>
         </Providers>
       </body>

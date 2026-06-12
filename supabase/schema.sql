@@ -1172,3 +1172,88 @@ drop policy if exists "student_attendance_read_own" on public.session_attendance
 create policy "student_attendance_read_own" on public.session_attendance
   for select
   using (student_id = (select auth.uid()));
+
+-- Admission learning mode and fee plan tracking - append only.
+alter table public.admission_payments add column if not exists learning_mode text;
+alter table public.admission_payments add column if not exists fee_plan text;
+alter table public.admission_payments add column if not exists monthly_fee_label text;
+
+update public.admission_payments
+set learning_mode = 'offline'
+where learning_mode is null;
+
+update public.admission_payments
+set fee_plan = 'admission'
+where fee_plan is null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'admission_payments_learning_mode_check'
+      and conrelid = 'public.admission_payments'::regclass
+  ) then
+    alter table public.admission_payments
+      add constraint admission_payments_learning_mode_check
+      check (learning_mode in ('offline', 'online'));
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'admission_payments_fee_plan_check'
+      and conrelid = 'public.admission_payments'::regclass
+  ) then
+    alter table public.admission_payments
+      add constraint admission_payments_fee_plan_check
+      check (fee_plan in ('admission', 'monthly', 'yearly'));
+  end if;
+end $$;
+
+alter table public.enrollments add column if not exists learning_mode text;
+alter table public.enrollments add column if not exists fee_plan text;
+alter table public.enrollments add column if not exists fee_amount_label text;
+alter table public.enrollments add column if not exists fee_amount_paise integer;
+
+update public.enrollments
+set learning_mode = 'offline'
+where learning_mode is null;
+
+update public.enrollments
+set fee_plan = 'admission'
+where fee_plan is null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'enrollments_learning_mode_check'
+      and conrelid = 'public.enrollments'::regclass
+  ) then
+    alter table public.enrollments
+      add constraint enrollments_learning_mode_check
+      check (learning_mode in ('offline', 'online'));
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'enrollments_fee_plan_check'
+      and conrelid = 'public.enrollments'::regclass
+  ) then
+    alter table public.enrollments
+      add constraint enrollments_fee_plan_check
+      check (fee_plan in ('admission', 'monthly', 'yearly'));
+  end if;
+end $$;
+
+create index if not exists idx_admission_payments_learning_mode on public.admission_payments(learning_mode, fee_plan);
+create index if not exists idx_enrollments_learning_mode on public.enrollments(learning_mode, fee_plan);

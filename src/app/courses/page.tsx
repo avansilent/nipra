@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import CoursesExperience from "../../components/CoursesExperience";
 import { getAdmissionOpenCatalogIds } from "../../lib/courseCatalog";
 import { fetchPublishedCourses } from "../../lib/publicCourses";
 import { fetchSiteSettings } from "../../lib/siteSettings";
+
+export const metadata: Metadata = {
+  title: "Courses | Nipracademy",
+  description: "Explore Nipracademy courses, online and offline fee options, admission details, and secure enrollment paths.",
+};
 
 type CoursesPageProps = {
   searchParams?: Promise<{

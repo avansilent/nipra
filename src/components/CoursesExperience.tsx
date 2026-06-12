@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import AssignedCoursesSection from "./AssignedCoursesSection";
-import { academyCatalog, academyLocation, academySession } from "../data/academyCatalog";
+import { academyCatalog, academyLocation, academySession, getOnlineFeeSummary } from "../data/academyCatalog";
 import { useAdaptiveMotion } from "../hooks/useAdaptiveMotion";
 import { getProgramCourseIds } from "../lib/programNavigation";
 import {
@@ -75,7 +75,7 @@ export default function CoursesExperience({
         >
           <motion.div variants={itemVariants} className="max-w-5xl min-w-0 space-y-6">
             <p className="courses-context-pill inline-flex items-center rounded-full border border-slate-200/70 bg-white px-4 py-2 text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-slate-600">
-              {academySession} • {academyLocation}
+              {academySession} - {academyLocation}
             </p>
 
             <h1 className="course-hero-title max-w-[11ch] text-[clamp(2.35rem,5vw,3.85rem)] font-semibold leading-[0.95] tracking-[-0.075em] text-slate-950">
@@ -160,8 +160,12 @@ export default function CoursesExperience({
                       <strong>{course.admissionFee}</strong>
                     </div>
                     <div className="course-card-stat">
-                      <span>Monthly</span>
+                      <span>Offline</span>
                       <strong>{course.monthlyFee}</strong>
+                    </div>
+                    <div className="course-card-stat course-card-stat-wide">
+                      <span>Online</span>
+                      <strong>{getOnlineFeeSummary(course.id)}</strong>
                     </div>
                   </div>
 

@@ -13,6 +13,23 @@ export type AcademyCatalogCourse = {
   keywords: string[];
 };
 
+export type AdmissionLearningMode = "offline" | "online";
+export type AdmissionFeePlan = "admission" | "monthly" | "yearly";
+
+export type OnlineFeeTier = {
+  monthlyAmount: number;
+  yearlyAmount: number;
+};
+
+export type CourseFeeQuote = {
+  learningMode: AdmissionLearningMode;
+  feePlan: AdmissionFeePlan;
+  amountPaise: number;
+  amountLabel: string;
+  monthlyFeeLabel: string;
+  summaryLabel: string;
+};
+
 export type AcademyOffer = {
   id: string;
   title: string;
@@ -25,14 +42,93 @@ export const academyMission = "Village students deserve city-level education wit
 export const academyAdmissionNote =
   "To begin admission, families pay only the admission fee first. After that, the Nipracademy team confirms the batch, monthly fee plan, and final admission details for online or offline classes.";
 
+const standardOnlineFeeTier: OnlineFeeTier = {
+  monthlyAmount: 400,
+  yearlyAmount: 2000,
+};
+
+const boardAndSeniorOnlineFeeTier: OnlineFeeTier = {
+  monthlyAmount: 500,
+  yearlyAmount: 3000,
+};
+
+const boardAndSeniorCourseIds = new Set(["secondary-board", "senior-science", "senior-commerce", "senior-arts"]);
+
+function formatRupee(amount: number) {
+  return `Rs. ${amount.toLocaleString("en-IN")}`;
+}
+
+function parseFeeLabelToPaise(label: string) {
+  const match = label.replace(/,/g, "").match(/(\d+(?:\.\d{1,2})?)/);
+  if (!match) {
+    return 0;
+  }
+
+  const amount = Number(match[1]);
+  return Number.isFinite(amount) && amount > 0 ? Math.round(amount * 100) : 0;
+}
+
+export function getOnlineFeeTierForCourse(courseId?: string | null): OnlineFeeTier {
+  return courseId && boardAndSeniorCourseIds.has(courseId) ? boardAndSeniorOnlineFeeTier : standardOnlineFeeTier;
+}
+
+export function getOnlineFeeSummary(courseId?: string | null) {
+  const tier = getOnlineFeeTierForCourse(courseId);
+  return `${formatRupee(tier.monthlyAmount)}/month or ${formatRupee(tier.yearlyAmount)}/year`;
+}
+
+export function getOnlinePlanLabel(courseId: string | null | undefined, plan: "monthly" | "yearly") {
+  const tier = getOnlineFeeTierForCourse(courseId);
+  return plan === "yearly"
+    ? `${formatRupee(tier.yearlyAmount)}/year`
+    : `${formatRupee(tier.monthlyAmount)}/month`;
+}
+
+export function resolveCourseFeeQuote(args: {
+  catalogCourse?: AcademyCatalogCourse | null;
+  learningMode?: AdmissionLearningMode | string | null;
+  feePlan?: AdmissionFeePlan | string | null;
+  fallbackAdmissionFee?: string | null;
+}) {
+  const learningMode: AdmissionLearningMode = args.learningMode === "online" ? "online" : "offline";
+  const catalogCourse = args.catalogCourse ?? null;
+  const onlineTier = getOnlineFeeTierForCourse(catalogCourse?.id);
+
+  if (learningMode === "online") {
+    const feePlan: AdmissionFeePlan = args.feePlan === "yearly" ? "yearly" : "monthly";
+    const amount = feePlan === "yearly" ? onlineTier.yearlyAmount : onlineTier.monthlyAmount;
+    const cadence = feePlan === "yearly" ? "yearly" : "monthly";
+
+    return {
+      learningMode,
+      feePlan,
+      amountPaise: amount * 100,
+      amountLabel: `Online ${cadence} fee - ${formatRupee(amount)}`,
+      monthlyFeeLabel: getOnlineFeeSummary(catalogCourse?.id),
+      summaryLabel: `Online ${cadence} - ${formatRupee(amount)}`,
+    } satisfies CourseFeeQuote;
+  }
+
+  const amountLabel = catalogCourse?.admissionFee ?? args.fallbackAdmissionFee ?? "Admission fee shared by institute";
+
+  return {
+    learningMode,
+    feePlan: "admission",
+    amountPaise: parseFeeLabelToPaise(amountLabel),
+    amountLabel,
+    monthlyFeeLabel: catalogCourse?.monthlyFee ?? "Offline monthly fee shared after admission",
+    summaryLabel: `Offline admission - ${amountLabel}`,
+  } satisfies CourseFeeQuote;
+}
+
 export const academyCatalog: AcademyCatalogCourse[] = [
   {
     id: "pre-primary",
     title: "Pre-Primary",
     subtitle: "Nursery to UKG",
     summary: "A gentle early-learning track built around speaking, writing, counting, drawing, and confident classroom behavior.",
-    monthlyFee: "₹400-₹600 / month",
-    admissionFee: "₹50 one-time",
+    monthlyFee: "Rs. 400-Rs. 600/month",
+    admissionFee: "Rs. 50 one-time",
     subjects: ["Basic English speaking", "Hindi letters and reading", "Counting 1-100", "Drawing and activity learning"],
     focus: ["Strong base building", "Learning with fun and no pressure", "Behavior and communication development"],
     imageSrc: "/nipracademy-doc/image1.png",
@@ -45,8 +141,8 @@ export const academyCatalog: AcademyCatalogCourse[] = [
     title: "Primary",
     subtitle: "Class 1 to 5",
     summary: "Daily school fundamentals for young learners with concept clarity, reading support, and homework rhythm.",
-    monthlyFee: "₹400-₹600 / month",
-    admissionFee: "₹70 one-time",
+    monthlyFee: "Rs. 400-Rs. 600/month",
+    admissionFee: "Rs. 70 one-time",
     subjects: ["English", "Hindi", "Mathematics", "EVS / General Science"],
     focus: ["Basic concepts made strong", "Reading and writing improvement", "Regular tests and homework support"],
     imageSrc: "/nipracademy-doc/image2.jpeg",
@@ -59,8 +155,8 @@ export const academyCatalog: AcademyCatalogCourse[] = [
     title: "Middle School",
     subtitle: "Class 6 to 8",
     summary: "A structured bridge from basics to board-level thinking with weekly tests, tracking, and doubt support.",
-    monthlyFee: "₹500-₹800 / month",
-    admissionFee: "₹100 one-time",
+    monthlyFee: "Rs. 500-Rs. 800/month",
+    admissionFee: "Rs. 100 one-time",
     subjects: ["Mathematics", "Science", "English", "Social Science"],
     focus: ["Strong concept building for future boards", "Weekly tests and performance tracking", "Dedicated doubt-clearing sessions"],
     imageSrc: "/nipracademy-doc/image4.jpeg",
@@ -73,8 +169,8 @@ export const academyCatalog: AcademyCatalogCourse[] = [
     title: "Secondary Board Preparation",
     subtitle: "Class 9 and 10",
     summary: "Board-ready preparation for Bihar Board and CBSE with previous-year papers, test series, and answer-writing strategy.",
-    monthlyFee: "₹1,000-₹1,500 / month",
-    admissionFee: "₹150 one-time",
+    monthlyFee: "Rs. 1,000-Rs. 1,500/month",
+    admissionFee: "Rs. 150 one-time",
     subjects: ["Mathematics", "Science", "English", "Social Science"],
     focus: ["Board exam preparation", "Important questions and previous-year papers", "Regular test series and topper guidance"],
     imageSrc: "/nipracademy-doc/image7.jpeg",
@@ -87,8 +183,8 @@ export const academyCatalog: AcademyCatalogCourse[] = [
     title: "Senior Secondary Science",
     subtitle: "Class 11 and 12 | PCM / PCB / PCBM",
     summary: "Deep concept clarity for science students with numerical practice, board focus, and a strong competitive base.",
-    monthlyFee: "₹1,500-₹2,500 / month",
-    admissionFee: "₹200 one-time",
+    monthlyFee: "Rs. 1,500-Rs. 2,500/month",
+    admissionFee: "Rs. 200 one-time",
     subjects: ["Physics", "Chemistry", "Mathematics", "Biology"],
     focus: ["Deep concept clarity", "Numerical problem solving", "Board plus competitive preparation base"],
     imageSrc: "/nipracademy-doc/image6.jpeg",
@@ -101,8 +197,8 @@ export const academyCatalog: AcademyCatalogCourse[] = [
     title: "Senior Secondary Commerce",
     subtitle: "Class 11 and 12 | Commerce Stream",
     summary: "Commerce mentoring focused on concept understanding, account practice, and clean exam writing.",
-    monthlyFee: "₹1,200-₹2,000 / month",
-    admissionFee: "₹150 one-time",
+    monthlyFee: "Rs. 1,200-Rs. 2,000/month",
+    admissionFee: "Rs. 150 one-time",
     subjects: ["Accountancy", "Business Studies", "Economics"],
     focus: ["Concept and practical understanding", "Accounts practice", "Exam writing discipline"],
     imageSrc: "/nipracademy-doc/image5.jpeg",
@@ -115,8 +211,8 @@ export const academyCatalog: AcademyCatalogCourse[] = [
     title: "Senior Secondary Arts And Humanities",
     subtitle: "Class 11 and 12 | Arts Stream",
     summary: "Board-oriented humanities support with theory clarity, structured revision, and stronger answer-writing habits.",
-    monthlyFee: "₹1,000-₹1,800 / month",
-    admissionFee: "₹150 one-time",
+    monthlyFee: "Rs. 1,000-Rs. 1,800/month",
+    admissionFee: "Rs. 150 one-time",
     subjects: ["History", "Political Science", "Geography", "Other humanities subjects"],
     focus: ["Theory clarity", "Answer-writing practice", "Board-oriented preparation"],
     imageSrc: "/nipracademy-doc/image5.jpeg",

@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
     const ip = getClientIp(request);
     const ipLimit = checkRateLimit(`otp:start:ip:${ip}`, { limit: 10, windowMs: 15 * 60 * 1000 });
-    const phoneLimit = checkRateLimit(`otp:start:phone:${phone}`, { limit: 3, windowMs: 15 * 60 * 1000 });
+    const phoneLimit = checkRateLimit(`otp:start:phone:${phone}`, { limit: 3, windowMs: 10 * 60 * 1000 });
     const blockedLimit = !ipLimit.allowed ? ipLimit : !phoneLimit.allowed ? phoneLimit : null;
 
     if (blockedLimit) {

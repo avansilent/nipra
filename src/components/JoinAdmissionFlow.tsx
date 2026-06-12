@@ -6,7 +6,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../app/AuthProvider";
 import { useAdaptiveMotion } from "../hooks/useAdaptiveMotion";
-import { academyAdmissionNote, findAcademyCatalogCourse } from "../data/academyCatalog";
+import {
+  academyAdmissionNote,
+  findAcademyCatalogCourse,
+  getOnlineFeeSummary,
+  getOnlinePlanLabel,
+  resolveCourseFeeQuote,
+  type AdmissionFeePlan,
+  type AdmissionLearningMode,
+} from "../data/academyCatalog";
 import {
   balancedItemReveal,
   balancedSectionReveal,
@@ -62,6 +70,8 @@ type RazorpayOrderResponse = {
     title: string;
     amountLabel: string;
     monthlyFeeLabel: string;
+    learningMode?: AdmissionLearningMode;
+    feePlan?: AdmissionFeePlan;
   };
   student?: {
     name: string;
@@ -129,12 +139,16 @@ type StoredAdmissionSession = {
   admissionToken: string;
   courseId: string;
   courseTitle: string;
+  learningMode?: AdmissionLearningMode;
+  feePlan?: AdmissionFeePlan;
   createdAt: number;
 };
 
 type StoredAdmissionDraft = {
   path: string;
   selectedCourseId: string;
+  selectedLearningMode?: AdmissionLearningMode;
+  selectedFeePlan?: "monthly" | "yearly";
   form: FormState;
   createdAt: number;
 };
@@ -485,6 +499,8 @@ export default function JoinAdmissionFlow({
   const [success, setSuccess] = useState<AdmissionResult | null>(null);
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [selectedLearningMode, setSelectedLearningMode] = useState<AdmissionLearningMode>("offline");
+  const [selectedFeePlan, setSelectedFeePlan] = useState<"monthly" | "yearly">("monthly");
   const resumeCheckRef = useRef(false);
   const draftRestoreRef = useRef(false);
   const { allowHoverMotion, allowRichMotion } = useAdaptiveMotion();
@@ -504,7 +520,23 @@ export default function JoinAdmissionFlow({
     selectedCourse?.description ?? selectedCatalogCourse?.summary ?? "Select a course to see the admission details here.";
   const selectedAdmissionFee =
     selectedCatalogCourse?.admissionFee ?? selectedCourse?.priceText ?? "Institute admission fee will appear at checkout";
-  const selectedMonthlyFee = selectedCatalogCourse?.monthlyFee ?? null;
+  const selectedOfflineFee = selectedCatalogCourse?.monthlyFee ?? null;
+  const selectedFeeQuote = useMemo(
+    () =>
+      resolveCourseFeeQuote({
+        catalogCourse: selectedCatalogCourse,
+        learningMode: selectedLearningMode,
+        feePlan: selectedLearningMode === "online" ? selectedFeePlan : "admission",
+        fallbackAdmissionFee: selectedCourse?.priceText,
+      }),
+    [selectedCatalogCourse, selectedCourse?.priceText, selectedFeePlan, selectedLearningMode]
+  );
+  const selectedOnlineFeeSummary = getOnlineFeeSummary(selectedCatalogCourse?.id);
+  const selectedOnlineMonthlyFee = getOnlinePlanLabel(selectedCatalogCourse?.id, "monthly");
+  const selectedOnlineYearlyFee = getOnlinePlanLabel(selectedCatalogCourse?.id, "yearly");
+  const selectedPaymentLabel = selectedFeeQuote.amountLabel;
+  const selectedModeLabel = selectedLearningMode === "online" ? "Online" : "Offline";
+  const selectedPlanLabel = selectedFeeQuote.feePlan === "yearly" ? "Yearly" : selectedFeeQuote.feePlan === "monthly" ? "Monthly" : "Admission";
   const suggestedClassLevel = selectedCatalogCourse?.subtitle.split("|")[0]?.trim() ?? "";
   const successPayment = success?.payment ?? null;
   const sectionVariants = allowRichMotion ? sectionReveal : balancedSectionReveal;
@@ -553,6 +585,14 @@ export default function JoinAdmissionFlow({
         setSelectedCourseId(pendingDraft.selectedCourseId);
       }
 
+      if (pendingDraft.selectedLearningMode === "online" || pendingDraft.selectedLearningMode === "offline") {
+        setSelectedLearningMode(pendingDraft.selectedLearningMode);
+      }
+
+      if (pendingDraft.selectedFeePlan === "monthly" || pendingDraft.selectedFeePlan === "yearly") {
+        setSelectedFeePlan(pendingDraft.selectedFeePlan);
+      }
+
       setForm((current) => {
         const hasTypedValues = Object.values(current).some((value) => value.trim().length > 0);
         return hasTypedValues ? current : pendingDraft.form;
@@ -569,6 +609,8 @@ export default function JoinAdmissionFlow({
     writePendingAdmissionDraft({
       path: callbackPath,
       selectedCourseId,
+      selectedLearningMode,
+      selectedFeePlan,
       form,
       createdAt: Date.now(),
     });
@@ -622,6 +664,14 @@ export default function JoinAdmissionFlow({
         setSelectedCourseId((currentCourseId) =>
           currentCourseId === pendingSession.courseId ? currentCourseId : pendingSession.courseId
         );
+      }
+
+      if (pendingSession.learningMode === "online" || pendingSession.learningMode === "offline") {
+        setSelectedLearningMode(pendingSession.learningMode);
+      }
+
+      if (pendingSession.feePlan === "monthly" || pendingSession.feePlan === "yearly") {
+        setSelectedFeePlan(pendingSession.feePlan);
       }
 
       setActiveOrderId(pendingSession.orderId);
@@ -739,7 +789,7 @@ export default function JoinAdmissionFlow({
             ? "Payment captured. Verifying signature and preparing student portal access."
             : paymentPhase === "failed"
               ? "The last payment attempt was not completed. You can retry securely."
-              : `Pay the admission fee ${selectedCatalogCourse ? `(${selectedCatalogCourse.admissionFee}) ` : ""}through Razorpay checkout.`;
+              : `Pay the selected ${selectedLearningMode} fee (${selectedFeeQuote.summaryLabel}) through Razorpay checkout.`;
 
   const progressItems = [
     {
@@ -801,6 +851,8 @@ export default function JoinAdmissionFlow({
     setSuccess(null);
     setCopiedLabel(null);
     setActiveOrderId(null);
+    setSelectedLearningMode("offline");
+    setSelectedFeePlan("monthly");
     setSelectedCourseId(resolveInitialCourseId(courses, interest, initialCourseId));
   };
 
@@ -889,6 +941,8 @@ export default function JoinAdmissionFlow({
           classLevel: form.classLevel,
           address: form.address,
           interest,
+          learningMode: selectedLearningMode,
+          feePlan: selectedLearningMode === "online" ? selectedFeePlan : "admission",
         }),
       });
 
@@ -903,6 +957,8 @@ export default function JoinAdmissionFlow({
         admissionToken: payload.admissionToken,
         courseId: selectedCourse.id,
         courseTitle: payload.course?.title ?? selectedCourse.title,
+        learningMode: payload.course?.learningMode ?? selectedLearningMode,
+        feePlan: payload.course?.feePlan ?? selectedFeeQuote.feePlan,
         createdAt: Date.now(),
       });
 
@@ -921,7 +977,7 @@ export default function JoinAdmissionFlow({
         amount: payload.amount,
         currency: payload.currency,
         name: siteSettings.siteName,
-        description: `Admission fee for ${payload.course?.title ?? selectedCourse.title}`,
+        description: `${payload.course?.amountLabel ?? selectedPaymentLabel} for ${payload.course?.title ?? selectedCourse.title}`,
         order_id: payload.orderId,
         prefill: {
           name: form.studentName,
@@ -931,6 +987,8 @@ export default function JoinAdmissionFlow({
         notes: {
           course_title: payload.course?.title ?? selectedCourse.title,
           interest: interest || selectedCourse.title,
+          learning_mode: payload.course?.learningMode ?? selectedLearningMode,
+          fee_plan: payload.course?.feePlan ?? selectedFeeQuote.feePlan,
         },
         retry: {
           enabled: true,
@@ -1072,8 +1130,11 @@ export default function JoinAdmissionFlow({
                                 {catalogCourse ? `Admission ${catalogCourse.admissionFee}` : course.priceText ?? "Ask fee"}
                               </span>
                               {catalogCourse?.monthlyFee ? (
-                                <span className="admission-course-price admission-course-price-secondary">{catalogCourse.monthlyFee}</span>
+                                <span className="admission-course-price admission-course-price-secondary">Offline {catalogCourse.monthlyFee}</span>
                               ) : null}
+                              <span className="admission-course-price admission-course-price-secondary">
+                                Online {getOnlineFeeSummary(catalogCourse?.id)}
+                              </span>
                             </div>
                           </div>
                           {catalogCourse?.imageSrc ? (
@@ -1130,10 +1191,11 @@ export default function JoinAdmissionFlow({
 
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="admission-course-state">Selected</span>
-                    <span className="admission-course-price">Admission {selectedAdmissionFee}</span>
-                    {selectedMonthlyFee ? (
-                      <span className="admission-course-price admission-course-price-secondary">{selectedMonthlyFee}</span>
+                    <span className="admission-course-price">Offline admission {selectedAdmissionFee}</span>
+                    {selectedOfflineFee ? (
+                      <span className="admission-course-price admission-course-price-secondary">{selectedOfflineFee}</span>
                     ) : null}
+                    <span className="admission-course-price admission-course-price-secondary">Online {selectedOnlineFeeSummary}</span>
                   </div>
 
                   <h3 className="admission-summary-title mt-4">{selectedCourse.title}</h3>
@@ -1204,14 +1266,71 @@ export default function JoinAdmissionFlow({
                     <span className="inline-flex rounded-full bg-white/90 px-3.5 py-2 text-sm font-medium text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
                       Admission {selectedAdmissionFee}
                     </span>
-                    {selectedMonthlyFee ? (
+                    {selectedOfflineFee ? (
                       <span className="inline-flex rounded-full bg-white/90 px-3.5 py-2 text-sm font-medium text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
-                        {selectedMonthlyFee}
+                        Offline {selectedOfflineFee}
                       </span>
                     ) : null}
+                    <span className="inline-flex rounded-full bg-white/90 px-3.5 py-2 text-sm font-medium text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.88)]">
+                      Online {selectedOnlineFeeSummary}
+                    </span>
                   </div>
                 </div>
               ) : null}
+
+              <div className="admission-mode-panel">
+                <div className="admission-panel-head">
+                  <div>
+                    <p className="admission-panel-kicker">Class Mode</p>
+                    <h3 className="admission-panel-title">Choose online or offline</h3>
+                  </div>
+                  <p className="admission-panel-copy">Offline keeps the current admission flow. Online uses the selected monthly or yearly plan.</p>
+                </div>
+
+                <div className="admission-option-grid">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedLearningMode("offline")}
+                    className={`admission-option-card ${selectedLearningMode === "offline" ? "is-selected" : ""}`}
+                  >
+                    <span>Offline</span>
+                    <strong>Admission {selectedAdmissionFee}</strong>
+                    {selectedOfflineFee ? <small>{selectedOfflineFee}</small> : null}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedLearningMode("online")}
+                    className={`admission-option-card ${selectedLearningMode === "online" ? "is-selected" : ""}`}
+                  >
+                    <span>Online</span>
+                    <strong>{selectedOnlineFeeSummary}</strong>
+                    <small>Live class access after verified payment</small>
+                  </button>
+                </div>
+
+                {selectedLearningMode === "online" ? (
+                  <div className="admission-option-grid admission-plan-grid">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedFeePlan("monthly")}
+                      className={`admission-option-card ${selectedFeePlan === "monthly" ? "is-selected" : ""}`}
+                    >
+                      <span>Monthly</span>
+                      <strong>{selectedOnlineMonthlyFee}</strong>
+                      <small>Flexible online plan</small>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedFeePlan("yearly")}
+                      className={`admission-option-card ${selectedFeePlan === "yearly" ? "is-selected" : ""}`}
+                    >
+                      <span>Yearly</span>
+                      <strong>{selectedOnlineYearlyFee}</strong>
+                      <small>One payment for the year</small>
+                    </button>
+                  </div>
+                ) : null}
+              </div>
 
               <div className="admission-form-grid">
                 <label className="admission-field">
@@ -1322,7 +1441,7 @@ export default function JoinAdmissionFlow({
                       {embedded ? "Payment summary" : "Secure payment panel"}
                     </p>
                     <h3 className="mt-2 text-[1.2rem] font-semibold tracking-[-0.05em] text-slate-950">
-                      {embedded ? "Pay the admission fee only." : "Easy admission, secure checkout."}
+                      {embedded ? "Pay the selected fee securely." : "Easy admission, secure checkout."}
                     </h3>
                   </div>
                   <span className={`inline-flex items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold ${paymentStateBadgeClassName}`}>
@@ -1336,15 +1455,17 @@ export default function JoinAdmissionFlow({
                     <strong className="max-w-[16rem] font-semibold text-slate-950 sm:text-right">{selectedCourse?.title ?? "Choose a course first"}</strong>
                   </div>
                   <div className="flex flex-col items-start gap-2 rounded-[1rem] bg-white/82 px-4 py-3.5 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                    <span className="text-slate-500">Admission fee</span>
-                    <strong className="font-semibold text-slate-950 sm:text-right">{selectedAdmissionFee}</strong>
+                    <span className="text-slate-500">Mode</span>
+                    <strong className="font-semibold text-slate-950 sm:text-right">{selectedModeLabel}</strong>
                   </div>
-                  {selectedMonthlyFee ? (
-                    <div className="flex flex-col items-start gap-2 rounded-[1rem] bg-white/82 px-4 py-3.5 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                      <span className="text-slate-500">Monthly fee</span>
-                      <strong className="font-semibold text-slate-950 sm:text-right">{selectedMonthlyFee}</strong>
-                    </div>
-                  ) : null}
+                  <div className="flex flex-col items-start gap-2 rounded-[1rem] bg-white/82 px-4 py-3.5 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                    <span className="text-slate-500">Plan</span>
+                    <strong className="font-semibold text-slate-950 sm:text-right">{selectedPlanLabel}</strong>
+                  </div>
+                  <div className="flex flex-col items-start gap-2 rounded-[1rem] bg-white/82 px-4 py-3.5 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                    <span className="text-slate-500">Pay now</span>
+                    <strong className="font-semibold text-slate-950 sm:text-right">{selectedPaymentLabel}</strong>
+                  </div>
                   <div className="flex flex-col items-start gap-2 rounded-[1rem] bg-white/82 px-4 py-3.5 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                     <span className="text-slate-500">Payment methods</span>
                     <strong className="font-semibold text-slate-950 sm:text-right">UPI, cards, net banking</strong>
@@ -1352,7 +1473,9 @@ export default function JoinAdmissionFlow({
                 </div>
 
                 <p className="mt-4 text-sm leading-7 text-slate-600">
-                  {academyAdmissionNote} The selected course appears in the student portal only after the payment is captured and verified on the server.
+                  {selectedLearningMode === "online"
+                    ? "Online class access opens after the selected monthly or yearly payment is verified."
+                    : academyAdmissionNote} The selected course appears in the student portal only after the payment is captured and verified on the server.
                 </p>
 
                 <p className="mt-3 break-all text-xs text-slate-500">
@@ -1382,7 +1505,7 @@ export default function JoinAdmissionFlow({
                           ? "Checkout open..."
                           : !canStartPayment
                             ? "Login with mobile to pay"
-                            : "Pay admission fee securely"}
+                            : "Pay selected fee securely"}
                 </motion.button>
               </div>
 
@@ -1437,8 +1560,9 @@ export default function JoinAdmissionFlow({
               <h3 className="admission-summary-title">{selectedCourse?.title ?? "No course selected yet"}</h3>
               <p className="admission-summary-copy">{selectedCourseCopy}</p>
               <div className="admission-summary-meta">
-                <span className="admission-summary-fee">Admission {selectedAdmissionFee}</span>
-                {selectedMonthlyFee ? <span className="admission-summary-fee">{selectedMonthlyFee}</span> : null}
+                <span className="admission-summary-fee">{selectedModeLabel}</span>
+                <span className="admission-summary-fee">{selectedPlanLabel}</span>
+                <span className="admission-summary-fee">{selectedPaymentLabel}</span>
               </div>
             </div>
 

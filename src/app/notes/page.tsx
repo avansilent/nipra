@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import ResourceLibrary from "../../components/ResourceLibrary";
 import { fetchPublicNotesLibrary } from "../../lib/publicResources";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Notes Library | Nipracademy",
+  description: "Access public revision notes and course-wise study PDFs from Nipracademy.",
+};
 
 export default async function NotesPage() {
   const notes = await fetchPublicNotesLibrary();

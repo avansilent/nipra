@@ -63,6 +63,9 @@ export async function POST(request: Request) {
       notes: {
         course_id: draft.course.id,
         institute_id: draft.course.instituteId,
+        learning_mode: draft.learningMode,
+        fee_plan: draft.feePlan,
+        fee_label: draft.amountLabel.slice(0, 64),
         student_name: draft.studentName.slice(0, 64),
         phone: draft.phone.slice(-10),
       },
@@ -88,6 +91,8 @@ export async function POST(request: Request) {
         title: draft.course.title,
         amountLabel: draft.amountLabel,
         monthlyFeeLabel: draft.monthlyFeeLabel,
+        learningMode: draft.learningMode,
+        feePlan: draft.feePlan,
       },
       student: {
         name: draft.studentName,

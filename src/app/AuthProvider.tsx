@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -79,6 +80,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const pathnameRef = useRef(pathname);
+
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
 
   const resetLocalAuthState = useCallback(() => {
     setSession(null);
@@ -194,7 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           userRow?.role ??
           metadataRole
       );
-      const nextRole = resolvedRole ?? (pathname.startsWith("/student") ? "student" : null);
+      const nextRole = resolvedRole ?? (pathnameRef.current.startsWith("/student") ? "student" : null);
 
       setRole(nextRole);
       setInstituteId(
@@ -204,7 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       setRoleResolved(true);
     },
-    [pathname, supabase]
+    [supabase]
   );
 
   useEffect(() => {

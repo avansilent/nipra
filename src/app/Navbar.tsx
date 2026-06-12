@@ -119,16 +119,20 @@ export default function Navbar({ siteSettings }: NavbarProps) {
 
   const actionLinks = useMemo<InlineLink[]>(() => {
     if (isAuthenticated) {
+      if (role === "admin") {
+        return pathname.startsWith("/admin") ? [{ href: "/admin/dashboard", label: "Admin" }] : [];
+      }
+
       return [
         {
-          href: role === "admin" ? "/admin/dashboard" : "/student/dashboard",
-          label: role === "admin" ? "Admin" : "Student",
+          href: "/student/dashboard",
+          label: "Student",
         },
       ];
     }
 
     return [{ href: "/login", label: "Login" }];
-  }, [isAuthenticated, role]);
+  }, [isAuthenticated, pathname, role]);
 
   const inlineLinks = useMemo(() => [...navLinks, ...actionLinks], [actionLinks]);
 

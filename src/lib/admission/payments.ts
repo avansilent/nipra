@@ -1,6 +1,11 @@
 import crypto from "node:crypto";
 import Razorpay from "razorpay";
-import { findAcademyCatalogCourse } from "../../data/academyCatalog";
+import {
+  findAcademyCatalogCourse,
+  resolveCourseFeeQuote,
+  type AdmissionFeePlan,
+  type AdmissionLearningMode,
+} from "../../data/academyCatalog";
 import { createStudentEmail, createTempPassword, sanitizeLoginId } from "../admin/route";
 import { isEnrollmentAccessColumnError } from "../enrollmentAccess";
 import { createSupabaseServiceClient } from "../supabase/service";
@@ -36,6 +41,9 @@ type AdmissionLedgerRecord = {
   interest: string | null;
   amount_paise: number;
   amount_label: string;
+  learning_mode?: string | null;
+  fee_plan?: string | null;
+  monthly_fee_label?: string | null;
   currency: string;
   token_hash: string;
   payment_method: string | null;
@@ -70,6 +78,8 @@ type AdmissionTokenPayload = {
   classLevel: string;
   address: string;
   interest: string;
+  learningMode: AdmissionLearningMode;
+  feePlan: AdmissionFeePlan;
   amountPaise: number;
   amountLabel: string;
   monthlyFeeLabel: string;
@@ -88,6 +98,8 @@ export type AdmissionDraftPayload = {
   classLevel?: string;
   address?: string;
   interest?: string;
+  learningMode?: string;
+  feePlan?: string;
 };
 
 export type ResolvedAdmissionDraft = {
@@ -105,6 +117,8 @@ export type ResolvedAdmissionDraft = {
   classLevel: string;
   address: string;
   interest: string;
+  learningMode: AdmissionLearningMode;
+  feePlan: AdmissionFeePlan;
   amountPaise: number;
   amountLabel: string;
   monthlyFeeLabel: string;
@@ -154,9 +168,22 @@ function getServiceClient() {
   return createSupabaseServiceClient();
 }
 
-async function upsertPaidEnrollment(serviceClient: ServiceClient, studentId: string, courseId: string, instituteId: string) {
+function isAdmissionModeColumnError(message: string) {
+  return (
+    /(learning_mode|fee_plan|fee_amount_label|fee_amount_paise|monthly_fee_label)/i.test(message) &&
+    /(column|schema cache|could not find)/i.test(message)
+  );
+}
+
+async function upsertPaidEnrollment(
+  serviceClient: ServiceClient,
+  studentId: string,
+  courseId: string,
+  instituteId: string,
+  fee: Pick<AdmissionTokenPayload, "learningMode" | "feePlan" | "amountLabel" | "amountPaise">
+) {
   const paidAt = new Date().toISOString();
-  const activeEnrollmentPayload = {
+  const baseEnrollmentPayload = {
     student_id: studentId,
     course_id: courseId,
     institute_id: instituteId,
@@ -165,6 +192,13 @@ async function upsertPaidEnrollment(serviceClient: ServiceClient, studentId: str
     access_ends_at: null,
     payment_due_at: null,
     last_payment_at: paidAt,
+  };
+  const activeEnrollmentPayload = {
+    ...baseEnrollmentPayload,
+    learning_mode: fee.learningMode,
+    fee_plan: fee.feePlan,
+    fee_amount_label: fee.amountLabel,
+    fee_amount_paise: fee.amountPaise,
   };
 
   const { error } = await serviceClient
@@ -175,18 +209,26 @@ async function upsertPaidEnrollment(serviceClient: ServiceClient, studentId: str
     return null;
   }
 
-  if (!isEnrollmentAccessColumnError(error.message)) {
+  if (!isEnrollmentAccessColumnError(error.message) && !isAdmissionModeColumnError(error.message)) {
     return error;
   }
 
-  const { error: fallbackError } = await serviceClient.from("enrollments").upsert(
-    {
-      student_id: studentId,
-      course_id: courseId,
-      institute_id: instituteId,
-    },
-    { onConflict: "student_id,course_id" }
-  );
+  if (isEnrollmentAccessColumnError(error.message)) {
+    const { error: fallbackError } = await serviceClient.from("enrollments").upsert(
+      {
+        student_id: studentId,
+        course_id: courseId,
+        institute_id: instituteId,
+      },
+      { onConflict: "student_id,course_id" }
+    );
+
+    return fallbackError;
+  }
+
+  const { error: fallbackError } = await serviceClient
+    .from("enrollments")
+    .upsert(baseEnrollmentPayload, { onConflict: "student_id,course_id" });
 
   return fallbackError;
 }
@@ -241,6 +283,18 @@ function normalizeEmail(value: unknown) {
 
 function normalizePhone(value: unknown) {
   return String(value ?? "").replace(/\D/g, "");
+}
+
+function normalizeLearningMode(value: unknown): AdmissionLearningMode {
+  return normalizeText(value).toLowerCase() === "online" ? "online" : "offline";
+}
+
+function normalizeFeePlan(value: unknown, learningMode: AdmissionLearningMode): AdmissionFeePlan {
+  if (learningMode === "online") {
+    return normalizeText(value).toLowerCase() === "yearly" ? "yearly" : "monthly";
+  }
+
+  return "admission";
 }
 
 function ensureAdmissionLedgerError(error: unknown): never {
@@ -398,6 +452,8 @@ export async function resolveAdmissionDraft(payload: AdmissionDraftPayload) {
   const address = normalizeText(payload.address);
   const interest = normalizeText(payload.interest);
   const phone = normalizePhone(payload.phone);
+  const learningMode = normalizeLearningMode(payload.learningMode);
+  const feePlan = normalizeFeePlan(payload.feePlan, learningMode);
 
   if (!courseId) {
     throw new PublicAdmissionError("Please choose a course before continuing.");
@@ -428,13 +484,19 @@ export async function resolveAdmissionDraft(payload: AdmissionDraftPayload) {
   }
 
   const catalogCourse = findAcademyCatalogCourse(selectedCourse.title);
-  const amountLabel = catalogCourse?.admissionFee || selectedCourse.price_text || "";
-  const monthlyFeeLabel = catalogCourse?.monthlyFee || "Monthly fee shared after admission";
-  const amountPaise = parseAmountToPaise(amountLabel);
+  const feeQuote = resolveCourseFeeQuote({
+    catalogCourse,
+    learningMode,
+    feePlan,
+    fallbackAdmissionFee: selectedCourse.price_text,
+  });
+  const amountLabel = feeQuote.amountLabel;
+  const monthlyFeeLabel = feeQuote.monthlyFeeLabel;
+  const amountPaise = feeQuote.amountPaise || parseAmountToPaise(amountLabel);
 
   if (amountPaise <= 0) {
     throw new PublicAdmissionError(
-      "The admission fee for this course is not configured correctly. Ask the institute to update the fee before accepting payments.",
+      "The fee for this course is not configured correctly. Ask the institute to update the fee before accepting payments.",
       500
     );
   }
@@ -454,6 +516,8 @@ export async function resolveAdmissionDraft(payload: AdmissionDraftPayload) {
     classLevel,
     address,
     interest,
+    learningMode: feeQuote.learningMode,
+    feePlan: feeQuote.feePlan,
     amountPaise,
     amountLabel,
     monthlyFeeLabel,
@@ -469,7 +533,7 @@ export async function insertAdmissionLedgerEntry(args: {
 }) {
   try {
     const serviceClient = getServiceClient();
-    const { error } = await serviceClient.from("admission_payments").insert({
+    const baseLedgerEntry = {
       institute_id: args.draft.course.instituteId,
       course_id: args.draft.course.id,
       order_id: args.orderId,
@@ -487,9 +551,23 @@ export async function insertAdmissionLedgerEntry(args: {
       amount_label: args.draft.amountLabel,
       currency: args.draft.currency,
       token_hash: hashToken(args.token),
+    };
+    const { error } = await serviceClient.from("admission_payments").insert({
+      ...baseLedgerEntry,
+      learning_mode: args.draft.learningMode,
+      fee_plan: args.draft.feePlan,
+      monthly_fee_label: args.draft.monthlyFeeLabel,
     });
 
     if (error) {
+      if (isAdmissionModeColumnError(error.message)) {
+        const { error: fallbackError } = await serviceClient.from("admission_payments").insert(baseLedgerEntry);
+        if (!fallbackError) {
+          return;
+        }
+        ensureAdmissionLedgerError(new Error(fallbackError.message));
+      }
+
       ensureAdmissionLedgerError(new Error(error.message));
     }
   } catch (error) {
@@ -593,6 +671,8 @@ export function buildAdmissionToken(
     classLevel: draft.classLevel,
     address: draft.address,
     interest: draft.interest,
+    learningMode: draft.learningMode,
+    feePlan: draft.feePlan,
     amountPaise: draft.amountPaise,
     amountLabel: draft.amountLabel,
     monthlyFeeLabel: draft.monthlyFeeLabel,
@@ -712,6 +792,10 @@ async function createIssuedCredentials(
       admission_source: "razorpay-public-join-flow",
       enrolled_course_id: token.courseId,
       enrolled_course_title: token.courseTitle,
+      admission_learning_mode: token.learningMode,
+      admission_fee_plan: token.feePlan,
+      admission_fee_label: token.amountLabel,
+      admission_monthly_fee_label: token.monthlyFeeLabel,
       admission_order_id: payment.order_id,
       admission_payment_id: payment.id,
       admission_payment_method: payment.method ?? null,
@@ -728,7 +812,7 @@ async function createIssuedCredentials(
     throw new PublicAdmissionError(createError?.message ?? "Unable to issue student access after payment.", 400);
   }
 
-  const enrollmentError = await upsertPaidEnrollment(serviceClient, created.user.id, token.courseId, token.instituteId);
+  const enrollmentError = await upsertPaidEnrollment(serviceClient, created.user.id, token.courseId, token.instituteId, token);
 
   if (enrollmentError) {
     await serviceClient.auth.admin.deleteUser(created.user.id);
@@ -770,6 +854,8 @@ async function createIssuedCredentials(
         orderId: payment.order_id,
         paymentId: payment.id,
         amountLabel: token.amountLabel,
+        learningMode: token.learningMode,
+        feePlan: token.feePlan,
         method: payment.method ?? null,
         status: payment.status === "captured" ? "captured" : "verified",
       },
@@ -896,6 +982,10 @@ async function attachAdmissionToExistingStudent(
       admission_source: "razorpay-public-join-flow",
       enrolled_course_id: token.courseId,
       enrolled_course_title: token.courseTitle,
+      admission_learning_mode: token.learningMode,
+      admission_fee_plan: token.feePlan,
+      admission_fee_label: token.amountLabel,
+      admission_monthly_fee_label: token.monthlyFeeLabel,
       admission_order_id: payment.order_id,
       admission_payment_id: payment.id,
       admission_payment_method: payment.method ?? null,
@@ -909,7 +999,7 @@ async function attachAdmissionToExistingStudent(
     },
   });
 
-  const enrollmentError = await upsertPaidEnrollment(serviceClient, studentUserId, token.courseId, token.instituteId);
+  const enrollmentError = await upsertPaidEnrollment(serviceClient, studentUserId, token.courseId, token.instituteId, token);
 
   if (enrollmentError) {
     throw new PublicAdmissionError("Payment was verified, but course enrollment could not be completed.", 500);
@@ -931,6 +1021,8 @@ async function attachAdmissionToExistingStudent(
         orderId: payment.order_id,
         paymentId: payment.id,
         amountLabel: token.amountLabel,
+        learningMode: token.learningMode,
+        feePlan: token.feePlan,
         method: payment.method ?? null,
         status: payment.status === "captured" ? "captured" : "verified",
       },

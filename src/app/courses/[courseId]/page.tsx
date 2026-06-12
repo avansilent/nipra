@@ -1,8 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import JoinAdmissionFlow from "../../../components/JoinAdmissionFlow";
-import { academyAdmissionNote, academyCatalog, academyLocation, academySession } from "../../../data/academyCatalog";
+import { academyAdmissionNote, academyCatalog, academyLocation, academySession, getOnlineFeeSummary } from "../../../data/academyCatalog";
 import { findAdmissionCourseForCatalogCourse, getCatalogCourseById } from "../../../lib/courseCatalog";
 import { fetchPublishedCourses } from "../../../lib/publicCourses";
 import { fetchSiteSettings } from "../../../lib/siteSettings";
@@ -12,6 +13,23 @@ type CourseDetailPageProps = {
     courseId: string;
   }>;
 };
+
+export async function generateMetadata({ params }: CourseDetailPageProps): Promise<Metadata> {
+  const { courseId } = await params;
+  const catalogCourse = getCatalogCourseById(courseId);
+
+  if (!catalogCourse) {
+    return {
+      title: "Course Not Found | Nipracademy",
+      description: "The requested Nipracademy course could not be found.",
+    };
+  }
+
+  return {
+    title: `${catalogCourse.title} | Nipracademy Courses`,
+    description: catalogCourse.summary,
+  };
+}
 
 export function generateStaticParams() {
   return academyCatalog.map((course) => ({ courseId: course.id }));
@@ -42,7 +60,7 @@ export default async function CourseDetailPage({ params }: CourseDetailPageProps
           <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.02fr)_minmax(16rem,0.98fr)] lg:items-start">
             <div className="min-w-0">
               <p className="course-detail-context-pill inline-flex items-center rounded-full bg-white/94 px-4 py-2 text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-slate-600 shadow-[0_10px_18px_rgba(15,23,42,0.03)]">
-                {academySession} • {academyLocation}
+                {academySession} - {academyLocation}
               </p>
 
               <h1 className="course-detail-title overflow-wrap-anywhere mt-5 max-w-[14ch] text-[clamp(2.25rem,4.6vw,3.7rem)] font-semibold leading-[0.95] tracking-[-0.075em] text-slate-950">
@@ -63,8 +81,12 @@ export default async function CourseDetailPage({ params }: CourseDetailPageProps
                   <strong>{catalogCourse.admissionFee}</strong>
                 </div>
                 <div className="course-detail-stat">
-                  <span>Monthly fee</span>
+                  <span>Offline fee</span>
                   <strong>{catalogCourse.monthlyFee}</strong>
+                </div>
+                <div className="course-detail-stat">
+                  <span>Online fee</span>
+                  <strong>{getOnlineFeeSummary(catalogCourse.id)}</strong>
                 </div>
                 <div className="course-detail-stat">
                   <span>Payment</span>

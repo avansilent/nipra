@@ -449,12 +449,10 @@ function LoginContent() {
     } | null
   ): Promise<"admin" | "student" | null> => {
     if (!supabase) {
-      console.log("[login] Supabase client missing");
       return null;
     }
 
     if (!currentUser) {
-      console.log("[login] No user available for role resolution");
       return null;
     }
 
@@ -463,13 +461,10 @@ function LoginContent() {
     );
 
     if (metadataRole) {
-      console.log("[login] Role resolved from auth metadata", metadataRole);
       return metadataRole;
     }
 
-    console.log("[login] Step 3: fetching profile with maybeSingle()");
     let profile: { role?: string | null } | null = null;
-    let profileError: { message?: string } | null = null;
 
     try {
       const response = await withTimeout(
@@ -481,22 +476,13 @@ function LoginContent() {
         2000
       );
       profile = response.data;
-      profileError = response.error;
     } catch {
       profile = null;
-      profileError = null;
-    }
-
-    if (profileError) {
-      console.log("[login] Profile read error", profileError.message);
     }
 
     if (profile?.role) {
-      console.log("[login] Profile role found", profile.role);
       return normalizeRole(profile.role ?? null);
     }
-
-    console.log("[login] Profile missing or empty role, checking users table", currentUser.id);
 
     try {
       const response = await withTimeout(
@@ -509,18 +495,12 @@ function LoginContent() {
       );
 
       const userRow = response.data;
-      const userRowError = response.error;
-
-      if (userRowError) {
-        console.log("[login] Users row read error", userRowError.message);
-      }
 
       if (userRow?.role) {
-        console.log("[login] Users table role found", userRow.role);
         return normalizeRole(userRow.role ?? null);
       }
-    } catch (usersError) {
-      console.log("[login] Users table lookup failed", usersError);
+    } catch {
+      // Role fallback remains metadata-only when the public profile lookup is unavailable.
     }
 
     return metadataRole;
@@ -531,12 +511,10 @@ function LoginContent() {
       return null;
     }
 
-    console.log("[login] Step 1: reading user with auth.getUser()");
     try {
       const { data: userData } = await withTimeout(supabase.auth.getUser(), 2500);
       return await resolveUserRoleForUser(userData.user ?? null);
-    } catch (authError) {
-      console.log("[login] auth.getUser failed", authError);
+    } catch {
       await clearBrokenSession();
       return null;
     }
@@ -742,7 +720,6 @@ function LoginContent() {
         resolvedEmail = String(resolvePayload.email).trim().toLowerCase();
       }
 
-      console.log("[login] Signing in with password");
       const signInPayload = {
         email: resolvedEmail,
         password,
@@ -754,18 +731,14 @@ function LoginContent() {
       );
 
       if (signInError) {
-        console.log("[login] Sign-in failed", signInError.message);
         setError(signInError.message);
         return;
       }
 
-      console.log("[login] Step 2: sign-in success");
       const resolvedRole = await resolveUserRoleForUser(signInData.user ?? null);
-      console.log("[login] Step 5: redirecting by role", resolvedRole);
       forceNavigate(getPreferredRedirect(resolvedRole));
       return;
     } catch (err) {
-      console.log("[login] Unexpected error", err);
       const message = err instanceof Error ? err.message : "Unable to sign in.";
       setError(message);
     } finally {

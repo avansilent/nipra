@@ -24,6 +24,8 @@ export type AdmissionPaymentDetails = {
   orderId: string;
   paymentId: string;
   amountLabel: string;
+  learningMode?: "offline" | "online";
+  feePlan?: "admission" | "monthly" | "yearly";
   method: string | null;
   status: "verified" | "captured";
 };
