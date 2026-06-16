@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../app/AuthProvider";
 import { useAdaptiveMotion } from "../hooks/useAdaptiveMotion";
@@ -25,6 +25,7 @@ import {
   tapPress,
   viewportOnce,
 } from "../lib/motion";
+import { createSupabaseBrowserClient } from "../lib/supabase/browser";
 import type { AdmissionCourse, AdmissionResult } from "../types/admission";
 import type { SiteSettings } from "../types/site";
 
@@ -459,9 +460,9 @@ function AdmissionSuccessCard({ copiedLabel, onCopy, onReset, success }: Admissi
       )}
 
       <div className="admission-success-actions">
-        <Link href={hasGeneratedCredentials ? "/login?type=student" : success.portalAccess.dashboardPath} className="btn inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold">
+        <a href={hasGeneratedCredentials ? "/login?type=student" : success.portalAccess.dashboardPath} className="btn inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold">
           {hasGeneratedCredentials ? "Go to Student Login" : "Open Student Portal"}
-        </Link>
+        </a>
         {onReset ? (
           <button type="button" onClick={onReset} className="admission-copy-button admission-copy-button-secondary">
             Start another admission
@@ -505,6 +506,18 @@ export default function JoinAdmissionFlow({
   const draftRestoreRef = useRef(false);
   const { allowHoverMotion, allowRichMotion } = useAdaptiveMotion();
   const { user, role, loading: authLoading } = useAuth();
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const refreshStudentAuthSession = useCallback(async () => {
+    if (!supabase) {
+      return;
+    }
+
+    try {
+      await supabase.auth.refreshSession();
+    } catch {
+      // The portal also re-reads profile/enrollment data on load.
+    }
+  }, [supabase]);
 
   const selectedCourse = useMemo(
     () => courses.find((course) => course.id === selectedCourseId) ?? null,
@@ -724,6 +737,7 @@ export default function JoinAdmissionFlow({
 
         clearPendingAdmissionSession(pendingSession.orderId);
         clearPendingAdmissionDraft(getCurrentAdmissionPath());
+        await refreshStudentAuthSession();
         setSuccess(payload);
         setPaymentPhase("verified");
         setError(null);
@@ -747,7 +761,7 @@ export default function JoinAdmissionFlow({
     return () => {
       cancelled = true;
     };
-  }, [courses]);
+  }, [courses, refreshStudentAuthSession]);
 
   const isFormReady =
     Boolean(selectedCourseId) &&
@@ -877,6 +891,7 @@ export default function JoinAdmissionFlow({
         throw new Error(payload.error ?? "Payment verification failed. Please contact support before retrying.");
       }
 
+      await refreshStudentAuthSession();
       setSuccess(payload);
       setPaymentPhase("verified");
       clearPendingAdmissionSession(checkoutResponse.razorpay_order_id);

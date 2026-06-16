@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminRouteContext } from "../../../../../../lib/admin/route";
+import { revalidateAdminContent } from "../../../../../../lib/cacheInvalidation";
 import {
   adminJsonError,
   getAdminSession,
@@ -49,6 +50,8 @@ export async function POST(_request: Request, contextParams: RouteParams<"sessio
         .eq("session_id", session.id)
         .eq("institute_id", context.instituteId),
     ]);
+
+    revalidateAdminContent("learning");
 
     return NextResponse.json({
       session: updatedSession,

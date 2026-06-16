@@ -23,6 +23,7 @@ type AuthContextValue = {
   user: User | null;
   session: Session | null;
   role: AuthRole;
+  roleResolved: boolean;
   instituteId: string | null;
   loading: boolean;
   isAuthenticated: boolean;
@@ -171,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               .select("role, institute_id")
               .eq("id", nextUser.id)
               .maybeSingle(),
-            1500
+            3500
           );
           profile = data;
         } catch {
@@ -187,7 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               .select("role")
               .eq("id", nextUser.id)
               .maybeSingle(),
-            1500
+            3500
           );
           userRow = data;
         } catch {
@@ -346,12 +347,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       session,
       role,
+      roleResolved,
       instituteId,
       loading,
       isAuthenticated: !!user,
       logout,
     }),
-    [instituteId, loading, logout, role, session, user]
+    [instituteId, loading, logout, role, roleResolved, session, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

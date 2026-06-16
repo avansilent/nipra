@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminRouteContext } from "../../../../../../lib/admin/route";
+import { revalidateAdminContent } from "../../../../../../lib/cacheInvalidation";
 import {
   adminJsonError,
   createSignedMaterialUrl,
@@ -117,6 +118,8 @@ export async function POST(request: Request, contextParams: RouteParams<"session
       await deleteMaterialFiles(context, [uploadedPath]);
       return NextResponse.json({ error: insertError?.message ?? "Unable to save material" }, { status: 500 });
     }
+
+    revalidateAdminContent("learning");
 
     return NextResponse.json({
       material: {

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateAdminContent } from "../../../../../lib/cacheInvalidation";
 import { normalizeResourceVisibility } from "../../../../../lib/resourceVisibility";
 import {
   createBunnyStreamReference,
@@ -138,6 +139,8 @@ export async function POST(request: Request) {
     if (insertError) {
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
+
+    revalidateAdminContent("learning");
 
     return NextResponse.json({ video: inserted });
   } catch (error) {

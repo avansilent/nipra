@@ -398,6 +398,19 @@ export default function AdminWorkspace() {
     setMessage(null);
   }, []);
 
+  const refreshLiveViews = useCallback(async (area: "site" | "courses" | "learning" | "all" = "all") => {
+    try {
+      await fetch("/api/admin/revalidate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ area }),
+        cache: "no-store",
+      });
+    } catch {
+      // The admin save has already succeeded; cache refresh can be retried by the next save.
+    }
+  }, []);
+
   const loadStudents = useCallback(async () => {
     const response = await withTimeout(fetch("/api/admin/students", { cache: "no-store" }));
     const payload = await response.json();
@@ -554,7 +567,8 @@ export default function AdminWorkspace() {
       };
     }));
     setAnnouncements((announcementRows ?? []) as AnnouncementRow[]);
-  }, [supabase]);
+    void refreshLiveViews("learning");
+  }, [refreshLiveViews, supabase]);
 
   const loadContent = useCallback(async () => {
     const response = await withTimeout(fetch("/api/admin/site-content", { cache: "no-store" }));
@@ -936,7 +950,7 @@ export default function AdminWorkspace() {
 
       setCourseForm({ title: "", description: "", price_text: "", status: "draft", cta_label: "View Course", mode: "offline" });
       setMessage("Course created.");
-      await loadCourses(instituteId);
+      await Promise.all([loadCourses(instituteId), refreshLiveViews("courses")]);
     } catch (courseError) {
       setError(courseError instanceof Error ? courseError.message : "Unable to create course");
     } finally {
@@ -974,7 +988,7 @@ export default function AdminWorkspace() {
       }
 
       setMessage("Course updated.");
-      await loadCourses(instituteId);
+      await Promise.all([loadCourses(instituteId), refreshLiveViews("courses")]);
     } catch (courseError) {
       setError(courseError instanceof Error ? courseError.message : "Unable to update course");
     } finally {
@@ -996,7 +1010,7 @@ export default function AdminWorkspace() {
       }
 
       setMessage("Course deleted.");
-      await Promise.all([loadCourses(instituteId), loadOperationalData(instituteId)]);
+      await Promise.all([loadCourses(instituteId), loadOperationalData(instituteId), refreshLiveViews("courses")]);
     } catch (courseError) {
       setError(courseError instanceof Error ? courseError.message : "Unable to delete course");
     } finally {
@@ -1048,7 +1062,7 @@ export default function AdminWorkspace() {
 
       setAssignmentForm(emptyAssignmentForm());
       setMessage(savedWithAccessControls ? "Enrollment saved." : "Enrollment saved. Apply the latest Supabase schema to save due and end dates.");
-      await loadCourses(instituteId);
+      await Promise.all([loadCourses(instituteId), refreshLiveViews("learning")]);
     } catch (assignmentError) {
       setError(assignmentError instanceof Error ? assignmentError.message : "Unable to assign student");
     } finally {
@@ -1076,7 +1090,7 @@ export default function AdminWorkspace() {
       }
 
       setMessage("Enrollment removed.");
-      await loadCourses(instituteId);
+      await Promise.all([loadCourses(instituteId), refreshLiveViews("learning")]);
     } catch (removeError) {
       setError(removeError instanceof Error ? removeError.message : "Unable to remove enrollment");
     } finally {
@@ -1155,7 +1169,7 @@ export default function AdminWorkspace() {
       }
 
       setMessage("Enrollment access updated.");
-      await loadCourses(instituteId);
+      await Promise.all([loadCourses(instituteId), refreshLiveViews("learning")]);
     } catch (updateError) {
       setError(updateError instanceof Error ? updateError.message : "Unable to update enrollment access");
     } finally {

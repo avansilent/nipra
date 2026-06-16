@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminRouteContext } from "../../../../../../lib/admin/route";
+import { revalidateAdminContent } from "../../../../../../lib/cacheInvalidation";
 import {
   adminJsonError,
   getAdminSession,
@@ -48,6 +49,8 @@ export async function POST(_request: Request, contextParams: RouteParams<"sessio
     if (updateError || !updatedSession) {
       return NextResponse.json({ error: updateError?.message ?? "Unable to start live session" }, { status: 500 });
     }
+
+    revalidateAdminContent("learning");
 
     return NextResponse.json({ session: updatedSession, meetingLink: updatedMeetingLink });
   } catch (error) {

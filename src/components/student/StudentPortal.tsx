@@ -212,7 +212,7 @@ function EmptyState({ title, description }: { title: string; description: string
 }
 
 export default function StudentPortal() {
-  const { user, role, instituteId, loading: authLoading } = useAuth();
+  const { user, role, roleResolved, instituteId, loading: authLoading } = useAuth();
   const supabase = useMemo(() => createSupabaseBrowserClient(), [])!;
   const userId = user?.id ?? null;
   const userLastSignInAt = user?.last_sign_in_at ?? null;
@@ -244,7 +244,7 @@ export default function StudentPortal() {
   const [error, setError] = useState<string | null>(null);
   const deferredResourceQuery = useDeferredValue(resourceQuery.trim().toLowerCase());
 
-  const withTimeout = async <T,>(promise: Promise<T> | PromiseLike<T>, ms = 6000): Promise<T> => {
+  const withTimeout = useCallback(async <T,>(promise: Promise<T> | PromiseLike<T>, ms = 6000): Promise<T> => {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(() => reject(new Error("Request timed out")), ms);
@@ -257,10 +257,53 @@ export default function StudentPortal() {
         clearTimeout(timeoutId);
       }
     }
-  };
+  }, []);
+
+  const resolveEffectiveInstituteId = useCallback(async () => {
+    if (instituteId) {
+      return instituteId;
+    }
+
+    if (!userId) {
+      return null;
+    }
+
+    try {
+      const { data: profile } = await withTimeout(
+        supabase
+          .from("profiles")
+          .select("institute_id")
+          .eq("id", userId)
+          .maybeSingle(),
+        3500
+      );
+
+      if (profile?.institute_id) {
+        return profile.institute_id as string;
+      }
+    } catch {
+      // Fall back to enrollments below while the browser auth session catches up.
+    }
+
+    try {
+      const { data: enrollment } = await withTimeout(
+        supabase
+          .from("enrollments")
+          .select("institute_id")
+          .eq("student_id", userId)
+          .limit(1)
+          .maybeSingle(),
+        3500
+      );
+
+      return (enrollment?.institute_id as string | undefined) ?? null;
+    } catch {
+      return null;
+    }
+  }, [instituteId, supabase, userId, withTimeout]);
 
   useEffect(() => {
-    if (authLoading) {
+    if (authLoading || (userId && !roleResolved)) {
       return;
     }
 
@@ -277,7 +320,9 @@ export default function StudentPortal() {
 
         setLastLogin(userLastSignInAt);
 
-      if (!instituteId) {
+      const effectiveInstituteId = await resolveEffectiveInstituteId();
+
+      if (!effectiveInstituteId) {
         setCourses([]);
         setBlockedEnrollments([]);
         setTests([]);
@@ -287,7 +332,7 @@ export default function StudentPortal() {
         setVideos([]);
         setActiveVideo(null);
         setAnnouncements([]);
-        setError("Google login works. Ask admin to assign courses.");
+        setError("Your payment is verified. Refresh this page once if the course is still preparing.");
         setReady(true);
         return;
       }
@@ -302,7 +347,7 @@ export default function StudentPortal() {
             .from("enrollments")
             .select("*, course:course_id (id, title, description)")
             .eq("student_id", userId)
-            .eq("institute_id", instituteId)
+            .eq("institute_id", effectiveInstituteId)
         );
 
         if (enrollmentError) {
@@ -329,7 +374,7 @@ export default function StudentPortal() {
               supabase
                 .from("tests")
                 .select("id, title, test_date, course_id")
-                .eq("institute_id", instituteId)
+                .eq("institute_id", effectiveInstituteId)
                 .in("course_id", courseIds)
                 .order("test_date", { ascending: true })
                 .limit(24)
@@ -339,7 +384,7 @@ export default function StudentPortal() {
                 .from("results")
                 .select("test_id, marks, recorded_at, test:tests(title, test_date, course_id)")
                 .eq("student_id", userId)
-                .eq("institute_id", instituteId)
+                .eq("institute_id", effectiveInstituteId)
                 .order("recorded_at", { ascending: false })
                 .limit(12)
             ),
@@ -347,7 +392,7 @@ export default function StudentPortal() {
               supabase
                 .from("notes")
                 .select("id, title, file_url, course_id, visibility, created_at")
-                .eq("institute_id", instituteId)
+                .eq("institute_id", effectiveInstituteId)
                 .in("visibility", ["student", "public"])
                 .in("course_id", courseIds)
                 .order("created_at", { ascending: false })
@@ -357,7 +402,7 @@ export default function StudentPortal() {
               supabase
                 .from("materials")
                 .select("id, title, file_url, course_id, visibility, created_at")
-                .eq("institute_id", instituteId)
+                .eq("institute_id", effectiveInstituteId)
                 .in("visibility", ["student", "public"])
                 .in("course_id", courseIds)
                 .order("created_at", { ascending: false })
@@ -368,7 +413,7 @@ export default function StudentPortal() {
               supabase
                 .from("materials")
                 .select("id, title, file_url, course_id, visibility, created_at")
-                .eq("institute_id", instituteId)
+                .eq("institute_id", effectiveInstituteId)
                 .in("visibility", ["student", "public"])
                 .in("course_id", courseIds)
                 .like("file_url", "bunny-stream:%")
@@ -459,7 +504,7 @@ export default function StudentPortal() {
             supabase
               .from("announcements")
               .select("id, title, body, created_at")
-              .eq("institute_id", instituteId)
+              .eq("institute_id", effectiveInstituteId)
               .order("created_at", { ascending: false })
               .limit(8)
           );
@@ -481,7 +526,7 @@ export default function StudentPortal() {
     };
 
     void loadPortal();
-  }, [authLoading, instituteId, role, supabase, userId, userLastSignInAt]);
+  }, [authLoading, role, roleResolved, resolveEffectiveInstituteId, supabase, userId, userLastSignInAt, withTimeout]);
 
   const displayName = useMemo(() => {
     const metadataName = typeof user?.user_metadata?.name === "string" ? user.user_metadata.name : null;
@@ -608,8 +653,8 @@ export default function StudentPortal() {
     }
   };
 
-  const loadOnlineClassData = useCallback(async () => {
-    if (!userId || role !== "student" || !instituteId) {
+  const loadOnlineClassData = useCallback(async (options?: { silent?: boolean }) => {
+    if (!userId || role !== "student") {
       setLiveUpcomingSessions([]);
       setLivePastSessions([]);
       setStudentAssignments([]);
@@ -618,7 +663,9 @@ export default function StudentPortal() {
       return;
     }
 
-    setOnlineClassLoading(true);
+    if (!options?.silent) {
+      setOnlineClassLoading(true);
+    }
     setOnlineClassError(null);
 
     try {
@@ -645,12 +692,14 @@ export default function StudentPortal() {
       setLivePastSessions([]);
       setStudentAssignments([]);
     } finally {
-      setOnlineClassLoading(false);
+      if (!options?.silent) {
+        setOnlineClassLoading(false);
+      }
     }
-  }, [instituteId, role, userId]);
+  }, [role, userId]);
 
   useEffect(() => {
-    if (authLoading) {
+    if (authLoading || (userId && !roleResolved)) {
       return;
     }
 
@@ -661,7 +710,32 @@ export default function StudentPortal() {
     return () => {
       window.clearTimeout(loadTimer);
     };
-  }, [authLoading, loadOnlineClassData]);
+  }, [authLoading, loadOnlineClassData, roleResolved, userId]);
+
+  useEffect(() => {
+    if (authLoading || (userId && !roleResolved) || !userId || role !== "student") {
+      return;
+    }
+
+    const refreshLiveClasses = () => {
+      void loadOnlineClassData({ silent: true });
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        refreshLiveClasses();
+      }
+    };
+
+    window.addEventListener("focus", refreshLiveClasses);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    const refreshTimer = window.setInterval(refreshLiveClasses, 60_000);
+
+    return () => {
+      window.removeEventListener("focus", refreshLiveClasses);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.clearInterval(refreshTimer);
+    };
+  }, [authLoading, loadOnlineClassData, role, roleResolved, userId]);
 
   const handleVideoOpen = async (video: ResourceRow) => {
     try {
@@ -686,7 +760,7 @@ export default function StudentPortal() {
     }
   };
 
-  if (authLoading || !ready) {
+  if (authLoading || (user && !roleResolved) || !ready) {
     return (
       <section className="student-portal-shell relative mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
         <div className="pointer-events-none absolute -top-10 left-0 h-48 w-48 rounded-full bg-stone-200/45 blur-3xl" />

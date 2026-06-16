@@ -325,7 +325,7 @@ function LoginContent() {
     authError === "oauth" ? formatOAuthCallbackMessage(authMessage) : null
   );
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const { user, role, loading: authLoading } = useAuth();
+  const { user, role, roleResolved, loading: authLoading } = useAuth();
   const loading = loadingAction !== null;
 
   const clearBrokenSession = useCallback(async () => {
@@ -383,8 +383,12 @@ function LoginContent() {
 
   const forceNavigate = useCallback(
     (target: string) => {
+      if (typeof window !== "undefined") {
+        window.location.replace(target);
+        return;
+      }
+
       router.replace(target);
-      router.refresh();
     },
     [router]
   );
@@ -521,7 +525,7 @@ function LoginContent() {
   }, [clearBrokenSession, resolveUserRoleForUser, supabase]);
 
   useEffect(() => {
-    if (authLoading || !user) {
+    if (authLoading || !user || !roleResolved) {
       return;
     }
 
@@ -533,7 +537,7 @@ function LoginContent() {
     }
 
     forceNavigate(getPreferredRedirect(role));
-  }, [authLoading, authenticatedPhone, forceNavigate, getPreferredRedirect, isForcedPhoneLogin, role, user]);
+  }, [authLoading, authenticatedPhone, forceNavigate, getPreferredRedirect, isForcedPhoneLogin, role, roleResolved, user]);
 
   useEffect(() => {
     void resolveUserRole();

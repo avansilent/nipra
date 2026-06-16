@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminRouteContext, type AdminRouteError } from "../../../../lib/admin/route";
+import { revalidateAdminContent } from "../../../../lib/cacheInvalidation";
 import {
   adminJsonError,
   ensureAdminCourse,
@@ -86,6 +87,8 @@ export async function POST(request: Request) {
     const createdSession = session as unknown as Parameters<typeof upsertMeetingLink>[1];
     createdSessionId = createdSession.id;
     const meetingLink = await upsertMeetingLink(context, createdSession, meetingPayload);
+
+    revalidateAdminContent("learning");
 
     return NextResponse.json({ session: createdSession, meetingLink });
   } catch (error) {

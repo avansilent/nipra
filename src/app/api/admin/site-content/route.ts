@@ -1,10 +1,8 @@
-import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { defaultHomeContent, mergeHomeContent } from "../../../../data/homeContent";
 import { defaultSiteSettings, mergeSiteSettings } from "../../../../data/siteSettings";
 import { getAdminRouteContext, type AdminRouteError } from "../../../../lib/admin/route";
-import { homeContentCacheTag } from "../../../../lib/homeContent";
-import { siteSettingsCacheTag } from "../../../../lib/siteSettings";
+import { revalidateAdminContent } from "../../../../lib/cacheInvalidation";
 
 type SiteContentKey = "home" | "settings";
 
@@ -54,7 +52,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    revalidateTag(body.key === "home" ? homeContentCacheTag : siteSettingsCacheTag, "max");
+    revalidateAdminContent("site");
 
     return NextResponse.json({ success: true, key: body.key, data: normalizedData });
   } catch (error) {

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateAdminContent } from "../../../../../lib/cacheInvalidation";
 import { normalizeResourceVisibility } from "../../../../../lib/resourceVisibility";
 import {
   getSafeFileExtension,
@@ -80,6 +81,8 @@ export async function POST(request: Request) {
       await service.storage.from("notes").remove([storagePath]);
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
+
+    revalidateAdminContent("learning");
 
     return NextResponse.json({ note: inserted });
   } catch (error) {

@@ -7099,6 +7099,572 @@ html[data-theme="dark"] .program-secondary-cta {
   }
 }
 
+/* ===== DARK THEME POLISH ===== */
+html[data-theme="dark"] {
+  --dark-page: #060a12;
+  --dark-page-soft: #09111f;
+  --dark-surface: rgba(17, 24, 39, 0.96);
+  --dark-surface-soft: rgba(15, 23, 42, 0.92);
+  --dark-surface-muted: rgba(30, 41, 59, 0.72);
+  --dark-border: rgba(148, 163, 184, 0.22);
+  --dark-border-strong: rgba(148, 163, 184, 0.34);
+  --dark-text: #f8fafc;
+  --dark-text-soft: #dbe4f0;
+  --dark-muted: #aeb8c7;
+  --dark-faint: #7f8da3;
+  --dark-accent: #38bdf8;
+  --dark-accent-strong: #2563eb;
+}
+
+html[data-theme="dark"],
+html[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.08), transparent 28%),
+    radial-gradient(circle at 88% 8%, rgba(167, 139, 250, 0.065), transparent 24%),
+    linear-gradient(180deg, var(--dark-page), var(--dark-page-soft)) !important;
+  color: var(--dark-text-soft) !important;
+}
+
+html[data-theme="dark"] .site-main-shell,
+html[data-theme="dark"] .home-shell,
+html[data-theme="dark"] .mobile-home-shell,
+html[data-theme="dark"] .mobile-public-shell,
+html[data-theme="dark"] .public-utility-shell,
+html[data-theme="dark"] .app-page-shell,
+html[data-theme="dark"] .courses-page-shell,
+html[data-theme="dark"] .course-detail-shell,
+html[data-theme="dark"] .resource-library-shell,
+html[data-theme="dark"] .login-page-shell,
+html[data-theme="dark"] .about-shell,
+html[data-theme="dark"] .student-portal-shell,
+html[data-theme="dark"] .admin-shell {
+  background: transparent !important;
+  color: var(--dark-text-soft) !important;
+}
+
+html[data-theme="dark"] .site-nav-shell,
+html[data-theme="dark"] .site-nav-menu,
+html[data-theme="dark"] .site-mobile-menu-panel,
+html[data-theme="dark"] .mobile-site-footer,
+html[data-theme="dark"] .glass-bar {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(8, 13, 23, 0.96)) !important;
+  border-color: var(--dark-border) !important;
+  color: var(--dark-text-soft) !important;
+  box-shadow: 0 22px 52px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+html[data-theme="dark"] .navbar-desktop-brand span,
+html[data-theme="dark"] .navbar-mobile-shell span,
+html[data-theme="dark"] .nav-brand-title,
+html[data-theme="dark"] .nav-brand-kicker {
+  color: var(--dark-text) !important;
+}
+
+html[data-theme="dark"] .desktop-nav-link,
+html[data-theme="dark"] .desktop-nav-action,
+html[data-theme="dark"] .theme-toggle-button,
+html[data-theme="dark"] .site-mobile-menu-toggle,
+html[data-theme="dark"] .site-mobile-menu-item,
+html[data-theme="dark"] .mobile-nav-shortcut,
+html[data-theme="dark"] .mobile-nav-link-chip,
+html[data-theme="dark"] .mobile-nav-action-pill,
+html[data-theme="dark"] .mobile-nav-status-pill {
+  background: rgba(15, 23, 42, 0.78) !important;
+  border-color: var(--dark-border) !important;
+  color: var(--dark-muted) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] .desktop-nav-link:hover,
+html[data-theme="dark"] .desktop-nav-action:hover,
+html[data-theme="dark"] .theme-toggle-button:hover,
+html[data-theme="dark"] .site-mobile-menu-toggle:hover,
+html[data-theme="dark"] .site-mobile-menu-item:hover,
+html[data-theme="dark"] .desktop-nav-link-active,
+html[data-theme="dark"] .site-mobile-menu-item-active,
+html[data-theme="dark"] .mobile-nav-link-chip.is-active {
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.18), rgba(37, 99, 235, 0.16)) !important;
+  border-color: rgba(125, 211, 252, 0.36) !important;
+  color: var(--dark-text) !important;
+  box-shadow: 0 14px 28px rgba(8, 47, 73, 0.28) !important;
+}
+
+html[data-theme="dark"] .site-mobile-menu-panel > div,
+html[data-theme="dark"] .site-mobile-menu-toggle-bg {
+  background: transparent !important;
+}
+
+html[data-theme="dark"] .theme-toggle-track {
+  background: rgba(56, 189, 248, 0.26) !important;
+}
+
+html[data-theme="dark"] .theme-toggle-dot {
+  background: var(--dark-text) !important;
+  transform: translateX(1rem) !important;
+}
+
+html[data-theme="dark"] .program-section,
+html[data-theme="dark"] .program-card,
+html[data-theme="dark"] .academy-note-banner,
+html[data-theme="dark"] .testimonial-card,
+html[data-theme="dark"] .faq-card,
+html[data-theme="dark"] .contact-card,
+html[data-theme="dark"] .newsletter-card,
+html[data-theme="dark"] .home-trust-card,
+html[data-theme="dark"] .mobile-public-card,
+html[data-theme="dark"] .mobile-card,
+html[data-theme="dark"] .mobile-course-card,
+html[data-theme="dark"] .public-utility-card,
+html[data-theme="dark"] .public-soft-card,
+html[data-theme="dark"] .resource-library-hero-card,
+html[data-theme="dark"] .resource-library-card,
+html[data-theme="dark"] .resource-library-summary-card,
+html[data-theme="dark"] .resource-library-empty-state,
+html[data-theme="dark"] .courses-page-shell .courses-hero-panel,
+html[data-theme="dark"] .courses-page-shell .courses-support-panel,
+html[data-theme="dark"] .courses-page-shell .courses-overview-card,
+html[data-theme="dark"] .courses-page-shell .courses-signal-card,
+html[data-theme="dark"] .courses-page-shell .courses-catalog-card,
+html[data-theme="dark"] .courses-page-shell .courses-offer-card,
+html[data-theme="dark"] .course-detail-shell .course-detail-panel,
+html[data-theme="dark"] .course-detail-shell .course-detail-info-card,
+html[data-theme="dark"] .course-detail-shell .course-application-intro,
+html[data-theme="dark"] .about-hero,
+html[data-theme="dark"] .about-pillar-card,
+html[data-theme="dark"] .about-detail-card,
+html[data-theme="dark"] .about-commitment-card,
+html[data-theme="dark"] .about-offer-card,
+html[data-theme="dark"] .login-card,
+html[data-theme="dark"] .login-segmented-control,
+html[data-theme="dark"] .auth-panel,
+html[data-theme="dark"] .auth-card,
+html[data-theme="dark"] .auth-note,
+html[data-theme="dark"] .admin-card,
+html[data-theme="dark"] .admin-header--premium,
+html[data-theme="dark"] .admin-quicknav,
+html[data-theme="dark"] .admin-surface,
+html[data-theme="dark"] .admin-role-row,
+html[data-theme="dark"] .student-surface,
+html[data-theme="dark"] .student-soft-card,
+html[data-theme="dark"] .student-empty-state,
+html[data-theme="dark"] .admission-hero,
+html[data-theme="dark"] .hero-ribbon-shell,
+html[data-theme="dark"] .hero-ribbon-card,
+html[data-theme="dark"] .hero-modern-shell,
+html[data-theme="dark"] .hero-command-panel,
+html[data-theme="dark"] .hero-story-stage,
+html[data-theme="dark"] .hero-story-card,
+html[data-theme="dark"] .hero-swiper-arrow {
+  background: linear-gradient(180deg, var(--dark-surface), rgba(10, 15, 25, 0.94)) !important;
+  border-color: var(--dark-border) !important;
+  color: var(--dark-text-soft) !important;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
+}
+
+html[data-theme="dark"] .admission-hero {
+  background:
+    radial-gradient(circle at 88% 2%, rgba(56, 189, 248, 0.14), transparent 34%),
+    linear-gradient(150deg, rgba(15, 23, 42, 0.98), rgba(8, 13, 23, 0.94)) !important;
+  border-color: var(--dark-border) !important;
+}
+
+html[data-theme="dark"] .admission-hero::before {
+  opacity: 0.22 !important;
+}
+
+html[data-theme="dark"] .admission-hero .btn,
+html[data-theme="dark"] .admission-hero .home-secondary-action {
+  background: rgba(30, 41, 59, 0.74) !important;
+  border-color: var(--dark-border) !important;
+  color: var(--dark-text) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] .admission-panel,
+html[data-theme="dark"] .admission-summary,
+html[data-theme="dark"] .admission-course-card,
+html[data-theme="dark"] .admission-mode-panel,
+html[data-theme="dark"] .admission-option-card,
+html[data-theme="dark"] .admission-empty-state,
+html[data-theme="dark"] .admission-summary-card,
+html[data-theme="dark"] .admission-success-card,
+html[data-theme="dark"] .admission-step,
+html[data-theme="dark"] .admission-payment-copy,
+html[data-theme="dark"] .admission-qr-card,
+html[data-theme="dark"] .admission-check,
+html[data-theme="dark"] .admission-credential-item,
+html[data-theme="dark"] .admission-copy-button {
+  background: linear-gradient(180deg, rgba(17, 24, 39, 0.95), rgba(10, 15, 25, 0.9)) !important;
+  border-color: var(--dark-border) !important;
+  color: var(--dark-text-soft) !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+html[data-theme="dark"] .admission-course-card.is-selected,
+html[data-theme="dark"] .admission-option-card.is-selected {
+  background: linear-gradient(180deg, rgba(14, 116, 144, 0.26), rgba(30, 41, 59, 0.92)) !important;
+  border-color: rgba(125, 211, 252, 0.42) !important;
+  box-shadow: 0 18px 42px rgba(8, 47, 73, 0.3) !important;
+}
+
+html[data-theme="dark"] [class*="bg-white"],
+html[data-theme="dark"] [class*="bg-slate-50"],
+html[data-theme="dark"] [class*="bg-stone-50"],
+html[data-theme="dark"] [class*="bg-gray-50"],
+html[data-theme="dark"] [class*="bg-zinc-50"],
+html[data-theme="dark"] [class*="bg-neutral-50"],
+html[data-theme="dark"] [class*="bg-[#f"] {
+  background: var(--dark-surface-soft) !important;
+}
+
+html[data-theme="dark"] .google-logo-shell,
+html[data-theme="dark"] .admission-qr-frame,
+html[data-theme="dark"] .admission-qr-image {
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+html[data-theme="dark"] .program-chip,
+html[data-theme="dark"] .public-utility-kicker,
+html[data-theme="dark"] .public-utility-chip,
+html[data-theme="dark"] .course-meta-label,
+html[data-theme="dark"] .courses-context-pill,
+html[data-theme="dark"] .course-detail-context-pill,
+html[data-theme="dark"] .course-detail-back-link,
+html[data-theme="dark"] .course-detail-note-card,
+html[data-theme="dark"] .course-detail-stat,
+html[data-theme="dark"] .course-card-stat,
+html[data-theme="dark"] .course-hero-meta-item,
+html[data-theme="dark"] .admission-interest-pill,
+html[data-theme="dark"] .admission-hero-fact,
+html[data-theme="dark"] .admission-course-state,
+html[data-theme="dark"] .admission-summary-fee,
+html[data-theme="dark"] .admission-course-price,
+html[data-theme="dark"] .admission-course-cta,
+html[data-theme="dark"] .admission-copy-button-secondary,
+html[data-theme="dark"] .student-status-badge,
+html[data-theme="dark"] .admin-pill,
+html[data-theme="dark"] .luxury-pill,
+html[data-theme="dark"] .luxury-badge {
+  background: rgba(30, 41, 59, 0.72) !important;
+  border-color: var(--dark-border) !important;
+  color: var(--dark-text-soft) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] .hero-ribbon-title span[style],
+html[data-theme="dark"] .hero-ribbon-meta > span[style] {
+  background: rgba(30, 41, 59, 0.78) !important;
+  border: 1px solid var(--dark-border) !important;
+  color: var(--dark-text) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] .hero-ribbon-title span[style] {
+  background: rgba(56, 189, 248, 0.16) !important;
+  color: #e0f2fe !important;
+}
+
+html[data-theme="dark"] .btn,
+html[data-theme="dark"] .program-cta,
+html[data-theme="dark"] .contact-cta,
+html[data-theme="dark"] .mobile-page-cta,
+html[data-theme="dark"] .card-cta-link,
+html[data-theme="dark"] .home-primary-action,
+html[data-theme="dark"] .hero-story-cta,
+html[data-theme="dark"] .hero-command-primary,
+html[data-theme="dark"] .desktop-nav-action-primary,
+html[data-theme="dark"] .mobile-menu-link-active,
+html[data-theme="dark"] .mobile-menu-action-primary,
+html[data-theme="dark"] .public-soft-cta,
+html[data-theme="dark"] .academy-note-cta,
+html[data-theme="dark"] .admin-primary,
+html[data-theme="dark"] .hero-ribbon-action[style],
+html[data-theme="dark"] .admission-submit-button,
+html[data-theme="dark"] .student-portal-shell [class*="bg-sky-600"] {
+  background: linear-gradient(180deg, var(--dark-accent), var(--dark-accent-strong)) !important;
+  border-color: rgba(125, 211, 252, 0.42) !important;
+  color: #ffffff !important;
+  box-shadow: 0 16px 34px rgba(37, 99, 235, 0.26) !important;
+}
+
+html[data-theme="dark"] .hero-command-secondary,
+html[data-theme="dark"] .desktop-nav-action-secondary,
+html[data-theme="dark"] .home-secondary-action,
+html[data-theme="dark"] .program-secondary-cta,
+html[data-theme="dark"] .public-utility-secondary-action,
+html[data-theme="dark"] .admin-secondary,
+html[data-theme="dark"] .admin-link,
+html[data-theme="dark"] .auth-link-ghost,
+html[data-theme="dark"] .hero-ribbon-action:not([style]),
+html[data-theme="dark"] .courses-page-shell .course-card-action,
+html[data-theme="dark"] .resource-library-card-actions a,
+html[data-theme="dark"] .student-portal-shell [class*="bg-[#f6f8fb]"] {
+  background: rgba(30, 41, 59, 0.72) !important;
+  border-color: var(--dark-border) !important;
+  color: var(--dark-text-soft) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] .btn:hover,
+html[data-theme="dark"] .program-cta:hover,
+html[data-theme="dark"] .contact-cta:hover,
+html[data-theme="dark"] .mobile-page-cta:hover,
+html[data-theme="dark"] .card-cta-link:hover,
+html[data-theme="dark"] .home-primary-action:hover,
+html[data-theme="dark"] .hero-story-cta:hover,
+html[data-theme="dark"] .hero-command-primary:hover,
+html[data-theme="dark"] .admin-primary:hover,
+html[data-theme="dark"] .admission-submit-button:hover {
+  background: linear-gradient(180deg, #7dd3fc, #1d4ed8) !important;
+  color: #ffffff !important;
+  box-shadow: 0 18px 38px rgba(37, 99, 235, 0.32) !important;
+  filter: none !important;
+}
+
+html[data-theme="dark"] .program-heading,
+html[data-theme="dark"] .section-title,
+html[data-theme="dark"] .app-page-title,
+html[data-theme="dark"] .mobile-public-title,
+html[data-theme="dark"] .hero-command-title,
+html[data-theme="dark"] .hero-stage-title,
+html[data-theme="dark"] .hero-story-title,
+html[data-theme="dark"] .hero-ribbon-title,
+html[data-theme="dark"] .faq-question,
+html[data-theme="dark"] .testimonial-name,
+html[data-theme="dark"] .course-hero-title,
+html[data-theme="dark"] .course-section-title,
+html[data-theme="dark"] .course-card-title,
+html[data-theme="dark"] .course-detail-title,
+html[data-theme="dark"] .resource-library-title,
+html[data-theme="dark"] .resource-library-card-title,
+html[data-theme="dark"] .about-title,
+html[data-theme="dark"] .about-section-title,
+html[data-theme="dark"] .about-offer-title,
+html[data-theme="dark"] .admission-title,
+html[data-theme="dark"] .admission-panel-title,
+html[data-theme="dark"] .admission-summary-title,
+html[data-theme="dark"] .admission-success-title,
+html[data-theme="dark"] .admission-course-title,
+html[data-theme="dark"] .admission-empty-title,
+html[data-theme="dark"] .admission-step-title,
+html[data-theme="dark"] .login-card h1,
+html[data-theme="dark"] .login-card h2,
+html[data-theme="dark"] .student-portal-shell h1,
+html[data-theme="dark"] .student-portal-shell h2,
+html[data-theme="dark"] .student-portal-shell h3,
+html[data-theme="dark"] .admin-shell h1,
+html[data-theme="dark"] .admin-shell h2,
+html[data-theme="dark"] .admin-shell h3 {
+  color: var(--dark-text) !important;
+}
+
+html[data-theme="dark"] .program-description,
+html[data-theme="dark"] .program-subtitle,
+html[data-theme="dark"] .section-subtitle,
+html[data-theme="dark"] .app-page-subtitle,
+html[data-theme="dark"] .public-utility-copy,
+html[data-theme="dark"] .faq-answer,
+html[data-theme="dark"] .testimonial-quote,
+html[data-theme="dark"] .testimonial-role,
+html[data-theme="dark"] .course-body,
+html[data-theme="dark"] .course-card-copy,
+html[data-theme="dark"] .course-inline-note,
+html[data-theme="dark"] .course-meta-note,
+html[data-theme="dark"] .resource-library-description,
+html[data-theme="dark"] .resource-library-card-meta,
+html[data-theme="dark"] .about-copy,
+html[data-theme="dark"] .about-copy-muted,
+html[data-theme="dark"] .about-section-copy,
+html[data-theme="dark"] .about-card-copy,
+html[data-theme="dark"] .about-offer-copy,
+html[data-theme="dark"] .hero-ribbon-description,
+html[data-theme="dark"] .hero-ribbon-footnote,
+html[data-theme="dark"] .admission-copy,
+html[data-theme="dark"] .admission-kicker,
+html[data-theme="dark"] .admission-panel-kicker,
+html[data-theme="dark"] .admission-success-kicker,
+html[data-theme="dark"] .admission-note-label,
+html[data-theme="dark"] .admission-panel-copy,
+html[data-theme="dark"] .admission-summary-copy,
+html[data-theme="dark"] .admission-success-copy,
+html[data-theme="dark"] .admission-empty-copy,
+html[data-theme="dark"] .admission-payment-note,
+html[data-theme="dark"] .admission-step-copy,
+html[data-theme="dark"] .admission-submit-note,
+html[data-theme="dark"] .admission-course-copy,
+html[data-theme="dark"] .admission-qr-caption,
+html[data-theme="dark"] .login-card label,
+html[data-theme="dark"] .login-card p,
+html[data-theme="dark"] .student-portal-shell p,
+html[data-theme="dark"] .student-portal-shell span,
+html[data-theme="dark"] .admin-shell p,
+html[data-theme="dark"] .admin-shell label,
+html[data-theme="dark"] .admin-shell span {
+  color: var(--dark-muted) !important;
+}
+
+html[data-theme="dark"] .program-title,
+html[data-theme="dark"] .admission-option-card strong,
+html[data-theme="dark"] .admission-course-card strong,
+html[data-theme="dark"] .admission-credential-item strong,
+html[data-theme="dark"] .admission-copy-row strong,
+html[data-theme="dark"] .admission-payment-copy strong,
+html[data-theme="dark"] .admission-summary-card strong,
+html[data-theme="dark"] .admission-success-card strong,
+html[data-theme="dark"] .admission-empty-state strong,
+html[data-theme="dark"] .admission-step strong,
+html[data-theme="dark"] .admission-hero-fact strong,
+html[data-theme="dark"] .course-detail-stat strong,
+html[data-theme="dark"] .course-card-stat strong,
+html[data-theme="dark"] .course-hero-meta-item strong,
+html[data-theme="dark"] .student-portal-shell strong,
+html[data-theme="dark"] .admin-shell strong {
+  color: var(--dark-text) !important;
+}
+
+html[data-theme="dark"] .course-detail-stat span,
+html[data-theme="dark"] .course-card-stat span,
+html[data-theme="dark"] .course-hero-meta-item span,
+html[data-theme="dark"] .admission-option-card span,
+html[data-theme="dark"] .admission-option-card small,
+html[data-theme="dark"] .admission-course-state,
+html[data-theme="dark"] .admission-summary-fee,
+html[data-theme="dark"] .admission-course-price,
+html[data-theme="dark"] .admission-course-cta {
+  color: var(--dark-muted) !important;
+}
+
+html[data-theme="dark"] .hero-ribbon-shell > .absolute.inset-0,
+html[data-theme="dark"] .hero-ribbon-founder-image + *,
+html[data-theme="dark"] [class*="blur-3xl"] {
+  opacity: 0.18 !important;
+}
+
+html[data-theme="dark"] .hero-ribbon-founder-image {
+  border-radius: 1.35rem;
+  filter: brightness(0.76) contrast(1.08) saturate(0.92);
+  opacity: 0.94;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.28);
+}
+
+html[data-theme="dark"] [class*="text-slate-950"],
+html[data-theme="dark"] [class*="text-slate-900"],
+html[data-theme="dark"] [class*="text-slate-800"],
+html[data-theme="dark"] [class*="text-slate-700"],
+html[data-theme="dark"] [class*="text-gray-900"],
+html[data-theme="dark"] [class*="text-gray-800"],
+html[data-theme="dark"] [class*="text-gray-700"],
+html[data-theme="dark"] [class*="text-stone-900"],
+html[data-theme="dark"] [class*="text-stone-800"],
+html[data-theme="dark"] [class*="text-stone-700"] {
+  color: var(--dark-text) !important;
+}
+
+html[data-theme="dark"] [class*="text-slate-600"],
+html[data-theme="dark"] [class*="text-slate-500"],
+html[data-theme="dark"] [class*="text-slate-400"],
+html[data-theme="dark"] [class*="text-gray-600"],
+html[data-theme="dark"] [class*="text-gray-500"],
+html[data-theme="dark"] [class*="text-gray-400"],
+html[data-theme="dark"] [class*="text-stone-600"],
+html[data-theme="dark"] [class*="text-stone-500"],
+html[data-theme="dark"] [class*="text-stone-400"] {
+  color: var(--dark-muted) !important;
+}
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select,
+html[data-theme="dark"] .contact-input,
+html[data-theme="dark"] .login-input,
+html[data-theme="dark"] .auth-input,
+html[data-theme="dark"] .admission-field input,
+html[data-theme="dark"] .admission-field select,
+html[data-theme="dark"] .admission-field textarea {
+  background: rgba(3, 7, 18, 0.78) !important;
+  border-color: var(--dark-border) !important;
+  color: var(--dark-text) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 10px 24px rgba(0, 0, 0, 0.14) !important;
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+  color: var(--dark-faint) !important;
+}
+
+html[data-theme="dark"] input:focus,
+html[data-theme="dark"] textarea:focus,
+html[data-theme="dark"] select:focus,
+html[data-theme="dark"] .contact-input:focus,
+html[data-theme="dark"] .login-input:focus,
+html[data-theme="dark"] .admission-field input:focus,
+html[data-theme="dark"] .admission-field select:focus,
+html[data-theme="dark"] .admission-field textarea:focus {
+  border-color: rgba(125, 211, 252, 0.48) !important;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.12), 0 12px 28px rgba(0, 0, 0, 0.18) !important;
+}
+
+html[data-theme="dark"] option {
+  background: #0f172a;
+  color: var(--dark-text);
+}
+
+html[data-theme="dark"] table,
+html[data-theme="dark"] thead,
+html[data-theme="dark"] tbody,
+html[data-theme="dark"] tr,
+html[data-theme="dark"] th,
+html[data-theme="dark"] td {
+  border-color: var(--dark-border) !important;
+}
+
+html[data-theme="dark"] thead,
+html[data-theme="dark"] [class*="bg-stone-50"] {
+  background: rgba(15, 23, 42, 0.94) !important;
+}
+
+html[data-theme="dark"] tr:hover {
+  background: rgba(56, 189, 248, 0.08) !important;
+}
+
+html[data-theme="dark"] .student-status-badge[class*="emerald"],
+html[data-theme="dark"] [class*="bg-emerald-50"] {
+  background: rgba(16, 185, 129, 0.16) !important;
+  color: #a7f3d0 !important;
+}
+
+html[data-theme="dark"] [class*="text-emerald"] {
+  color: #a7f3d0 !important;
+}
+
+html[data-theme="dark"] .student-status-badge[class*="amber"],
+html[data-theme="dark"] [class*="bg-amber-50"] {
+  background: rgba(245, 158, 11, 0.16) !important;
+  color: #fde68a !important;
+}
+
+html[data-theme="dark"] [class*="text-amber"] {
+  color: #fde68a !important;
+}
+
+html[data-theme="dark"] .student-status-badge[class*="rose"],
+html[data-theme="dark"] .login-card [role="alert"],
+html[data-theme="dark"] .admission-error,
+html[data-theme="dark"] [class*="bg-rose-50"] {
+  background: rgba(244, 63, 94, 0.14) !important;
+  border-color: rgba(251, 113, 133, 0.28) !important;
+  color: #fecdd3 !important;
+}
+
+html[data-theme="dark"] [class*="text-rose"] {
+  color: #fecdd3 !important;
+}
+
+html[data-theme="dark"] .site-route-progress {
+  background: linear-gradient(90deg, var(--dark-accent), #a78bfa) !important;
+}
+
 @media (max-width: 767px) {
   .student-portal-shell {
     padding-left: 1rem !important;

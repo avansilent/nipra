@@ -12,6 +12,8 @@ type CourseRow = {
   cta_label: string | null;
 };
 
+export const publishedCoursesCacheTag = "published-courses";
+
 const catalogOrder = new Map(academyCatalog.map((course, index) => [course.id, index]));
 
 function sortPublishedCourses(courses: AdmissionCourse[]) {
@@ -77,9 +79,10 @@ const loadPublishedCourses = unstable_cache(
       return [];
     }
   },
-  ["published-courses"],
+  [publishedCoursesCacheTag],
   {
     revalidate: 60,
+    tags: [publishedCoursesCacheTag],
   }
 );
 

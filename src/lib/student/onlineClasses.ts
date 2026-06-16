@@ -108,11 +108,28 @@ export async function getStudentRouteContext(): Promise<StudentRouteContext> {
     throw new StudentRouteError(profileError.message, 500);
   }
 
-  const role = normalizeRole(profile?.role ?? user.app_metadata?.role ?? null);
-  const instituteId =
+  let instituteId =
     profile?.institute_id ??
     (user.app_metadata?.institute_id as string | undefined) ??
     null;
+  const enrollmentRoleFallback = !instituteId ? "student" : null;
+
+  if (!instituteId) {
+    const { data: enrollment, error: enrollmentError } = await serviceClient
+      .from("enrollments")
+      .select("institute_id")
+      .eq("student_id", user.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (enrollmentError) {
+      throw new StudentRouteError(enrollmentError.message, 500);
+    }
+
+    instituteId = (enrollment?.institute_id as string | null | undefined) ?? null;
+  }
+
+  const role = normalizeRole(profile?.role ?? user.app_metadata?.role ?? enrollmentRoleFallback);
 
   if (role !== "student") {
     throw new StudentRouteError("Student access required.", 403, "student_required");

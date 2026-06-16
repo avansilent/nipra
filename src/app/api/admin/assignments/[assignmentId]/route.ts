@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { AdminRouteError, getAdminRouteContext, type AdminRouteContext } from "../../../../../lib/admin/route";
+import { revalidateAdminContent } from "../../../../../lib/cacheInvalidation";
 import {
   adminJsonError,
   createSignedMaterialUrl,
@@ -193,6 +194,8 @@ export async function PATCH(request: Request, contextParams: RouteParams<"assign
       await deleteMaterialFiles(context, [existingFilePath]);
     }
 
+    revalidateAdminContent("learning");
+
     return NextResponse.json({
       assignment: {
         ...toPublicAssignment(updatedAssignment),
@@ -233,6 +236,8 @@ export async function DELETE(_request: Request, contextParams: RouteParams<"assi
       getStoredFilePath(assignment),
       ...(submissions ?? []).map(getStoredFilePath),
     ]);
+
+    revalidateAdminContent("learning");
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -6,6 +6,7 @@ import {
   isValidBunnyVideoId,
 } from "../../../../../../lib/bunnyStream";
 import { getAdminRouteContext } from "../../../../../../lib/admin/route";
+import { revalidateAdminContent } from "../../../../../../lib/cacheInvalidation";
 import {
   adminJsonError,
   getAdminSession,
@@ -135,6 +136,8 @@ export async function POST(request: Request, contextParams: RouteParams<"session
         return NextResponse.json({ error: error?.message ?? "Unable to save recording" }, { status: 500 });
       }
 
+      revalidateAdminContent("learning");
+
       return NextResponse.json({ recording });
     }
 
@@ -190,6 +193,8 @@ export async function POST(request: Request, contextParams: RouteParams<"session
       return NextResponse.json({ error: error?.message ?? "Unable to save recording" }, { status: 500 });
     }
 
+    revalidateAdminContent("learning");
+
     return NextResponse.json({ recording });
   } catch (error) {
     return adminJsonError(error, "Unable to save session recording");
@@ -211,6 +216,8 @@ export async function DELETE(_request: Request, contextParams: RouteParams<"sess
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    revalidateAdminContent("learning");
 
     return NextResponse.json({ success: true });
   } catch (error) {

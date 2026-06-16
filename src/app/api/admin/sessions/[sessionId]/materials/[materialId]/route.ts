@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminRouteContext } from "../../../../../../../lib/admin/route";
+import { revalidateAdminContent } from "../../../../../../../lib/cacheInvalidation";
 import {
   adminJsonError,
   deleteMaterialFiles,
@@ -46,6 +47,8 @@ export async function DELETE(_request: Request, contextParams: RouteParams) {
     }
 
     await deleteMaterialFiles(context, [getStoredFilePath(material)]);
+
+    revalidateAdminContent("learning");
 
     return NextResponse.json({ success: true });
   } catch (error) {

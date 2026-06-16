@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminRouteContext } from "../../../../../lib/admin/route";
+import { revalidateAdminContent } from "../../../../../lib/cacheInvalidation";
 import {
   adminJsonError,
   deleteMaterialFiles,
@@ -168,6 +169,8 @@ export async function PATCH(request: Request, contextParams: RouteParams<"sessio
       }
     }
 
+    revalidateAdminContent("learning");
+
     return NextResponse.json({ session: updatedSession, meetingLink });
   } catch (error) {
     return adminJsonError(error, "Unable to update session");
@@ -217,6 +220,8 @@ export async function DELETE(_request: Request, contextParams: RouteParams<"sess
       ...(assignments ?? []).map(getStoredFilePath),
       ...(submissions ?? []).map(getStoredFilePath),
     ]);
+
+    revalidateAdminContent("learning");
 
     return NextResponse.json({ success: true });
   } catch (error) {

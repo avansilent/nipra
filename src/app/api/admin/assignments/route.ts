@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { AdminRouteError, getAdminRouteContext, type AdminRouteContext } from "../../../../lib/admin/route";
+import { revalidateAdminContent } from "../../../../lib/cacheInvalidation";
 import {
   adminJsonError,
   createSignedMaterialUrl,
@@ -160,6 +161,8 @@ export async function POST(request: Request) {
       await deleteMaterialFiles(context, [uploadedPath]);
       return NextResponse.json({ error: insertError?.message ?? "Unable to create assignment" }, { status: 500 });
     }
+
+    revalidateAdminContent("learning");
 
     return NextResponse.json({
       assignment: {
