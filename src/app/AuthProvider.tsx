@@ -301,8 +301,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const isProtectedPage = pathname.startsWith("/admin") || pathname.startsWith("/student") || pathname === "/dashboard";
     if (!user && isProtectedPage) {
-      const loginType = pathname.startsWith("/admin") ? "admin" : "student";
-      router.replace(`/login?type=${loginType}`);
+      const params = new URLSearchParams({ callbackUrl: pathname });
+      if (!pathname.startsWith("/admin")) {
+        params.set("type", "student");
+      }
+      router.replace(`/login?${params.toString()}`);
       return;
     }
 

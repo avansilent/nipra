@@ -34,6 +34,7 @@ export type HomeContent = {
   heroPrimaryCtaHref: string;
   heroSecondaryCtaLabel: string;
   heroSecondaryCtaHref: string;
+  heroImageUrl: string;
   programsHeading: string;
   programsDescription: string;
   programs: Program[];

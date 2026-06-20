@@ -1,5 +1,4 @@
 import "./globals.css";
-import Link from "next/link";
 import Navbar from "./Navbar";
 import type { Metadata } from "next";
 import { Providers } from "./Providers";
@@ -48,6 +47,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const siteSettings = await fetchSiteSettings();
+  const navbarSiteSettings = {
+    siteName: siteSettings.siteName,
+    logoUrl: siteSettings.logoUrl,
+  };
   const performanceCompatScript = `
     (function () {
       var perf = window.performance || {};
@@ -172,23 +175,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className={`${inter.variable} min-h-screen w-full text-slate-900 antialiased`}>
         <Providers>
           <div className="flex min-h-screen w-full flex-col">
-            <Navbar siteSettings={siteSettings} />
+            <Navbar siteSettings={navbarSiteSettings} />
             <main className="site-main-shell w-full flex-1">
               {children}
             </main>
             <footer className="mobile-site-footer w-full">
-              <div className="mobile-site-footer-inner w-full px-4 py-10 text-center sm:px-6 lg:px-8">
-                <div className="inline-flex items-center rounded-full bg-slate-50 px-5 py-2 text-xl font-bold tracking-[-0.02em] text-slate-900 shadow-sm sm:text-2xl">
-                  <span className="text-slate-900">{siteSettings.siteName}</span>
-                </div>
-                <p className="mt-3 text-sm leading-relaxed text-slate-600">{siteSettings.footerNotice}</p>
-                <nav className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs font-medium text-slate-500" aria-label="Legal links">
-                  <Link href="/terms-and-conditions" className="transition hover:text-slate-900">
-                    Terms &amp; Conditions
-                  </Link>
-                </nav>
-                <p className="mt-2 text-xs text-slate-500">&copy; {new Date().getFullYear()} {siteSettings.siteName}. All rights reserved.</p>
-                <p className="mt-1 text-xs text-slate-500">Powered by Dark Astra</p>
+              <div className="mobile-site-footer-inner w-full px-4 py-6 text-center sm:px-6 lg:px-8">
+                <p className="text-xs text-slate-500">&copy; 2026 Nipracademy. All rights reserved.</p>
               </div>
             </footer>
           </div>

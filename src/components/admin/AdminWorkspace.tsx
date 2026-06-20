@@ -25,6 +25,7 @@ import { formatResourceVisibility, type ResourceVisibility } from "../../lib/res
 import { createSupabaseBrowserClient } from "../../lib/supabase/browser";
 import type { Faq, HomeContent, Program, Testimonial } from "../../types/home";
 import type { SiteSettings } from "../../types/site";
+import HeroBanner from "../HeroBanner";
 import AdminMetricCard from "./AdminMetricCard";
 import AdminPanelCard from "./AdminPanelCard";
 import AdminSidebar from "./AdminSidebar";
@@ -362,6 +363,8 @@ export default function AdminWorkspace() {
   const [announcements, setAnnouncements] = useState<AnnouncementRow[]>([]);
   const [homeContent, setHomeContent] = useState<HomeContent>(defaultHomeContent);
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(defaultSiteSettings);
+  const [heroImageUploading, setHeroImageUploading] = useState(false);
+  const [heroImagePickerKey, setHeroImagePickerKey] = useState(0);
 
   const [studentForm, setStudentForm] = useState<StudentFormState>(emptyStudentForm);
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
@@ -771,7 +774,7 @@ export default function AdminWorkspace() {
   ].filter((item) => item !== null);
 
   const saveHomeButton = (
-    <button type="button" onClick={() => void saveSiteContent("home", homeContent)} className={primaryButtonClass} disabled={busy}>
+    <button type="button" onClick={() => void saveSiteContent("home", homeContent)} className={primaryButtonClass} disabled={busy || heroImageUploading}>
       Save Website Content
     </button>
   );
@@ -1569,6 +1572,52 @@ export default function AdminWorkspace() {
     }));
   };
 
+  const handleHeroImageUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const image = event.target.files?.[0] ?? null;
+
+    if (!image) {
+      return;
+    }
+
+    if (!["image/jpeg", "image/png", "image/webp", "image/avif"].includes(image.type)) {
+      setError("Upload a JPG, PNG, WebP, or AVIF hero image.");
+      setHeroImagePickerKey((prev) => prev + 1);
+      return;
+    }
+
+    if (image.size > 5 * 1024 * 1024) {
+      setError("Hero image must be 5MB or smaller.");
+      setHeroImagePickerKey((prev) => prev + 1);
+      return;
+    }
+
+    clearFeedback();
+    setHeroImageUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", image);
+
+      const response = await fetch("/api/admin/site-content/hero-image", {
+        method: "POST",
+        body: formData,
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Unable to upload hero image");
+      }
+
+      setHomeContent((prev) => ({ ...prev, heroImageUrl: payload.url ?? "" }));
+      setMessage("Hero image uploaded. Save website content to publish it.");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Unable to upload hero image");
+    } finally {
+      setHeroImageUploading(false);
+      setHeroImagePickerKey((prev) => prev + 1);
+    }
+  };
+
   async function saveSiteContent(key: "home" | "settings", data: HomeContent | SiteSettings) {
     clearFeedback();
     setBusy(true);
@@ -1633,8 +1682,8 @@ export default function AdminWorkspace() {
             This workspace is reserved for owner-level admin accounts with institute permissions.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/login?type=admin" className={primaryButtonClass}>
-              Go to Admin Login
+            <Link href="/login" className={primaryButtonClass}>
+              Go to Login
             </Link>
             <Link href="/" className={secondaryButtonClass}>
               Back to website
@@ -2359,6 +2408,59 @@ export default function AdminWorkspace() {
                     <Field label="Primary CTA link"><input className={inputClass} value={homeContent.heroPrimaryCtaHref} onChange={(event) => setHomeContent((prev) => ({ ...prev, heroPrimaryCtaHref: event.target.value }))} /></Field>
                     <Field label="Secondary CTA label"><input className={inputClass} value={homeContent.heroSecondaryCtaLabel} onChange={(event) => setHomeContent((prev) => ({ ...prev, heroSecondaryCtaLabel: event.target.value }))} /></Field>
                     <Field label="Secondary CTA link"><input className={inputClass} value={homeContent.heroSecondaryCtaHref} onChange={(event) => setHomeContent((prev) => ({ ...prev, heroSecondaryCtaHref: event.target.value }))} /></Field>
+                    <div className="md:col-span-2">
+                      <Field label="Hero image" hint="JPG, PNG, WebP, or AVIF. Maximum 5MB. Save website content after upload to publish.">
+                        <div className="flex flex-col gap-3 rounded-[24px] bg-[#f6f8fb] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-900">
+                              {homeContent.heroImageUrl ? "Hero image ready" : "No hero image selected"}
+                            </p>
+                            {homeContent.heroImageUrl ? (
+                              <p className="mt-1 truncate text-xs text-slate-500">{homeContent.heroImageUrl}</p>
+                            ) : null}
+                          </div>
+                          <div className="flex shrink-0 flex-wrap gap-2">
+                            <label className={`${secondaryButtonClass} cursor-pointer`}>
+                              {heroImageUploading ? "Uploading..." : "Upload Image"}
+                              <input
+                                key={heroImagePickerKey}
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp,image/avif"
+                                className="hidden"
+                                disabled={busy || heroImageUploading}
+                                onChange={(event) => void handleHeroImageUpload(event)}
+                              />
+                            </label>
+                            {homeContent.heroImageUrl ? (
+                              <button
+                                type="button"
+                                className={dangerButtonClass}
+                                disabled={busy || heroImageUploading}
+                                onClick={() => setHomeContent((prev) => ({ ...prev, heroImageUrl: "" }))}
+                              >
+                                Remove
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                      </Field>
+                    </div>
+                    <div className="md:col-span-2">
+                      <div className="rounded-[28px] bg-[#f6f8fb] p-3 shadow-[0_14px_30px_rgba(226,232,240,0.86)]">
+                        <div className="mb-3 flex flex-col gap-2 px-1 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">Live website preview</p>
+                            <p className="mt-1 text-sm text-slate-600">Shows the homepage hero with the current unsaved edits.</p>
+                          </div>
+                          <Link href="/" className={secondaryButtonClass}>
+                            Open Homepage
+                          </Link>
+                        </div>
+                        <div className="overflow-hidden rounded-[2rem] bg-white p-2">
+                          <HeroBanner content={homeContent} siteSettings={siteSettings} initialSlideId="about-nipra" disableAutoplay />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </AdminPanelCard>
 
@@ -2436,7 +2538,6 @@ export default function AdminWorkspace() {
                     <Field label="Contact email"><input className={inputClass} value={siteSettings.contactEmail} onChange={(event) => setSiteSettings((prev) => ({ ...prev, contactEmail: event.target.value }))} /></Field>
                     <Field label="Contact phone"><input className={inputClass} value={siteSettings.contactPhone} onChange={(event) => setSiteSettings((prev) => ({ ...prev, contactPhone: event.target.value }))} /></Field>
                     <div className="md:col-span-2"><Field label="Contact address"><input className={inputClass} value={siteSettings.contactAddress} onChange={(event) => setSiteSettings((prev) => ({ ...prev, contactAddress: event.target.value }))} /></Field></div>
-                    <div className="md:col-span-2"><Field label="Footer notice"><input className={inputClass} value={siteSettings.footerNotice} onChange={(event) => setSiteSettings((prev) => ({ ...prev, footerNotice: event.target.value }))} /></Field></div>
                   </div>
 
                   <div className="space-y-4">

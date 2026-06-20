@@ -143,6 +143,20 @@ export default function ResourceLibrary({
           <div className="resource-library-empty-state rounded-[32px] bg-white/92 px-7 py-10 text-center shadow-[0_14px_36px_rgba(36,32,28,0.05)] sm:px-8">
             <p className="text-lg font-semibold text-slate-950">{emptyTitle}</p>
             <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-600">{emptyDescription}</p>
+            <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Link
+                href="/login"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_26px_rgba(15,23,42,0.14)] transition hover:-translate-y-0.5 hover:bg-slate-900 sm:w-auto"
+              >
+                Login to Student Portal
+              </Link>
+              <Link
+                href="/courses"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-stone-100 px-5 py-3 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:bg-white sm:w-auto"
+              >
+                Browse Courses & Enroll
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">

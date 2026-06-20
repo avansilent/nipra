@@ -20,8 +20,10 @@ const navLinks = [
   { href: "/#contact", label: "Contact" },
 ];
 
+type NavbarSiteSettings = Pick<SiteSettings, "siteName" | "logoUrl">;
+
 type NavbarProps = {
-  siteSettings: SiteSettings;
+  siteSettings: NavbarSiteSettings;
 };
 
 type InlineLink = {

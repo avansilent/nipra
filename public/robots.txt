@@ -1,4 +1,10 @@
 User-agent: *
 Disallow: /admin
+Disallow: /admin/
 Disallow: /student
-Disallow: /api
+Disallow: /student/
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /auth/
+Allow: /
+Sitemap: https://nipracademy.com/sitemap.xml

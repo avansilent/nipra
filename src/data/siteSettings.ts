@@ -7,13 +7,18 @@ export const defaultSiteSettings: SiteSettings = {
   logoUrl: DEFAULT_LOGO_SRC,
   contactEmail: "support@nipracademy.com",
   contactPhone: "7324868574",
-  contactAddress: "Patna, Bihar, India",
-  footerNotice: "Premium learning for Class 1-12 | CBSE & Bihar Board",
+  contactAddress: "Deo, Aurangabad, Bihar",
 };
 
 export function mergeSiteSettings(partial?: Partial<SiteSettings>): SiteSettings {
+  const source = partial ?? {};
+
   return {
-    ...defaultSiteSettings,
-    ...(partial ?? {}),
+    siteName: source.siteName ?? defaultSiteSettings.siteName,
+    siteDescription: source.siteDescription ?? defaultSiteSettings.siteDescription,
+    logoUrl: source.logoUrl ?? defaultSiteSettings.logoUrl,
+    contactEmail: source.contactEmail ?? defaultSiteSettings.contactEmail,
+    contactPhone: source.contactPhone ?? defaultSiteSettings.contactPhone,
+    contactAddress: source.contactAddress ?? defaultSiteSettings.contactAddress,
   };
 }

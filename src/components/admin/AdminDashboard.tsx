@@ -637,7 +637,7 @@ export default function AdminDashboard() {
           <h1 className="mt-4 text-3xl font-black tracking-[-0.05em] text-slate-950">Admin access required</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">This dashboard is available only to owner-level admin accounts.</p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/login?type=admin" className="btn rounded-full px-5 py-3">Go to Admin Login</Link>
+            <Link href="/login" className="btn rounded-full px-5 py-3">Go to Login</Link>
             <Link href="/" className={secondaryButtonClass}>Back to website</Link>
           </div>
         </div>
@@ -819,7 +819,6 @@ export default function AdminDashboard() {
                     <div><label className={labelClass}>Contact Email</label><input className={inputClass} value={siteSettings.contactEmail} onChange={(event) => setSiteSettings((prev) => ({ ...prev, contactEmail: event.target.value }))} /></div>
                     <div><label className={labelClass}>Contact Phone</label><input className={inputClass} value={siteSettings.contactPhone} onChange={(event) => setSiteSettings((prev) => ({ ...prev, contactPhone: event.target.value }))} /></div>
                     <div className="md:col-span-2"><label className={labelClass}>Contact Address</label><input className={inputClass} value={siteSettings.contactAddress} onChange={(event) => setSiteSettings((prev) => ({ ...prev, contactAddress: event.target.value }))} /></div>
-                    <div className="md:col-span-2"><label className={labelClass}>Footer Notice</label><input className={inputClass} value={siteSettings.footerNotice} onChange={(event) => setSiteSettings((prev) => ({ ...prev, footerNotice: event.target.value }))} /></div>
                   </div>
                 </AdminPanelCard>
               ) : null}

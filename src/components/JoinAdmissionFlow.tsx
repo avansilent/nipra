@@ -31,9 +31,11 @@ import type { SiteSettings } from "../types/site";
 
 const stepVariants = createStaggerContainer(0.08, 0.02);
 
+type AdmissionSiteSettings = Pick<SiteSettings, "siteName" | "contactPhone">;
+
 type JoinAdmissionFlowProps = {
   courses: AdmissionCourse[];
-  siteSettings: SiteSettings;
+  siteSettings: AdmissionSiteSettings;
   interest?: string;
   initialCourseId?: string;
   lockCourseSelection?: boolean;

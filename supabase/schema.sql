@@ -886,6 +886,10 @@ insert into storage.buckets (id, name, public)
 values ('materials', 'materials', false)
 on conflict (id) do update set public = excluded.public;
 
+insert into storage.buckets (id, name, public)
+values ('site-assets', 'site-assets', true)
+on conflict (id) do update set public = excluded.public;
+
 drop policy if exists "Admins manage notes bucket" on storage.objects;
 create policy "Admins manage notes bucket" on storage.objects
   for all
@@ -897,6 +901,17 @@ create policy "Admins manage materials bucket" on storage.objects
   for all
   using (bucket_id = 'materials' and public.is_admin())
   with check (bucket_id = 'materials' and public.is_admin());
+
+drop policy if exists "Public can read site assets bucket" on storage.objects;
+create policy "Public can read site assets bucket" on storage.objects
+  for select
+  using (bucket_id = 'site-assets');
+
+drop policy if exists "Admins manage site assets bucket" on storage.objects;
+create policy "Admins manage site assets bucket" on storage.objects
+  for all
+  using (bucket_id = 'site-assets' and public.is_admin())
+  with check (bucket_id = 'site-assets' and public.is_admin());
 
 create index if not exists idx_profiles_institute_id on public.profiles(institute_id);
 create index if not exists idx_courses_institute_id on public.courses(institute_id);

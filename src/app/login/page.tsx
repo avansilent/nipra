@@ -317,8 +317,10 @@ function LoginContent() {
   const [loadingAction, setLoadingAction] = useState<LoadingAction>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const loginType = searchParams.get("type") || "student";
-  const requestedLoginMethod = searchParams.get("method") || "phone";
+  const callbackUrl = searchParams.get("callbackUrl");
+  const callbackRequestsAdmin = isSafeAppPath(callbackUrl) && callbackUrl.startsWith("/admin");
+  const loginType = searchParams.get("type") || (callbackRequestsAdmin ? "admin" : "student");
+  const requestedLoginMethod = searchParams.get("method") || (callbackRequestsAdmin ? "password" : "phone");
   const authError = searchParams.get("error");
   const authMessage = searchParams.get("message");
   const [error, setError] = useState<string | null>(() =>
@@ -351,7 +353,6 @@ function LoginContent() {
   const activePhoneSession =
     !isAdminLogin && Boolean(user && authenticatedPhone && typedPhone && authenticatedPhone === typedPhone);
   const rememberedPhoneLabel = typedPhone ? maskMobileNumber(typedPhone) : null;
-  const callbackUrl = searchParams.get("callbackUrl");
   const buildStudentLoginHref = (method: "phone" | "password", force = false) => {
     const params = new URLSearchParams({ type: "student", method });
     if (callbackUrl) {
@@ -750,7 +751,7 @@ function LoginContent() {
     }
   };
 
-  const title = isAdminLogin ? "Admin Login" : "Student Login";
+  const title = isAdminLogin ? "Secure Login" : "Student Login";
   return (
     <main className={loginShellClassName}>
       <section className={loginViewportClassName} aria-label="Nipracademy login">

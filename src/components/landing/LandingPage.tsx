@@ -142,10 +142,6 @@ export default function LandingPage({ content = defaultHomeContent }: LandingPag
                       <span className="material-symbols-outlined">school</span>
                       I&apos;m a Student
                     </Link>
-                    <Link href="/login?type=admin" className="h-14 px-8 rounded-xl bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-base font-bold shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-300 flex items-center justify-center gap-2">
-                      <span className="material-symbols-outlined">cast_for_education</span>
-                      I&apos;m a Teacher
-                    </Link>
                   </div>
                 </div>
               </div>

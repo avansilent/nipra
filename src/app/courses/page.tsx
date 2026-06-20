@@ -5,8 +5,9 @@ import { fetchPublishedCourses } from "../../lib/publicCourses";
 import { fetchSiteSettings } from "../../lib/siteSettings";
 
 export const metadata: Metadata = {
-  title: "Courses | Nipracademy",
-  description: "Explore Nipracademy courses, online and offline fee options, admission details, and secure enrollment paths.",
+  title: "All Courses | Nipracademy | Admissions Open 2026–27",
+  description:
+    "Browse coaching programs for Pre-Primary to Class 12 at Nipracademy. CBSE & Bihar Board. Online + Offline modes. Secure Razorpay admission.",
 };
 
 type CoursesPageProps = {

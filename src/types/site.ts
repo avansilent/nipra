@@ -5,5 +5,4 @@ export type SiteSettings = {
   contactEmail: string;
   contactPhone: string;
   contactAddress: string;
-  footerNotice: string;
 };

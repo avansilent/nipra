@@ -4,6 +4,7 @@ import type { SiteSettings } from "../types/site";
 import { createSupabaseServerClient } from "./supabase/server";
 
 export const siteSettingsCacheTag = "site-settings";
+const siteSettingsCacheKey = "site-settings-public-fields";
 
 const loadSiteSettings = unstable_cache(
   async (): Promise<SiteSettings> => {
@@ -25,7 +26,7 @@ const loadSiteSettings = unstable_cache(
 
     return mergeSiteSettings(data.data as Partial<SiteSettings>);
   },
-  [siteSettingsCacheTag],
+  [siteSettingsCacheKey],
   {
     revalidate: 300,
     tags: [siteSettingsCacheTag],

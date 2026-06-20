@@ -4,8 +4,9 @@ import { fetchHomeContent } from "../lib/homeContent";
 import { fetchSiteSettings } from "../lib/siteSettings";
 
 export const metadata: Metadata = {
-  title: "Nipracademy | Online and Offline Classes",
-  description: "Nipracademy offers structured online and offline classes, study materials, tests, and student portal access for school learners.",
+  title: "Nipracademy | CBSE & Bihar Board Coaching | Class 1–12 | Deo Bihar",
+  description:
+    "Top coaching academy in Deo, Aurangabad Bihar for Class 1–12. CBSE & Bihar Board. Structured learning, regular tests, personal guidance. Enroll online today.",
 };
 
 export default async function Home() {

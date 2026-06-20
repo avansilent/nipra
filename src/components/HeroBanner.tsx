@@ -10,6 +10,8 @@ import type { SiteSettings } from "../types/site";
 type HeroBannerProps = {
   content: HomeContent;
   siteSettings: SiteSettings;
+  initialSlideId?: string;
+  disableAutoplay?: boolean;
 };
 
 type HeroSlideAction = {
@@ -104,8 +106,20 @@ const accentStyles: Record<HeroSlideAccent, {
   },
 };
 
-export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
-  const [activeIndex, setActiveIndex] = useState(0);
+function getInitialSlideIndex(slideId?: string) {
+  if (slideId === "about-nipra") {
+    return 1;
+  }
+
+  if (slideId === "education-view") {
+    return 2;
+  }
+
+  return 0;
+}
+
+export default function HeroBanner({ content, siteSettings, initialSlideId, disableAutoplay = false }: HeroBannerProps) {
+  const [activeIndex, setActiveIndex] = useState(() => getInitialSlideIndex(initialSlideId));
   const [supportsFinePointer, setSupportsFinePointer] = useState(false);
   const [failedImageSrcs, setFailedImageSrcs] = useState<Record<string, boolean>>({});
   const lastWheelGestureAtRef = useRef(0);
@@ -159,6 +173,8 @@ export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
         visual: "academy",
         signalItems: ["Online + Offline", "Admissions Open", "Class 1 to 12"],
         sideLabel: "How learning feels",
+        imageSrc: content.heroImageUrl,
+        imageAlt: `${siteSettings.siteName} learning hero image`,
         highlights: [
           "Live classes with clear explanation, revision, and doubt support.",
           "A calm structure for school study, tests, and regular progress.",
@@ -190,6 +206,7 @@ export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
     ],
     [
       content.heroBadge,
+      content.heroImageUrl,
       content.heroPrimaryCtaHref,
       content.heroPrimaryCtaLabel,
       content.heroSecondaryCtaHref,
@@ -227,7 +244,7 @@ export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
   }, []);
 
   useEffect(() => {
-    if (!allowRichMotion || slides.length <= 1) {
+    if (disableAutoplay || !allowRichMotion || slides.length <= 1) {
       return;
     }
 
@@ -238,7 +255,7 @@ export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
     return () => {
       window.clearInterval(interval);
     };
-  }, [allowRichMotion, slides.length]);
+  }, [allowRichMotion, disableAutoplay, slides.length]);
 
   const goToSlide = (index: number) => {
     const slideCount = slides.length;
@@ -457,6 +474,30 @@ export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
       );
     }
 
+    if (slide.imageSrc && !failedImageSrcs[slide.imageSrc]) {
+      return (
+        <div className="relative w-full max-w-[18.5rem] overflow-hidden rounded-[1.45rem] bg-white/72 p-2 shadow-[0_18px_36px_rgba(15,23,42,0.06)]">
+          <div className={`pointer-events-none absolute inset-0 ${accentStyles[slide.accent].glowClassName} opacity-70 blur-3xl`} />
+          <div className="relative aspect-[4/3] overflow-hidden rounded-[1.15rem] bg-slate-100">
+            <Image
+              src={slide.imageSrc}
+              alt={slide.imageAlt ?? slide.title}
+              fill
+              sizes="(min-width: 1024px) 19rem, 100vw"
+              className="object-cover"
+              unoptimized
+              onError={() => {
+                setFailedImageSrcs((current) => ({
+                  ...current,
+                  [slide.imageSrc ?? ""]: true,
+                }));
+              }}
+            />
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="relative w-full max-w-[18.5rem] pl-0 lg:pl-1">
         <p className="relative mt-1 text-[0.6rem] font-semibold uppercase tracking-[0.22em] text-slate-400">
@@ -549,9 +590,16 @@ export default function HeroBanner({ content, siteSettings }: HeroBannerProps) {
                         </h3>
                       </>
                     ) : (
-                      <h3 className="hero-ribbon-title mt-1.5 max-w-none text-[clamp(1.56rem,5.25vw,2.1rem)] font-bold leading-[0.9] tracking-[-0.078em] text-slate-950 [text-wrap:balance] lg:max-w-[9.5ch] lg:text-[clamp(2.24rem,3.9vw,3.65rem)] lg:leading-[0.9]">
-                        {renderTitleContent(slide)}
-                      </h3>
+                      <>
+                        {slide.imageSrc && !failedImageSrcs[slide.imageSrc] ? (
+                          <div className="mt-2 lg:hidden">
+                            {renderSlideVisual(slide, true)}
+                          </div>
+                        ) : null}
+                        <h3 className="hero-ribbon-title mt-1.5 max-w-none text-[clamp(1.56rem,5.25vw,2.1rem)] font-bold leading-[0.9] tracking-[-0.078em] text-slate-950 [text-wrap:balance] lg:max-w-[9.5ch] lg:text-[clamp(2.24rem,3.9vw,3.65rem)] lg:leading-[0.9]">
+                          {renderTitleContent(slide)}
+                        </h3>
+                      </>
                     )}
 
                     <p className="hero-ribbon-description mt-1 max-w-[54ch] text-[0.8rem] leading-[1.28] text-slate-600 [text-wrap:pretty] lg:text-[0.92rem] lg:leading-[1.42]">

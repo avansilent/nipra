@@ -45,6 +45,10 @@ export default async function CourseDetailPage({ params }: CourseDetailPageProps
 
   const [siteSettings, publishedCourses] = await Promise.all([fetchSiteSettings(), fetchPublishedCourses()]);
   const admissionCourse = findAdmissionCourseForCatalogCourse(catalogCourse.id, publishedCourses);
+  const admissionSiteSettings = {
+    siteName: siteSettings.siteName,
+    contactPhone: siteSettings.contactPhone,
+  };
 
   return (
     <section className="app-page-shell course-detail-shell">
@@ -152,7 +156,7 @@ export default async function CourseDetailPage({ params }: CourseDetailPageProps
 
           <JoinAdmissionFlow
             courses={publishedCourses}
-            siteSettings={siteSettings}
+            siteSettings={admissionSiteSettings}
             interest={catalogCourse.title}
             initialCourseId={admissionCourse?.id}
             lockCourseSelection={Boolean(admissionCourse)}

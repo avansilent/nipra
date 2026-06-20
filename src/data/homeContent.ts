@@ -9,6 +9,7 @@ export const defaultHomeContent: HomeContent = {
   heroPrimaryCtaHref: "/courses",
   heroSecondaryCtaLabel: "Talk to Counselors",
   heroSecondaryCtaHref: "/#contact",
+  heroImageUrl: "",
   programsHeading: "Programs",
   programsDescription:
     "Simple paths from Class 1 to 12 with clear practice and support.",
@@ -268,6 +269,7 @@ export function mergeHomeContent(partial?: Partial<HomeContent>): HomeContent {
     heroPrimaryCtaHref: pickText(partial.heroPrimaryCtaHref, defaultHomeContent.heroPrimaryCtaHref),
     heroSecondaryCtaLabel: pickText(partial.heroSecondaryCtaLabel, defaultHomeContent.heroSecondaryCtaLabel),
     heroSecondaryCtaHref: pickText(partial.heroSecondaryCtaHref, defaultHomeContent.heroSecondaryCtaHref),
+    heroImageUrl: pickText(partial.heroImageUrl, defaultHomeContent.heroImageUrl),
     programsHeading: pickText(partial.programsHeading, defaultHomeContent.programsHeading),
     programsDescription: pickText(partial.programsDescription, defaultHomeContent.programsDescription),
     programs: mergePrograms(partial.programs),
