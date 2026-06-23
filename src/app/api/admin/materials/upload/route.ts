@@ -7,6 +7,25 @@ import {
   toSafeFileName,
 } from "../../_shared/upload";
 
+const maxMaterialBytes = 25 * 1024 * 1024;
+const allowedMaterialTypes = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+const allowedMaterialExtensions = /\.(pdf|doc|docx|ppt|pptx|xls|xlsx|jpe?g|png|webp)$/i;
+
+function isAllowedMaterialFile(file: File) {
+  return allowedMaterialTypes.has(file.type) || allowedMaterialExtensions.test(file.name);
+}
+
 export async function POST(request: Request) {
   try {
     const uploadContext = await resolveAdminUploadContext();
@@ -39,6 +58,14 @@ export async function POST(request: Request) {
 
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "A file is required" }, { status: 400 });
+    }
+
+    if (!isAllowedMaterialFile(file)) {
+      return NextResponse.json({ error: "Upload a PDF, Office document, spreadsheet, presentation, JPG, PNG, or WebP file" }, { status: 400 });
+    }
+
+    if (file.size <= 0 || file.size > maxMaterialBytes) {
+      return NextResponse.json({ error: "Material file must be 25MB or smaller" }, { status: 400 });
     }
 
     const { data: bucket } = await service.storage.getBucket("materials");

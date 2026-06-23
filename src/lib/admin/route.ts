@@ -63,11 +63,15 @@ export function sanitizeLoginId(value: string) {
     .slice(0, 40);
 }
 
-export function createTempPassword(length = 12) {
+export function createTempPassword(length = 16) {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
   return Array.from({ length }, () => alphabet[randomInt(0, alphabet.length)]).join("");
 }
 
 export function createStudentEmail(loginId: string) {
   return `${loginId}@students.nipracademy.local`;
+}
+
+export function isStrongStudentPassword(value: string) {
+  return value.length >= 10 && /[A-Za-z]/.test(value) && /\d/.test(value);
 }

@@ -34,6 +34,7 @@ const contentSecurityPolicy = [
   "object-src 'none'",
   "frame-ancestors 'self'",
   `script-src ${scriptSrc}`,
+  "script-src-attr 'none'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob: https://*.supabase.co https://*.vercel.app https://vercel.app https://*.razorpay.com https://iframe.mediadelivery.net https://video.bunnycdn.com https://*.bunnycdn.com https://*.b-cdn.net",
@@ -69,11 +70,11 @@ const nextConfig: NextConfig = {
               ]),
           {
             key: "X-DNS-Prefetch-Control",
-            value: "off",
+            value: "on",
           },
           {
             key: "X-Frame-Options",
-            value: "SAMEORIGIN",
+            value: "DENY",
           },
           {
             key: "X-Content-Type-Options",

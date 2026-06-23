@@ -63,10 +63,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof PublicAdmissionError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return NextResponse.json({ error: "Unable to process Razorpay webhook." }, { status: error.status });
     }
 
-    const message = error instanceof Error ? error.message : "Unable to process Razorpay webhook.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to process Razorpay webhook." }, { status: 500 });
   }
 }

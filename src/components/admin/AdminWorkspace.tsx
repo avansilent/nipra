@@ -1140,7 +1140,13 @@ export default function AdminWorkspace() {
         setMaterialPickerKey((prev) => prev + 1);
       }
 
-      setMessage(kind === "note" ? "Note uploaded." : "File uploaded.");
+      const resourceLabel = kind === "note" ? "Note" : "File";
+      const publicPageLabel = kind === "note" ? "notes" : "books";
+      setMessage(
+        formState.visibility === "public"
+          ? `${resourceLabel} uploaded. It will appear on the public ${publicPageLabel} page and inside active student portals for this course.`
+          : `${resourceLabel} uploaded. It will appear only for students actively enrolled in this course.`
+      );
       await loadOperationalData(instituteId);
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : `Unable to upload ${kind}`);

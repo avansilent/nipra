@@ -5,6 +5,11 @@ type RouteParams = {
   params: Promise<{ studentId: string }>;
 };
 
+const privateResponseHeaders = {
+  "Cache-Control": "no-store",
+  Pragma: "no-cache",
+};
+
 export async function POST(_request: Request, context: RouteParams) {
   try {
     const { studentId } = await context.params;
@@ -28,7 +33,7 @@ export async function POST(_request: Request, context: RouteParams) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ password });
+    return NextResponse.json({ password }, { headers: privateResponseHeaders });
   } catch (error) {
     const typedError = error as AdminRouteError;
     return NextResponse.json({ error: typedError.message ?? "Unable to reset password" }, { status: typedError.status ?? 500 });

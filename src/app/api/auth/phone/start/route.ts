@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { normalizeMobileForOtp } from "../../../../../lib/auth/phone";
-import { checkRateLimit, getClientIp, rateLimitHeaders } from "../../../../../lib/security/rateLimit";
+import { checkRateLimitAsync, getClientIp, rateLimitHeaders } from "../../../../../lib/security/rateLimit";
 import { createSupabaseServerClient } from "../../../../../lib/supabase/server";
 
 type PhoneStartPayload = {
@@ -17,8 +17,8 @@ export async function POST(request: Request) {
     }
 
     const ip = getClientIp(request);
-    const ipLimit = checkRateLimit(`otp:start:ip:${ip}`, { limit: 10, windowMs: 15 * 60 * 1000 });
-    const phoneLimit = checkRateLimit(`otp:start:phone:${phone}`, { limit: 3, windowMs: 10 * 60 * 1000 });
+    const ipLimit = await checkRateLimitAsync(`otp:start:ip:${ip}`, { limit: 10, windowMs: 15 * 60 * 1000 });
+    const phoneLimit = await checkRateLimitAsync(`otp:start:phone:${phone}`, { limit: 3, windowMs: 10 * 60 * 1000 });
     const blockedLimit = !ipLimit.allowed ? ipLimit : !phoneLimit.allowed ? phoneLimit : null;
 
     if (blockedLimit) {
@@ -39,13 +39,13 @@ export async function POST(request: Request) {
     });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json({ error: "Unable to send OTP right now. Please try again shortly." }, { status: 400 });
     }
 
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to send OTP." },
+      { error: "Unable to send OTP right now. Please try again shortly." },
       { status: 500 }
     );
   }

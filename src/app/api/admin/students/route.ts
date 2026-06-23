@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
-import { createStudentEmail, createTempPassword, getAdminRouteContext, sanitizeLoginId, type AdminRouteError } from "../../../../lib/admin/route";
+import { createStudentEmail, createTempPassword, getAdminRouteContext, isStrongStudentPassword, sanitizeLoginId, type AdminRouteError } from "../../../../lib/admin/route";
 
 type StudentInsertPayload = {
   name?: string;
   email?: string;
   loginId?: string;
   password?: string;
+};
+
+const privateResponseHeaders = {
+  "Cache-Control": "no-store",
+  Pragma: "no-cache",
 };
 
 export async function GET() {
@@ -91,7 +96,15 @@ export async function POST(request: Request) {
     }
 
     const email = String(body.email ?? "").trim().toLowerCase() || createStudentEmail(computedLoginId);
-    const password = String(body.password ?? "").trim() || createTempPassword();
+    const requestedPassword = String(body.password ?? "").trim();
+    if (requestedPassword && !isStrongStudentPassword(requestedPassword)) {
+      return NextResponse.json(
+        { error: "Password must be at least 10 characters and include a letter and a number." },
+        { status: 400 }
+      );
+    }
+
+    const password = requestedPassword || createTempPassword();
 
     const { data: created, error: createError } = await serviceClient.auth.admin.createUser({
       email,
@@ -119,20 +132,23 @@ export async function POST(request: Request) {
       .update({ name, email, login_id: computedLoginId, role: "student" })
       .eq("id", created.user.id);
 
-    return NextResponse.json({
-      student: {
-        id: created.user.id,
-        name,
-        email,
-        login_id: computedLoginId,
-        role: "student",
+    return NextResponse.json(
+      {
+        student: {
+          id: created.user.id,
+          name,
+          email,
+          login_id: computedLoginId,
+          role: "student",
+        },
+        credentials: {
+          email,
+          loginId: computedLoginId,
+          password,
+        },
       },
-      credentials: {
-        email,
-        loginId: computedLoginId,
-        password,
-      },
-    });
+      { headers: privateResponseHeaders }
+    );
   } catch (error) {
     const typedError = error as AdminRouteError;
     return NextResponse.json({ error: typedError.message ?? "Unable to create student" }, { status: typedError.status ?? 500 });

@@ -13,6 +13,27 @@ type RateLimitResult = {
 
 const buckets = new Map<string, number[]>();
 let lastSweepAt = 0;
+let lastPersistentSweepAt = 0;
+
+async function getPersistentRateLimitClient() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return null;
+  }
+
+  try {
+    const { createHash } = await import("node:crypto");
+    const { createSupabaseServiceClient } = await import("../supabase/service");
+
+    return {
+      hashKey(value: string) {
+        return createHash("sha256").update(value).digest("hex");
+      },
+      serviceClient: createSupabaseServiceClient(),
+    };
+  } catch {
+    return null;
+  }
+}
 
 function compactBuckets(now: number) {
   if (now - lastSweepAt < 60_000) {
@@ -69,6 +90,64 @@ export function checkRateLimit(key: string, options: RateLimitOptions): RateLimi
     resetAt,
     retryAfterSeconds,
   };
+}
+
+export async function checkRateLimitAsync(key: string, options: RateLimitOptions): Promise<RateLimitResult> {
+  const persistent = await getPersistentRateLimitClient();
+  if (!persistent) {
+    return checkRateLimit(key, options);
+  }
+
+  const now = Date.now();
+  const safeKey = persistent.hashKey(key.slice(0, 160));
+  const windowStartIso = new Date(now - options.windowMs).toISOString();
+
+  try {
+    if (now - lastPersistentSweepAt > 60_000) {
+      lastPersistentSweepAt = now;
+      await persistent.serviceClient
+        .from("rate_limit_events")
+        .delete()
+        .lt("hit_at", new Date(now - 60 * 60 * 1000).toISOString());
+    }
+
+    await persistent.serviceClient.from("rate_limit_events").insert({ bucket_key: safeKey });
+
+    const [{ count, error: countError }, { data: oldestHit, error: oldestError }] = await Promise.all([
+      persistent.serviceClient
+        .from("rate_limit_events")
+        .select("id", { count: "exact", head: true })
+        .eq("bucket_key", safeKey)
+        .gt("hit_at", windowStartIso),
+      persistent.serviceClient
+        .from("rate_limit_events")
+        .select("hit_at")
+        .eq("bucket_key", safeKey)
+        .gt("hit_at", windowStartIso)
+        .order("hit_at", { ascending: true })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    if (countError || oldestError) {
+      return checkRateLimit(key, options);
+    }
+
+    const hitCount = count ?? 0;
+    const oldestHitAt = typeof oldestHit?.hit_at === "string" ? new Date(oldestHit.hit_at).getTime() : now;
+    const resetAt = oldestHitAt + options.windowMs;
+    const allowed = hitCount <= options.limit;
+
+    return {
+      allowed,
+      limit: options.limit,
+      remaining: Math.max(0, options.limit - hitCount),
+      resetAt,
+      retryAfterSeconds: Math.max(1, Math.ceil((resetAt - now) / 1000)),
+    };
+  } catch {
+    return checkRateLimit(key, options);
+  }
 }
 
 export function rateLimitHeaders(result: RateLimitResult) {

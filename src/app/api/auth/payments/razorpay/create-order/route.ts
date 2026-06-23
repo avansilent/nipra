@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseRouteClient } from "../../../../../../lib/supabase/route";
-import { checkRateLimit, getClientIp, rateLimitHeaders } from "../../../../../../lib/security/rateLimit";
+import { checkRateLimitAsync, getClientIp, rateLimitHeaders } from "../../../../../../lib/security/rateLimit";
 import {
   buildAdmissionToken,
   createAdmissionOrderReceipt,
@@ -42,7 +42,7 @@ async function resolveAuthenticatedStudentUserId() {
 
 export async function POST(request: Request) {
   try {
-    const ipLimit = checkRateLimit(`razorpay:create:${getClientIp(request)}`, { limit: 12, windowMs: 15 * 60 * 1000 });
+    const ipLimit = await checkRateLimitAsync(`razorpay:create:${getClientIp(request)}`, { limit: 12, windowMs: 15 * 60 * 1000 });
     if (!ipLimit.allowed) {
       return NextResponse.json(
         { error: "Too many payment attempts. Please wait before trying again." },
@@ -102,10 +102,10 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof PublicAdmissionError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      const message = error.status >= 500 ? "Payment setup is temporarily unavailable." : error.message;
+      return NextResponse.json({ error: message }, { status: error.status });
     }
 
-    const message = error instanceof Error ? error.message : "Unable to create the Razorpay admission order.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Unable to create the Razorpay admission order." }, { status: 500 });
   }
 }

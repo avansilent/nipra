@@ -7,6 +7,8 @@ import {
   toSafeFileName,
 } from "../../_shared/upload";
 
+const maxNoteBytes = 25 * 1024 * 1024;
+
 export async function POST(request: Request) {
   try {
     const uploadContext = await resolveAdminUploadContext();
@@ -44,6 +46,10 @@ export async function POST(request: Request) {
     const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
     if (!isPdf) {
       return NextResponse.json({ error: "Only PDF files are allowed" }, { status: 400 });
+    }
+
+    if (file.size <= 0 || file.size > maxNoteBytes) {
+      return NextResponse.json({ error: "PDF file must be 25MB or smaller" }, { status: 400 });
     }
 
     const { data: bucket } = await service.storage.getBucket("notes");

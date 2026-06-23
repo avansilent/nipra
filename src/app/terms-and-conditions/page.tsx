@@ -13,7 +13,10 @@ async function readTermsHtml() {
 
   return html
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/<(iframe|object|embed|form|input|button|svg|math)\b[^>]*>[\s\S]*?<\/\1>/gi, "")
+    .replace(/<(iframe|object|embed|form|input|button|svg|math)\b[^>]*\/?>/gi, "")
     .replace(/\son[a-z]+\s*=\s*(["']).*?\1/gi, "")
+    .replace(/\s(srcdoc|formaction)\s*=\s*(["']).*?\2/gi, "")
     .replace(/javascript:/gi, "");
 }
 

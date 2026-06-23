@@ -1,6 +1,6 @@
 import Papa from "papaparse";
 import { NextResponse } from "next/server";
-import { createStudentEmail, createTempPassword, getAdminRouteContext, sanitizeLoginId, type AdminRouteError } from "../../../../../lib/admin/route";
+import { createStudentEmail, createTempPassword, getAdminRouteContext, isStrongStudentPassword, sanitizeLoginId, type AdminRouteError } from "../../../../../lib/admin/route";
 
 type CsvStudentRow = {
   name?: string;
@@ -8,6 +8,11 @@ type CsvStudentRow = {
   loginId?: string;
   login_id?: string;
   password?: string;
+};
+
+const privateResponseHeaders = {
+  "Cache-Control": "no-store",
+  Pragma: "no-cache",
 };
 
 export async function POST(request: Request) {
@@ -38,7 +43,20 @@ export async function POST(request: Request) {
       const rawLoginValue = (row.loginId ?? row.login_id ?? name) || `student-${Date.now()}-${index}`;
       const loginId = sanitizeLoginId(String(rawLoginValue).trim());
       const email = String(row.email ?? "").trim().toLowerCase() || createStudentEmail(loginId);
-      const password = String(row.password ?? "").trim() || createTempPassword();
+      const requestedPassword = String(row.password ?? "").trim();
+      if (requestedPassword && !isStrongStudentPassword(requestedPassword)) {
+        results.push({
+          row: index + 2,
+          status: "failed",
+          name,
+          email,
+          loginId,
+          error: "Password must be at least 10 characters and include a letter and a number",
+        });
+        continue;
+      }
+
+      const password = requestedPassword || createTempPassword();
 
       if (!name || !loginId) {
         results.push({ row: index + 2, status: "failed", name, email, loginId, error: "Missing required name or login ID" });
@@ -75,11 +93,14 @@ export async function POST(request: Request) {
       results.push({ row: index + 2, status: "created", name, email, loginId, password });
     }
 
-    return NextResponse.json({
-      created: results.filter((item) => item.status === "created").length,
-      failed: results.filter((item) => item.status === "failed").length,
-      results,
-    });
+    return NextResponse.json(
+      {
+        created: results.filter((item) => item.status === "created").length,
+        failed: results.filter((item) => item.status === "failed").length,
+        results,
+      },
+      { headers: privateResponseHeaders }
+    );
   } catch (error) {
     const typedError = error as AdminRouteError;
     return NextResponse.json({ error: typedError.message ?? "Unable to bulk upload students" }, { status: typedError.status ?? 500 });

@@ -691,57 +691,32 @@ function LoginContent() {
       }
 
       const normalizedIdentifier = identifier.trim().toLowerCase();
-      let resolvedEmail = normalizedIdentifier;
 
-      if (!normalizedIdentifier.includes("@")) {
-        const resolveResponse = await fetch("/api/auth/resolve-identifier", {
+      const loginResponse = await withTimeout(
+        fetch("/api/auth/password-login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ identifier: normalizedIdentifier }),
-        });
-
-        const resolvePayload = await resolveResponse.json();
-
-        if (!resolveResponse.ok) {
-          setError(resolvePayload.error ?? "Unable to resolve login ID.");
-          return;
-        }
-
-        if (!resolvePayload.email) {
-          setError("No account found for this email or login ID.");
-          return;
-        }
-
-        if (isAdminLogin && resolvePayload.role && resolvePayload.role !== "admin") {
-          setError("This account does not have admin access.");
-          return;
-        }
-
-        if (!isAdminLogin && resolvePayload.role && resolvePayload.role !== "student") {
-          setError("This account does not have student access.");
-          return;
-        }
-
-        resolvedEmail = String(resolvePayload.email).trim().toLowerCase();
-      }
-
-      const signInPayload = {
-        email: resolvedEmail,
-        password,
-      };
-
-      const { data: signInData, error: signInError } = await withTimeout(
-        supabase.auth.signInWithPassword(signInPayload),
+          body: JSON.stringify({
+            identifier: normalizedIdentifier,
+            password,
+            loginType: isAdminLogin ? "admin" : "student",
+          }),
+        }),
         8000
       );
 
-      if (signInError) {
-        setError(signInError.message);
+      const loginPayload = (await loginResponse.json().catch(() => ({}))) as {
+        error?: string;
+        role?: "admin" | "student";
+        redirectTo?: string;
+      };
+
+      if (!loginResponse.ok) {
+        setError(loginPayload.error ?? "Unable to sign in.");
         return;
       }
 
-      const resolvedRole = await resolveUserRoleForUser(signInData.user ?? null);
-      forceNavigate(getPreferredRedirect(resolvedRole));
+      forceNavigate(loginPayload.redirectTo || getPreferredRedirect(loginPayload.role));
       return;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to sign in.";

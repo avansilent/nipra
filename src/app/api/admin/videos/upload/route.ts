@@ -17,6 +17,8 @@ type BunnyCreateVideoResponse = {
   title?: string;
 };
 
+const maxVideoUploadBytes = 500 * 1024 * 1024;
+
 async function createBunnyVideo(libraryId: string, title: string, apiKey: string) {
   const response = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos`, {
     method: "POST",
@@ -99,6 +101,10 @@ export async function POST(request: Request) {
     if (videoFile) {
       if (videoFile.type && !videoFile.type.startsWith("video/")) {
         return NextResponse.json({ error: "Choose a valid video file." }, { status: 400 });
+      }
+
+      if (videoFile.size > maxVideoUploadBytes) {
+        return NextResponse.json({ error: "Video file must be 500MB or smaller." }, { status: 400 });
       }
 
       const apiKey = getBunnyStreamApiKey();

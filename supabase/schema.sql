@@ -1272,3 +1272,19 @@ end $$;
 
 create index if not exists idx_admission_payments_learning_mode on public.admission_payments(learning_mode, fee_plan);
 create index if not exists idx_enrollments_learning_mode on public.enrollments(learning_mode, fee_plan);
+
+-- Shared server-side rate limit ledger. Application routes use this table with
+-- the service role key so limits survive server restarts and multi-instance deploys.
+create table if not exists public.rate_limit_events (
+  id uuid primary key default gen_random_uuid(),
+  bucket_key text not null,
+  hit_at timestamptz not null default timezone('utc', now())
+);
+
+alter table public.rate_limit_events enable row level security;
+
+create index if not exists idx_rate_limit_events_bucket_hit_at
+  on public.rate_limit_events(bucket_key, hit_at);
+
+create index if not exists idx_rate_limit_events_hit_at
+  on public.rate_limit_events(hit_at);

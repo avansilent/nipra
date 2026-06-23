@@ -16,15 +16,18 @@ const buildSignedNoteResponse = async (filePath: string, title: string) => {
 
   if (signedError || !signed?.signedUrl) {
     return NextResponse.json(
-      { error: signedError?.message ?? "Unable to create secure download link" },
+      { error: "Unable to create secure download link" },
       { status: 500 }
     );
   }
 
-  return NextResponse.json({
-    url: signed.signedUrl,
-    title,
-  });
+  return NextResponse.json(
+    {
+      url: signed.signedUrl,
+      title,
+    },
+    { headers: { "Cache-Control": "no-store" } }
+  );
 };
 
 export async function GET(_request: Request, { params }: RouteParams) {
@@ -97,7 +100,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     return buildSignedNoteResponse(note.file_url, note.title);
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to download note" },
+      { error: "Unable to download note" },
       { status: 500 }
     );
   }

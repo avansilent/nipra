@@ -257,7 +257,7 @@ function getWebhookSecret() {
 }
 
 function getAdmissionSigningSecret() {
-  return getRuntimeEnvValue("ADMISSION_SIGNING_SECRET") || getRazorpaySecret() || getRuntimeEnvValue("SUPABASE_SERVICE_ROLE_KEY") || "";
+  return getRuntimeEnvValue("ADMISSION_SIGNING_SECRET") || "";
 }
 
 function requireSecret(value: string, name: string) {

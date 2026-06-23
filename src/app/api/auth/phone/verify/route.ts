@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { normalizeMobileForOtp } from "../../../../../lib/auth/phone";
-import { checkRateLimit, getClientIp, rateLimitHeaders } from "../../../../../lib/security/rateLimit";
+import { checkRateLimitAsync, getClientIp, rateLimitHeaders } from "../../../../../lib/security/rateLimit";
 import { createSupabaseRouteClient } from "../../../../../lib/supabase/route";
 
 type PhoneVerifyPayload = {
@@ -23,8 +23,8 @@ export async function POST(request: Request) {
     }
 
     const ip = getClientIp(request);
-    const ipLimit = checkRateLimit(`otp:verify:ip:${ip}`, { limit: 20, windowMs: 15 * 60 * 1000 });
-    const phoneLimit = checkRateLimit(`otp:verify:phone:${phone}`, { limit: 8, windowMs: 15 * 60 * 1000 });
+    const ipLimit = await checkRateLimitAsync(`otp:verify:ip:${ip}`, { limit: 20, windowMs: 15 * 60 * 1000 });
+    const phoneLimit = await checkRateLimitAsync(`otp:verify:phone:${phone}`, { limit: 8, windowMs: 15 * 60 * 1000 });
     const blockedLimit = !ipLimit.allowed ? ipLimit : !phoneLimit.allowed ? phoneLimit : null;
 
     if (blockedLimit) {
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     });
 
     if (error || !data.user) {
-      return NextResponse.json({ error: error?.message ?? "Unable to verify OTP." }, { status: 400 });
+      return NextResponse.json({ error: "Invalid or expired OTP." }, { status: 400 });
     }
 
     const { data: profile } = await supabase
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to verify OTP." },
+      { error: "Unable to verify OTP right now. Please try again shortly." },
       { status: 500 }
     );
   }
