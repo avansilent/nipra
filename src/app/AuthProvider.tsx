@@ -172,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               .select("role, institute_id")
               .eq("id", nextUser.id)
               .maybeSingle(),
-            3500
+            8000
           );
           profile = data;
         } catch {
@@ -188,7 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               .select("role")
               .eq("id", nextUser.id)
               .maybeSingle(),
-            3500
+            8000
           );
           userRow = data;
         } catch {
@@ -196,12 +196,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const resolvedRole = normalizeRole(
+      const nextRole = normalizeRole(
         profile?.role ??
           userRow?.role ??
           metadataRole
       );
-      const nextRole = resolvedRole ?? (pathnameRef.current.startsWith("/student") ? "student" : null);
 
       setRole(nextRole);
       setInstituteId(
@@ -317,6 +316,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         router.replace("/login");
       }
+      return;
+    }
+
+    if (user && role === "admin" && pathname.startsWith("/student")) {
+      router.replace("/admin/dashboard");
+      return;
+    }
+
+    if (user && role === "student" && pathname.startsWith("/admin")) {
+      router.replace("/student/dashboard");
     }
   }, [loading, pathname, role, roleResolved, router, user]);
 

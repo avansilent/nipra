@@ -103,7 +103,7 @@ const tableShellClass =
   "mt-5 overflow-hidden rounded-[28px] bg-white shadow-[0_16px_38px_rgba(15,23,42,0.07)]";
 
 export default function AdminDashboard() {
-  const { role, instituteId, loading: authLoading, logout } = useAuth();
+  const { role, roleResolved, instituteId, loading: authLoading, logout } = useAuth();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
@@ -233,7 +233,7 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    if (authLoading) {
+    if (authLoading || !roleResolved) {
       return;
     }
 
@@ -249,7 +249,7 @@ export default function AdminDashboard() {
     }
 
     void loadDashboard();
-  }, [authLoading, instituteId, role]);
+  }, [authLoading, instituteId, role, roleResolved]);
 
   const filteredStudents = useMemo(() => {
     const search = deferredStudentSearch.trim().toLowerCase();

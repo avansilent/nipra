@@ -342,7 +342,7 @@ function StatusBadge({
 }
 
 export default function AdminWorkspace() {
-  const { user, role, instituteId, loading: authLoading, logout } = useAuth();
+  const { user, role, roleResolved, instituteId, loading: authLoading, logout } = useAuth();
   const supabase = useMemo(() => createSupabaseBrowserClient(), [])!;
 
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
@@ -604,13 +604,13 @@ export default function AdminWorkspace() {
   }, [clearFeedback, instituteId, loadContent, loadCourses, loadOperationalData, loadStudents]);
 
   const missingInstituteError =
-    !authLoading && role === "admin" && !instituteId
+    !authLoading && roleResolved && role === "admin" && !instituteId
       ? "This admin account is missing an institute assignment. Please update the admin profile in Supabase."
       : null;
   const workspaceError = error ?? missingInstituteError;
 
   useEffect(() => {
-    if (authLoading || role !== "admin" || !instituteId) {
+    if (authLoading || !roleResolved || role !== "admin" || !instituteId) {
       return;
     }
 
@@ -621,7 +621,7 @@ export default function AdminWorkspace() {
     return () => {
       window.clearTimeout(loadTimer);
     };
-  }, [authLoading, instituteId, loadWorkspace, role]);
+  }, [authLoading, instituteId, loadWorkspace, role, roleResolved]);
 
   const recentStudentCutoff =
     workspaceSnapshotAt > 0
@@ -1249,17 +1249,15 @@ export default function AdminWorkspace() {
     setBusy(true);
 
     try {
-      const bucket = kind === "note" ? "notes" : "materials";
-      const table = kind === "note" ? "notes" : "materials";
+      const endpoint =
+        kind === "note"
+          ? `/api/admin/notes/${encodeURIComponent(row.id)}`
+          : `/api/admin/materials/${encodeURIComponent(row.id)}`;
+      const response = await fetch(endpoint, { method: "DELETE" });
+      const payload = await response.json().catch(() => ({}));
 
-      const { error: storageError } = await supabase.storage.from(bucket).remove([row.file_url]);
-      if (storageError && !storageError.message.toLowerCase().includes("not found")) {
-        throw new Error(storageError.message);
-      }
-
-      const { error: deleteError } = await supabase.from(table).delete().eq("id", row.id).eq("institute_id", instituteId);
-      if (deleteError) {
-        throw new Error(deleteError.message);
+      if (!response.ok) {
+        throw new Error(typeof payload.error === "string" ? payload.error : `Unable to delete ${kind}`);
       }
 
       setMessage(kind === "note" ? "Note deleted." : "Book deleted.");
@@ -1650,7 +1648,7 @@ export default function AdminWorkspace() {
     }
   }
 
-  const showLoadingState = authLoading || (role === "admin" && Boolean(instituteId) && pageLoading);
+  const showLoadingState = authLoading || !roleResolved || (role === "admin" && Boolean(instituteId) && pageLoading);
 
   if (showLoadingState) {
     return (

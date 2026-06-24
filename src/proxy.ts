@@ -50,12 +50,6 @@ export function proxy(request: NextRequest) {
     return redirectToLogin();
   }
 
-  if (isDashboardRoute) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/student/dashboard";
-    return NextResponse.redirect(redirectUrl);
-  }
-
   return response;
 }
 

@@ -122,13 +122,18 @@ export default function Navbar({ siteSettings }: NavbarProps) {
   const actionLinks = useMemo<InlineLink[]>(() => {
     if (isAuthenticated) {
       if (role === "admin") {
-        return [];
+        return [
+          {
+            href: "/admin/dashboard",
+            label: "Dashboard",
+          },
+        ];
       }
 
       return [
         {
           href: "/student/dashboard",
-          label: "Student",
+          label: "Dashboard",
         },
       ];
     }
