@@ -1,5 +1,6 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { rememberedStudentSessionMaxAgeSeconds } from "../auth/sessionPolicy";
 import { getSupabaseAuthStorageKey, getSupabaseProjectRef } from "./config";
 
 let browserClient: SupabaseClient | null | undefined;
@@ -115,6 +116,10 @@ export function createSupabaseBrowserClient(): SupabaseClient | null {
     },
     cookieOptions: {
       name: storageKey,
+      maxAge: rememberedStudentSessionMaxAgeSeconds,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
     },
   });
 

@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { rememberedStudentSessionMaxAgeSeconds } from "../auth/sessionPolicy";
 import { getSupabaseAuthStorageKey } from "./config";
 
 export async function createSupabaseRouteClient() {
@@ -22,6 +23,10 @@ export async function createSupabaseRouteClient() {
   return createServerClient(url, anonKey, {
     cookieOptions: {
       name: storageKey,
+      maxAge: rememberedStudentSessionMaxAgeSeconds,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
     },
     cookies: {
       getAll() {

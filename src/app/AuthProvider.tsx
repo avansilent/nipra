@@ -13,6 +13,10 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import type { Session, User } from "@supabase/supabase-js";
 import {
+  rememberedStudentSessionMaxAgeMs,
+  rememberedStudentSessionStorageKey,
+} from "../lib/auth/sessionPolicy";
+import {
   clearSupabaseBrowserAuthStorage,
   createSupabaseBrowserClient,
 } from "../lib/supabase/browser";
@@ -65,6 +69,49 @@ const withTimeout = async <T,>(
   }
 };
 
+function readRememberedStudentSessionActiveAt() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const storedValue = window.localStorage.getItem(rememberedStudentSessionStorageKey);
+    const activeAt = Number(storedValue);
+    return Number.isFinite(activeAt) && activeAt > 0 ? activeAt : null;
+  } catch {
+    return null;
+  }
+}
+
+function hasRememberedStudentSessionExpired() {
+  const activeAt = readRememberedStudentSessionActiveAt();
+  return activeAt !== null && Date.now() - activeAt > rememberedStudentSessionMaxAgeMs;
+}
+
+function refreshRememberedStudentSessionActivity() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(rememberedStudentSessionStorageKey, String(Date.now()));
+  } catch {
+    // Browser storage can be unavailable in private modes; Supabase session remains the source of truth.
+  }
+}
+
+function clearRememberedStudentSessionActivity() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.removeItem(rememberedStudentSessionStorageKey);
+  } catch {
+    // Best-effort cleanup only.
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const hasSupabaseConfig = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -98,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearBrowserSessionArtifacts = useCallback(() => {
     clearSupabaseBrowserAuthStorage(process.env.NEXT_PUBLIC_SUPABASE_URL);
+    clearRememberedStudentSessionActivity();
   }, []);
 
   const attemptSignOut = useCallback(
@@ -233,6 +281,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           sessionData = null;
         }
 
+        if (sessionData) {
+          if (hasRememberedStudentSessionExpired()) {
+            await clearBrokenSession();
+            sessionData = null;
+          } else {
+            refreshRememberedStudentSessionActivity();
+          }
+        } else {
+          clearRememberedStudentSessionActivity();
+        }
+
         const nextUser = sessionData?.user ?? null;
 
         if (!mounted) {
@@ -255,6 +314,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async (_event, nextSession) => {
         try {
           setRoleResolved(false);
+
+          if (nextSession) {
+            if (hasRememberedStudentSessionExpired()) {
+              await clearBrokenSession();
+              resetLocalAuthState();
+              return;
+            }
+            refreshRememberedStudentSessionActivity();
+          } else {
+            clearRememberedStudentSessionActivity();
+          }
+
           setSession(nextSession);
           const verifiedUser = nextSession?.user ?? null;
           setUser(verifiedUser);
@@ -269,7 +340,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       listener.subscription.unsubscribe();
     };
-  }, [clearBrokenSession, resolveRole, supabase]);
+  }, [clearBrokenSession, resetLocalAuthState, resolveRole, supabase]);
+
+  useEffect(() => {
+    if (user) {
+      refreshRememberedStudentSessionActivity();
+    }
+  }, [pathname, user]);
 
   useEffect(() => {
     if (loading || (user && !roleResolved)) {
