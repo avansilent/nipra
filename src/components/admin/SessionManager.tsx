@@ -54,11 +54,6 @@ type SessionFormState = {
   sessionDate: string;
   startTime: string;
   endTime: string;
-  liveProvider: LiveProvider;
-  joinUrl: string;
-  hostUrl: string;
-  meetingId: string;
-  passcode: string;
   sortOrder: string;
 };
 
@@ -98,11 +93,6 @@ const emptySessionForm = (courseId = ""): SessionFormState => ({
   sessionDate: getLocalDateInputValue(),
   startTime: "",
   endTime: "",
-  liveProvider: "google_meet",
-  joinUrl: "",
-  hostUrl: "",
-  meetingId: "",
-  passcode: "",
   sortOrder: "0",
 });
 
@@ -174,13 +164,14 @@ function formatDateTime(value?: string | null) {
 }
 
 function formatProvider(provider: LiveProvider) {
-  if (provider === "zoom") {
-    return "Zoom";
-  }
   if (provider === "other") {
-    return "Other";
+    return "Direct live";
   }
-  return "Google Meet";
+  return "Legacy live";
+}
+
+function isCloudflareLiveLink(value?: string | null) {
+  return Boolean(value?.startsWith("cf-live:"));
 }
 
 async function readApiResponse<T>(response: Response, fallback: string): Promise<T> {
@@ -200,11 +191,7 @@ function sessionBodyFromForm(form: SessionFormState) {
     session_date: form.sessionDate,
     start_time: form.startTime,
     end_time: form.endTime,
-    live_provider: form.liveProvider,
-    join_url: form.joinUrl.trim(),
-    host_url: form.hostUrl.trim(),
-    meeting_id: form.meetingId.trim(),
-    passcode: form.passcode.trim(),
+    live_provider: "other",
     sort_order: Number(form.sortOrder),
   };
 }
@@ -254,6 +241,7 @@ export default function SessionManager({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [recordingTitleDrafts, setRecordingTitleDrafts] = useState<Record<string, string>>({});
 
   const raiseError = useCallback((messageText: string) => {
     setError(messageText);
@@ -356,11 +344,6 @@ export default function SessionManager({
       sessionDate: detail.session_date,
       startTime: detail.start_time.slice(0, 5),
       endTime: detail.end_time.slice(0, 5),
-      liveProvider: detail.live_provider,
-      joinUrl: detail.meetingLink?.join_url ?? "",
-      hostUrl: detail.meetingLink?.host_url ?? "",
-      meetingId: detail.meetingLink?.meeting_id ?? "",
-      passcode: detail.meetingLink?.passcode ?? "",
       sortOrder: String(detail.sort_order ?? 0),
     });
   };
@@ -397,14 +380,84 @@ export default function SessionManager({
     setMessage(null);
 
     try {
+      if (action === "go-live") {
+        const detail = sessionDetails[session.id] ?? session;
+        if (!isCloudflareLiveLink(detail.meetingLink?.join_url)) {
+          const prepareResponse = await fetch(`/api/admin/sessions/${session.id}/stream`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "prepare" }),
+          });
+          await readApiResponse(prepareResponse, "Unable to prepare direct live stream");
+        }
+      }
+
       const response = await fetch(`/api/admin/sessions/${session.id}/${action}`, { method: "POST" });
       await readApiResponse(response, "Unable to update live session");
-      showNotice(action === "go-live" ? "Session is live." : "Session completed. Materials and assignments were unlocked.");
+      showNotice(action === "go-live" ? "Direct live class is ready for students." : "Session completed. Materials and assignments were unlocked.");
       await Promise.all([loadSessions(), loadSessionDetail(session.id)]);
     } catch (actionError) {
       raiseError(actionError instanceof Error ? actionError.message : "Unable to update live session");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePrepareStream = async (session: AdminSession) => {
+    setSaving(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const response = await fetch(`/api/admin/sessions/${session.id}/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "prepare" }),
+      });
+      await readApiResponse(response, "Unable to prepare direct live stream");
+      showNotice("Direct live stream is ready.");
+      await Promise.all([loadSessions(), loadSessionDetail(session.id)]);
+    } catch (streamError) {
+      raiseError(streamError instanceof Error ? streamError.message : "Unable to prepare direct live stream");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSyncRecording = async (session: AdminSession) => {
+    setSaving(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const response = await fetch(`/api/admin/sessions/${session.id}/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "sync-recording",
+          title: recordingTitleDrafts[session.id]?.trim() || `${session.title} recording`,
+        }),
+      });
+      await readApiResponse(response, "Unable to sync Cloudflare recording");
+      showNotice("Recording saved to the course video shelf.");
+      await Promise.all([loadSessions(), loadSessionDetail(session.id)]);
+    } catch (syncError) {
+      raiseError(syncError instanceof Error ? syncError.message : "Unable to sync Cloudflare recording");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const copyToClipboard = async (value: string | null | undefined, label: string) => {
+    if (!value) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(value);
+      showNotice(`${label} copied.`);
+    } catch {
+      raiseError(`Unable to copy ${label.toLowerCase()}.`);
     }
   };
 
@@ -466,9 +519,9 @@ export default function SessionManager({
     setEditForm((prev) => ({ ...prev, ...patch }));
   };
 
-  const renderSessionForm = (values: SessionFormState, update: (patch: Partial<SessionFormState>) => void, mode: "create" | "edit") => (
+  const renderSessionForm = (values: SessionFormState, update: (patch: Partial<SessionFormState>) => void) => (
     <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-      <Field label="Course">
+      <Field label="Class / course">
         <select className={inputClass} value={values.courseId} onChange={(event) => update({ courseId: event.target.value })}>
           <option value="">Select course</option>
           {orderedCourses.map((course) => (
@@ -478,15 +531,8 @@ export default function SessionManager({
           ))}
         </select>
       </Field>
-      <Field label="Session title">
-        <input className={inputClass} value={values.title} onChange={(event) => update({ title: event.target.value })} placeholder="Live maths class" />
-      </Field>
-      <Field label="Provider">
-        <select className={inputClass} value={values.liveProvider} onChange={(event) => update({ liveProvider: event.target.value as LiveProvider })}>
-          <option value="google_meet">Google Meet</option>
-          <option value="zoom">Zoom</option>
-          <option value="other">Other HTTPS</option>
-        </select>
+      <Field label="Subject / class topic">
+        <input className={inputClass} value={values.title} onChange={(event) => update({ title: event.target.value })} placeholder="Maths - algebra practice" />
       </Field>
       <Field label="Date">
         <input type="date" className={inputClass} value={values.sessionDate} onChange={(event) => update({ sessionDate: event.target.value })} />
@@ -497,20 +543,6 @@ export default function SessionManager({
       <Field label="End time">
         <input type="time" className={inputClass} value={values.endTime} onChange={(event) => update({ endTime: event.target.value })} />
       </Field>
-      <Field label="Student join link" hint="Use meet.google.com for Google Meet or a Zoom domain for Zoom.">
-        <input className={inputClass} value={values.joinUrl} onChange={(event) => update({ joinUrl: event.target.value })} placeholder="https://meet.google.com/..." />
-      </Field>
-      <Field label="Host link" hint="Optional. Admin-only.">
-        <input className={inputClass} value={values.hostUrl} onChange={(event) => update({ hostUrl: event.target.value })} placeholder="https://..." />
-      </Field>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
-        <Field label="Meeting ID">
-          <input className={inputClass} value={values.meetingId} onChange={(event) => update({ meetingId: event.target.value })} placeholder="Optional" />
-        </Field>
-        <Field label="Passcode">
-          <input className={inputClass} value={values.passcode} onChange={(event) => update({ passcode: event.target.value })} placeholder="Optional" />
-        </Field>
-      </div>
       <Field label="Sort order">
         <input className={inputClass} inputMode="numeric" value={values.sortOrder} onChange={(event) => update({ sortOrder: event.target.value })} placeholder="0" />
       </Field>
@@ -519,11 +551,6 @@ export default function SessionManager({
           <textarea className={textareaClass} value={values.description} onChange={(event) => update({ description: event.target.value })} placeholder="Class focus, chapter, or teacher note" />
         </Field>
       </div>
-      {mode === "edit" ? (
-        <div className="lg:col-span-2 xl:col-span-3">
-          <p className="text-xs leading-6 text-slate-500">Saving meeting details keeps the student join link protected behind the student join API.</p>
-        </div>
-      ) : null}
     </div>
   );
 
@@ -549,11 +576,11 @@ export default function SessionManager({
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">Create Session</p>
-            <p className="mt-1 text-sm leading-6 text-slate-600">Live classes use Google Meet or Zoom now; recordings can still be uploaded after class.</p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">Choose the class, add the subject topic, then create a direct live stream for enrolled students.</p>
           </div>
           <StatusBadge tone="neutral">{sessions.length} listed</StatusBadge>
         </div>
-        {renderSessionForm(form, updateForm, "create")}
+        {renderSessionForm(form, updateForm)}
         <div className="mt-5 flex flex-wrap items-center gap-3">
           <button type="button" className={primaryButtonClass} disabled={disabled || saving} onClick={() => void handleCreateSession()}>
             Create Session
@@ -569,7 +596,7 @@ export default function SessionManager({
       {loading ? (
         <EmptyState title="Loading sessions" description="Fetching the latest class schedule from the protected admin API." />
       ) : sessions.length === 0 ? (
-        <EmptyState title="No class sessions yet" description="Create a session above to start building the online or hybrid class calendar." />
+        <EmptyState title="No class sessions yet" description="Create a class session above, then prepare direct live when the teacher is ready." />
       ) : (
         <div className="space-y-4">
           {sessions.map((session) => {
@@ -577,6 +604,7 @@ export default function SessionManager({
             const courseTitle = detail.course?.title ?? orderedCourses.find((course) => course.id === session.course_id)?.title ?? "Course";
             const isExpanded = expandedSessionId === session.id;
             const isEditing = editingSessionId === session.id;
+            const hasCloudflareStream = isCloudflareLiveLink(detail.meetingLink?.join_url);
 
             return (
               <div key={session.id} className={nestedCardClass}>
@@ -594,7 +622,13 @@ export default function SessionManager({
                     <div className="mt-3 flex flex-wrap gap-2">
                       {typeof detail.materialCount === "number" ? <StatusBadge tone="neutral">{detail.materialCount} materials</StatusBadge> : null}
                       {typeof detail.assignmentCount === "number" ? <StatusBadge tone="neutral">{detail.assignmentCount} assignments</StatusBadge> : null}
-                      {detail.meetingLink?.join_url ? <StatusBadge tone="success">Join link saved</StatusBadge> : <StatusBadge tone="warning">No join link</StatusBadge>}
+                      {hasCloudflareStream ? (
+                        <StatusBadge tone="success">Direct live ready</StatusBadge>
+                      ) : detail.meetingLink?.join_url ? (
+                        <StatusBadge tone="warning">Legacy link saved</StatusBadge>
+                      ) : (
+                        <StatusBadge tone="warning">Stream not prepared</StatusBadge>
+                      )}
                     </div>
                   </div>
 
@@ -628,7 +662,7 @@ export default function SessionManager({
 
                 {isEditing ? (
                   <div className="mt-4 rounded-[22px] bg-[#f7f9fc] p-4">
-                    {renderSessionForm(editForm, updateEditForm, "edit")}
+                    {renderSessionForm(editForm, updateEditForm)}
                     <div className="mt-5 flex flex-wrap gap-3">
                       <button type="button" className={primaryButtonClass} disabled={saving} onClick={() => void handleUpdateSession(session.id)}>
                         Save Session
@@ -644,27 +678,76 @@ export default function SessionManager({
                   <div className="mt-4 space-y-4 rounded-[22px] bg-[#f7f9fc] p-4">
                     <div className="grid gap-3 lg:grid-cols-2">
                       <div className="rounded-[20px] bg-white/92 p-4 shadow-[0_10px_22px_rgba(226,232,240,0.76)]">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">Meeting Window</p>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">Student Access Window</p>
                         <p className="mt-2 text-sm text-slate-600">Opens {formatDateTime(detail.meetingLink?.join_window_opens_at)}</p>
                         <p className="mt-1 text-sm text-slate-600">Closes {formatDateTime(detail.meetingLink?.join_window_closes_at)}</p>
                       </div>
                       <div className="rounded-[20px] bg-white/92 p-4 shadow-[0_10px_22px_rgba(226,232,240,0.76)]">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">Meeting Details</p>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">Direct Live Status</p>
                         <div className="mt-3 flex flex-wrap gap-2">
-                          {detail.meetingLink?.join_url ? (
-                            <a href={detail.meetingLink.join_url} target="_blank" rel="noreferrer" className={secondaryButtonClass}>
-                              Student Link
-                            </a>
-                          ) : null}
-                          {detail.meetingLink?.host_url ? (
-                            <a href={detail.meetingLink.host_url} target="_blank" rel="noreferrer" className={secondaryButtonClass}>
-                              Host Link
-                            </a>
-                          ) : null}
-                          {detail.meetingLink?.meeting_id ? <StatusBadge tone="neutral">ID {detail.meetingLink.meeting_id}</StatusBadge> : null}
-                          {detail.meetingLink?.passcode ? <StatusBadge tone="neutral">Passcode saved</StatusBadge> : null}
+                          <StatusBadge tone={hasCloudflareStream ? "success" : "warning"}>
+                            {hasCloudflareStream ? "Stream prepared" : "Create live before class"}
+                          </StatusBadge>
+                          <StatusBadge tone="neutral">Students join inside portal</StatusBadge>
                         </div>
                       </div>
+                    </div>
+
+                    <div className="rounded-[22px] bg-white/92 p-4 shadow-[0_10px_22px_rgba(226,232,240,0.76)]">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">Direct Live Stream</p>
+                          <p className="mt-2 text-sm leading-6 text-slate-600">
+                            Prepare this session for enrolled students. Cloudflare records automatically, then sync the saved class into this course video shelf.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          className={hasCloudflareStream ? secondaryButtonClass : primaryButtonClass}
+                          disabled={saving}
+                          onClick={() => void handlePrepareStream(session)}
+                        >
+                          {hasCloudflareStream ? "Refresh Stream" : "Create Live Stream"}
+                        </button>
+                      </div>
+
+                      {hasCloudflareStream ? (
+                        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                          <Field label="RTMPS URL" hint="Use this in OBS or your streaming encoder.">
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                              <input className={`${inputClass} min-w-0`} readOnly value={detail.meetingLink?.host_url ?? ""} />
+                              <button type="button" className={subtleButtonClass} onClick={() => void copyToClipboard(detail.meetingLink?.host_url, "RTMPS URL")}>
+                                Copy
+                              </button>
+                            </div>
+                          </Field>
+                          <Field label="Stream key" hint="Admin-only secret. Do not share publicly.">
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                              <input className={`${inputClass} min-w-0`} readOnly type="password" value={detail.meetingLink?.passcode ?? ""} />
+                              <button type="button" className={subtleButtonClass} onClick={() => void copyToClipboard(detail.meetingLink?.passcode, "Stream key")}>
+                                Copy
+                              </button>
+                            </div>
+                          </Field>
+                          <div className="lg:col-span-2">
+                            <Field label="Recording title" hint="Used when saving the completed live recording into the course video shelf.">
+                              <input
+                                className={inputClass}
+                                value={recordingTitleDrafts[session.id] ?? `${session.title} recording`}
+                                onChange={(event) => setRecordingTitleDrafts((prev) => ({ ...prev, [session.id]: event.target.value }))}
+                              />
+                            </Field>
+                            <div className="mt-3 flex flex-wrap gap-3">
+                              <button type="button" className={primaryButtonClass} disabled={saving} onClick={() => void handleSyncRecording(session)}>
+                                Sync Recording
+                              </button>
+                              <p className="self-center text-xs leading-5 text-slate-500">
+                                Use after ending the stream. If Cloudflare is still processing, wait a few minutes and sync again.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
 
                     <div className="rounded-[22px] bg-[#f9fbfd] p-4">

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { buildBunnyStreamEmbedUrl, isValidBunnyLibraryId, isValidBunnyVideoId } from "../bunnyStream";
+import { createCloudflareStreamEmbedUrl } from "../cloudflareStream";
 import { getEnrollmentAccessMessage, isEnrollmentAccessActive, type EnrollmentAccessRow } from "../enrollmentAccess";
+import { createSignedStorageUrl, deleteR2Object, isR2VideoReference, toR2ObjectReference, uploadR2File } from "../r2Storage";
+import { isCloudflareStreamReference } from "../storageReferences";
 import { createSupabaseRouteClient } from "../supabase/route";
 import { createSupabaseServiceClient } from "../supabase/service";
 
@@ -272,17 +274,17 @@ export function assertSessionJoinAllowed(
   }
 }
 
-export async function createSignedMaterialUrl(context: StudentRouteContext, filePath: string | null | undefined) {
+export async function createSignedMaterialUrl(_context: StudentRouteContext, filePath: string | null | undefined) {
   if (!filePath) {
     return null;
   }
 
-  const { data, error } = await context.serviceClient.storage.from("materials").createSignedUrl(filePath, 60 * 60);
-  if (error || !data?.signedUrl) {
-    throw new StudentRouteError(error?.message ?? "Unable to create secure material link.", 500);
+  const signedUrl = await createSignedStorageUrl(filePath, 60 * 60);
+  if (!signedUrl) {
+    throw new StudentRouteError("Unable to create secure material link.", 500);
   }
 
-  return data.signedUrl;
+  return signedUrl;
 }
 
 export function getStoredFilePath(row: unknown) {
@@ -380,50 +382,39 @@ export function getSafeFileExtension(name: string, fallbackExtension = "") {
   return match?.[1] ?? fallbackExtension;
 }
 
-export async function ensureSubmissionBucket(context: StudentRouteContext) {
-  const { data: bucket } = await context.serviceClient.storage.getBucket("materials");
-  if (!bucket) {
-    await context.serviceClient.storage.createBucket("materials", { public: false });
-  }
-}
-
 export async function uploadSubmissionFile(context: StudentRouteContext, assignmentId: string, file: File) {
-  await ensureSubmissionBucket(context);
   const baseName = toSafeFileName(file.name.replace(/\.[a-z0-9]{1,10}$/i, "") || "submission");
-  const storagePath = `submissions/${assignmentId}/${context.userId}/${Date.now()}-${baseName}${getSafeFileExtension(file.name)}`;
-  const { error } = await context.serviceClient.storage.from("materials").upload(storagePath, file, {
+  const storagePath = `materials/submissions/${assignmentId}/${context.userId}/${Date.now()}-${baseName}${getSafeFileExtension(file.name)}`;
+  const fileReference = toR2ObjectReference(storagePath);
+
+  await uploadR2File({
+    key: storagePath,
+    file,
     contentType: file.type || "application/octet-stream",
-    upsert: false,
   });
 
-  if (error) {
-    throw new StudentRouteError(error.message, 500);
-  }
-
-  return storagePath;
+  return fileReference;
 }
 
 export async function removeSubmissionFile(context: StudentRouteContext, filePath: string | null | undefined) {
   if (filePath) {
-    await context.serviceClient.storage.from("materials").remove([filePath]);
+    await deleteR2Object(filePath);
   }
 }
 
-export function buildRecordingEmbedUrl(recording: { recording_provider?: string | null; bunny_library_id?: string | null; bunny_video_id?: string | null; external_url?: string | null }) {
-  if (recording.recording_provider === "external_link" && recording.external_url) {
-    return recording.external_url;
+export async function buildRecordingEmbedUrl(recording: { recording_provider?: string | null; external_url?: string | null; title?: string | null }) {
+  const recordingUrl = recording.external_url ?? null;
+
+  if (recordingUrl && isCloudflareStreamReference(recordingUrl)) {
+    return createCloudflareStreamEmbedUrl(recordingUrl);
   }
 
-  if (
-    recording.bunny_library_id &&
-    recording.bunny_video_id &&
-    isValidBunnyLibraryId(recording.bunny_library_id) &&
-    isValidBunnyVideoId(recording.bunny_video_id)
-  ) {
-    return buildBunnyStreamEmbedUrl({
-      libraryId: recording.bunny_library_id,
-      videoId: recording.bunny_video_id,
-    });
+  if (recording.recording_provider === "r2_video" && recordingUrl && isR2VideoReference(recordingUrl)) {
+    return createSignedStorageUrl(recordingUrl, 60 * 60, recording.title ?? "recording");
+  }
+
+  if (recording.recording_provider === "external_link" && recordingUrl) {
+    return recordingUrl;
   }
 
   return null;

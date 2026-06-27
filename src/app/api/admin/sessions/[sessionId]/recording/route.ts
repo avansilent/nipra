@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
-import {
-  getBunnyStreamApiKey,
-  getDefaultBunnyStreamLibraryId,
-  isValidBunnyLibraryId,
-  isValidBunnyVideoId,
-} from "../../../../../../lib/bunnyStream";
 import { getAdminRouteContext } from "../../../../../../lib/admin/route";
 import { revalidateAdminContent } from "../../../../../../lib/cacheInvalidation";
+import { deleteCloudflareStreamVideo, uploadCloudflareStreamFile } from "../../../../../../lib/cloudflareStream";
+import { deleteR2Object } from "../../../../../../lib/r2Storage";
+import { isCloudflareStreamReference } from "../../../../../../lib/storageReferences";
 import {
   adminJsonError,
   getAdminSession,
@@ -14,54 +11,7 @@ import {
   type RouteParams,
 } from "../../../../../../lib/admin/onlineClasses";
 
-type BunnyCreateVideoResponse = {
-  guid?: string;
-  videoId?: string;
-  id?: string;
-  message?: string;
-};
-
 const maxVideoUploadBytes = 500 * 1024 * 1024;
-
-async function createBunnyVideo(libraryId: string, title: string, apiKey: string) {
-  const response = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos`, {
-    method: "POST",
-    headers: {
-      AccessKey: apiKey,
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ title }),
-  });
-
-  const payload = (await response.json().catch(() => ({}))) as BunnyCreateVideoResponse;
-  if (!response.ok) {
-    throw new Error(payload.message ?? "Unable to create Bunny Stream video.");
-  }
-
-  const videoId = payload.guid ?? payload.videoId ?? payload.id;
-  if (!videoId || !isValidBunnyVideoId(videoId)) {
-    throw new Error("Bunny Stream did not return a valid video ID.");
-  }
-
-  return videoId;
-}
-
-async function uploadBunnyVideo(libraryId: string, videoId: string, file: File, apiKey: string) {
-  const response = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}`, {
-    method: "PUT",
-    headers: {
-      AccessKey: apiKey,
-      "Content-Type": file.type || "application/octet-stream",
-    },
-    body: file,
-  });
-
-  const payload = (await response.json().catch(() => ({}))) as { message?: string };
-  if (!response.ok) {
-    throw new Error(payload.message ?? "Unable to upload recording to Bunny Stream.");
-  }
-}
 
 function safeExternalUrl(value: unknown) {
   const nextValue = stringField(value);
@@ -112,10 +62,13 @@ export async function POST(request: Request, contextParams: RouteParams<"session
     const title = stringField(formData.get("title")) || `${session.title} recording`;
     const externalUrl = safeExternalUrl(formData.get("external_url") ?? formData.get("externalUrl"));
     const file = formData.get("file");
-    const requestedLibraryId = stringField(formData.get("library_id") ?? formData.get("libraryId")) || getDefaultBunnyStreamLibraryId();
-    let videoId = stringField(formData.get("video_id") ?? formData.get("videoId"));
+    const videoFile = file instanceof File && file.size > 0 ? file : null;
 
-    if (externalUrl && !(file instanceof File) && !videoId) {
+    if (!externalUrl && !videoFile) {
+      return NextResponse.json({ error: "Add a recording link or upload a video file" }, { status: 400 });
+    }
+
+    if (externalUrl && !videoFile) {
       const { data: recording, error } = await context.serviceClient
         .from("session_recordings")
         .upsert(
@@ -143,39 +96,24 @@ export async function POST(request: Request, contextParams: RouteParams<"session
       return NextResponse.json({ recording });
     }
 
-    if (!requestedLibraryId || !isValidBunnyLibraryId(requestedLibraryId)) {
-      return NextResponse.json({ error: "Add a valid Bunny Stream library ID" }, { status: 400 });
+    if (!videoFile) {
+      return NextResponse.json({ error: "Choose a valid video file" }, { status: 400 });
     }
 
-    const videoFile = file instanceof File && file.size > 0 ? file : null;
-    if (videoFile) {
-      if (videoFile.type && !videoFile.type.startsWith("video/")) {
-        return NextResponse.json({ error: "Choose a valid video file" }, { status: 400 });
-      }
-
-      if (videoFile.size > maxVideoUploadBytes) {
-        return NextResponse.json({ error: "Video file must be 500MB or smaller" }, { status: 400 });
-      }
-
-      const apiKey = getBunnyStreamApiKey();
-      if (!apiKey) {
-        return NextResponse.json({ error: "BUNNY_STREAM_API_KEY is required to upload recordings" }, { status: 400 });
-      }
-
-      if (!videoId) {
-        videoId = await createBunnyVideo(requestedLibraryId, title, apiKey);
-      }
-
-      if (!isValidBunnyVideoId(videoId)) {
-        return NextResponse.json({ error: "Add a valid Bunny Stream video ID" }, { status: 400 });
-      }
-
-      await uploadBunnyVideo(requestedLibraryId, videoId, videoFile, apiKey);
+    if (videoFile.type && !videoFile.type.startsWith("video/")) {
+      return NextResponse.json({ error: "Choose a valid video file" }, { status: 400 });
     }
 
-    if (!videoId || !isValidBunnyVideoId(videoId)) {
-      return NextResponse.json({ error: "Add a Bunny video ID or upload a video file" }, { status: 400 });
+    if (videoFile.size > maxVideoUploadBytes) {
+      return NextResponse.json({ error: "Video file must be 500MB or smaller" }, { status: 400 });
     }
+
+    const fileReference = await uploadCloudflareStreamFile({
+      file: videoFile,
+      title,
+      courseId: session.course_id,
+      instituteId: context.instituteId,
+    });
 
     const { data: recording, error } = await context.serviceClient
       .from("session_recordings")
@@ -183,11 +121,11 @@ export async function POST(request: Request, contextParams: RouteParams<"session
         {
           institute_id: context.instituteId,
           session_id: session.id,
-          recording_provider: "bunny_stream",
+          recording_provider: "external_link",
           title,
-          bunny_video_id: videoId,
-          bunny_library_id: requestedLibraryId,
-          external_url: null,
+          bunny_video_id: null,
+          bunny_library_id: null,
+          external_url: fileReference,
           available_from: new Date().toISOString(),
         },
         { onConflict: "session_id" }
@@ -196,6 +134,7 @@ export async function POST(request: Request, contextParams: RouteParams<"session
       .single();
 
     if (error || !recording) {
+      await deleteCloudflareStreamVideo(fileReference);
       return NextResponse.json({ error: error?.message ?? "Unable to save recording" }, { status: 500 });
     }
 
@@ -213,6 +152,13 @@ export async function DELETE(_request: Request, contextParams: RouteParams<"sess
     const context = await getAdminRouteContext();
     const session = await getAdminSession(context, sessionId);
 
+    const { data: recording } = await context.serviceClient
+      .from("session_recordings")
+      .select("external_url")
+      .eq("session_id", session.id)
+      .eq("institute_id", context.instituteId)
+      .maybeSingle();
+
     const { error } = await context.serviceClient
       .from("session_recordings")
       .delete()
@@ -221,6 +167,12 @@ export async function DELETE(_request: Request, contextParams: RouteParams<"sess
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (isCloudflareStreamReference(recording?.external_url)) {
+      await deleteCloudflareStreamVideo(recording?.external_url);
+    } else {
+      await deleteR2Object(recording?.external_url);
     }
 
     revalidateAdminContent("learning");

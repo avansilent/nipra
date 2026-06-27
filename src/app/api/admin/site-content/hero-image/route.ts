@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getAdminRouteContext, type AdminRouteError } from "../../../../../lib/admin/route";
+import { createPublicR2Url, deleteR2Object, toR2ObjectReference, uploadR2File } from "../../../../../lib/r2Storage";
 import { getSafeFileExtension, toSafeFileName } from "../../_shared/upload";
 
-const siteAssetsBucket = "site-assets";
 const maxHeroImageBytes = 5 * 1024 * 1024;
 const allowedImageTypes = new Map([
   ["image/jpeg", ".jpg"],
@@ -55,7 +55,7 @@ function validateHeroImage(file: File) {
 
 export async function POST(request: Request) {
   try {
-    const { serviceClient, instituteId, userId } = await getAdminRouteContext();
+    const { instituteId, userId } = await getAdminRouteContext();
     const formData = await request.formData();
     const image = formData.get("image");
 
@@ -68,50 +68,28 @@ export async function POST(request: Request) {
       return jsonError(validationError);
     }
 
-    const { data: bucket } = await serviceClient.storage.getBucket(siteAssetsBucket);
-    if (!bucket) {
-      const { error: createBucketError } = await serviceClient.storage.createBucket(siteAssetsBucket, {
-        public: true,
-        fileSizeLimit: maxHeroImageBytes,
-        allowedMimeTypes: Array.from(allowedImageTypes.keys()),
-      });
-
-      if (createBucketError) {
-        return jsonError(createBucketError.message, 500);
-      }
-    } else if (!bucket.public) {
-      const { error: updateBucketError } = await serviceClient.storage.updateBucket(siteAssetsBucket, {
-        public: true,
-        fileSizeLimit: maxHeroImageBytes,
-        allowedMimeTypes: Array.from(allowedImageTypes.keys()),
-      });
-
-      if (updateBucketError) {
-        return jsonError(updateBucketError.message, 500);
-      }
-    }
-
     const safeName = toSafeFileName(image.name.replace(/\.[a-z0-9]{1,10}$/i, "") || "hero-image");
     const extension = normalizeImageExtension(image);
-    const storagePath = `${instituteId}/hero/${Date.now()}-${randomUUID()}-${safeName}${extension}`;
+    const storagePath = `site-assets/${instituteId}/hero/${Date.now()}-${randomUUID()}-${safeName}${extension}`;
+    const fileReference = toR2ObjectReference(storagePath);
 
-    const { error: uploadError } = await serviceClient.storage.from(siteAssetsBucket).upload(storagePath, image, {
-      cacheControl: "31536000",
+    await uploadR2File({
+      key: storagePath,
+      file: image,
       contentType: image.type || "application/octet-stream",
-      upsert: false,
     });
 
-    if (uploadError) {
-      return jsonError(uploadError.message, 500);
+    const publicUrl = createPublicR2Url(fileReference);
+    if (!publicUrl) {
+      await deleteR2Object(fileReference);
+      return jsonError("Set R2_PUBLIC_BASE_URL to use uploaded hero images.", 500);
     }
-
-    const { data: publicUrl } = serviceClient.storage.from(siteAssetsBucket).getPublicUrl(storagePath);
 
     return NextResponse.json(
       {
         success: true,
-        url: publicUrl.publicUrl,
-        path: storagePath,
+        url: publicUrl,
+        path: fileReference,
         uploadedBy: userId,
       },
       { headers: { "Cache-Control": "no-store" } }

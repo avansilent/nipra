@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidateAdminContent } from "../../../../../lib/cacheInvalidation";
 import { normalizeResourceVisibility } from "../../../../../lib/resourceVisibility";
+import { deleteR2Object, toR2ObjectReference, uploadR2File } from "../../../../../lib/r2Storage";
 import {
   getSafeFileExtension,
   resolveAdminUploadContext,
@@ -68,24 +69,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Material file must be 25MB or smaller" }, { status: 400 });
     }
 
-    const { data: bucket } = await service.storage.getBucket("materials");
-    if (!bucket) {
-      await service.storage.createBucket("materials", { public: false });
-    }
-
     const baseName = toSafeFileName(file.name.replace(/\.[a-z0-9]{1,10}$/i, "") || "material");
-    const storagePath = `${courseId}/${Date.now()}-${baseName}${getSafeFileExtension(file.name)}`;
+    const storagePath = `materials/${courseId}/${Date.now()}-${baseName}${getSafeFileExtension(file.name)}`;
+    const fileReference = toR2ObjectReference(storagePath);
 
-    const { error: uploadError } = await service.storage
-      .from("materials")
-      .upload(storagePath, file, {
-        contentType: file.type || "application/octet-stream",
-        upsert: false,
-      });
-
-    if (uploadError) {
-      return NextResponse.json({ error: uploadError.message }, { status: 500 });
-    }
+    await uploadR2File({
+      key: storagePath,
+      file,
+      contentType: file.type || "application/octet-stream",
+    });
 
     const { data: inserted, error: insertError } = await service
       .from("materials")
@@ -93,14 +85,14 @@ export async function POST(request: Request) {
         course_id: courseId,
         institute_id: instituteId,
         title: materialTitle || file.name,
-        file_url: storagePath,
+        file_url: fileReference,
         visibility,
       })
       .select("id, title, course_id, file_url, visibility")
       .single();
 
     if (insertError) {
-      await service.storage.from("materials").remove([storagePath]);
+      await deleteR2Object(fileReference);
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 

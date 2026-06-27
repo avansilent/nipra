@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminRouteContext } from "../../../../../lib/admin/route";
 import { revalidateAdminContent } from "../../../../../lib/cacheInvalidation";
+import { deleteR2Object } from "../../../../../lib/r2Storage";
 
 type RouteParams = {
   params: Promise<{ noteId: string }>;
@@ -44,9 +45,7 @@ export async function DELETE(_request: Request, contextParams: RouteParams) {
       return NextResponse.json({ error: deleteError.message }, { status: 500 });
     }
 
-    if (note.file_url) {
-      await context.serviceClient.storage.from("notes").remove([note.file_url]);
-    }
+    await deleteR2Object(note.file_url);
 
     revalidateAdminContent("learning");
 

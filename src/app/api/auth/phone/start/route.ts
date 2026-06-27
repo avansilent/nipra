@@ -7,6 +7,40 @@ type PhoneStartPayload = {
   phone?: string;
 };
 
+const phoneOtpUnavailableMessage =
+  "Mobile OTP is temporarily unavailable. Please use password login or Continue with Google.";
+
+async function isPhoneOtpEnabled() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !anonKey) {
+    return null;
+  }
+
+  try {
+    const settingsUrl = new URL("/auth/v1/settings", supabaseUrl).toString();
+    const response = await fetch(settingsUrl, {
+      headers: {
+        apikey: anonKey,
+      },
+      signal: typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function"
+        ? AbortSignal.timeout(4000)
+        : undefined,
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const settings = (await response.json()) as { phone?: boolean };
+    return settings.phone === true;
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json().catch(() => ({}))) as PhoneStartPayload;
@@ -14,6 +48,14 @@ export async function POST(request: Request) {
 
     if (!phone) {
       return NextResponse.json({ error: "Enter a valid mobile number." }, { status: 400 });
+    }
+
+    const phoneOtpEnabled = await isPhoneOtpEnabled();
+    if (phoneOtpEnabled === false) {
+      return NextResponse.json(
+        { error: phoneOtpUnavailableMessage, code: "phone_otp_unavailable" },
+        { status: 503, headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     const ip = getClientIp(request);
@@ -39,7 +81,10 @@ export async function POST(request: Request) {
     });
 
     if (error) {
-      return NextResponse.json({ error: "Unable to send OTP right now. Please try again shortly." }, { status: 400 });
+      return NextResponse.json(
+        { error: phoneOtpUnavailableMessage, code: "phone_otp_unavailable" },
+        { status: 503, headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });

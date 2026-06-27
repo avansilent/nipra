@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { getAdminRouteContext } from "../../../../../lib/admin/route";
-import { isBunnyStreamReference } from "../../../../../lib/bunnyStreamReference";
 import { revalidateAdminContent } from "../../../../../lib/cacheInvalidation";
+import { deleteCloudflareStreamVideo } from "../../../../../lib/cloudflareStream";
+import { deleteR2Object } from "../../../../../lib/r2Storage";
+import { isCloudflareStreamReference } from "../../../../../lib/storageReferences";
 
 type RouteParams = {
   params: Promise<{ materialId: string }>;
@@ -45,8 +47,10 @@ export async function DELETE(_request: Request, contextParams: RouteParams) {
       return NextResponse.json({ error: deleteError.message }, { status: 500 });
     }
 
-    if (material.file_url && !isBunnyStreamReference(material.file_url)) {
-      await context.serviceClient.storage.from("materials").remove([material.file_url]);
+    if (isCloudflareStreamReference(material.file_url)) {
+      await deleteCloudflareStreamVideo(material.file_url);
+    } else {
+      await deleteR2Object(material.file_url);
     }
 
     revalidateAdminContent("learning");

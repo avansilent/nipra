@@ -13,7 +13,7 @@ import {
 import { useAuth } from "../../app/AuthProvider";
 import { defaultHomeContent, mergeHomeContent } from "../../data/homeContent";
 import { defaultSiteSettings, mergeSiteSettings } from "../../data/siteSettings";
-import { isBunnyStreamReference } from "../../lib/bunnyStreamReference";
+import { isVideoReference } from "../../lib/storageReferences";
 import {
   getEnrollmentAccessLabel,
   getEnrollmentAccessTone,
@@ -133,8 +133,6 @@ type VideoUploadFormState = {
   courseId: string;
   title: string;
   visibility: ResourceVisibility;
-  libraryId: string;
-  videoId: string;
   file: File | null;
 };
 
@@ -156,8 +154,6 @@ type AnnouncementFormState = {
 };
 
 type ResourceKind = "note" | "material";
-
-const defaultVideoLibraryId = process.env.NEXT_PUBLIC_BUNNY_STREAM_LIBRARY_ID ?? "";
 
 const emptyStudentForm: StudentFormState = {
   name: "",
@@ -206,8 +202,6 @@ const emptyVideoForm = (): VideoUploadFormState => ({
   courseId: "",
   title: "",
   visibility: "student",
-  libraryId: defaultVideoLibraryId,
-  videoId: "",
   file: null,
 });
 
@@ -527,8 +521,8 @@ export default function AdminWorkspace() {
     const normalizedMaterials = (materialRows ?? []) as ResourceRow[];
 
     setNotes((noteRows ?? []) as ResourceRow[]);
-    setMaterials(normalizedMaterials.filter((row) => !isBunnyStreamReference(row.file_url)));
-    setVideos(normalizedMaterials.filter((row) => isBunnyStreamReference(row.file_url)));
+    setMaterials(normalizedMaterials.filter((row) => !isVideoReference(row.file_url)));
+    setVideos(normalizedMaterials.filter((row) => isVideoReference(row.file_url)));
     const normalizedTests = (testRows ?? []) as TestRow[];
     const normalizedResults = (resultRows ?? []) as ResultSelectRow[];
 
@@ -1196,8 +1190,8 @@ export default function AdminWorkspace() {
       return;
     }
 
-    if (!videoForm.videoId.trim() && !videoForm.file) {
-      setError("Paste an existing Bunny video ID or choose a video file.");
+    if (!videoForm.file) {
+      setError("Choose a video file.");
       return;
     }
 
@@ -1209,8 +1203,6 @@ export default function AdminWorkspace() {
       formData.append("courseId", videoForm.courseId);
       formData.append("title", videoForm.title.trim());
       formData.append("visibility", videoForm.visibility);
-      formData.append("libraryId", videoForm.libraryId.trim());
-      formData.append("videoId", videoForm.videoId.trim());
       if (videoForm.file) {
         formData.append("file", videoForm.file);
       }
@@ -1282,14 +1274,11 @@ export default function AdminWorkspace() {
     setBusy(true);
 
     try {
-      const { error: deleteError } = await supabase
-        .from("materials")
-        .delete()
-        .eq("id", video.id)
-        .eq("institute_id", instituteId);
+      const response = await fetch(`/api/admin/materials/${encodeURIComponent(video.id)}`, { method: "DELETE" });
+      const payload = await response.json().catch(() => ({}));
 
-      if (deleteError) {
-        throw new Error(deleteError.message);
+      if (!response.ok) {
+        throw new Error(typeof payload.error === "string" ? payload.error : "Unable to remove video");
       }
 
       setMessage("Video removed from the student portal.");
@@ -2152,7 +2141,7 @@ export default function AdminWorkspace() {
                 <AdminPanelCard
                   eyebrow="Class Sessions"
                   title="Live class, material, and assignment control"
-                  description="Create Google Meet or Zoom sessions, manage session materials, and grade assignment submissions from the protected online class system."
+                  description="Create direct live sessions, manage class materials, and grade assignment submissions from the protected online class system."
                 >
                   <SessionManager
                     courses={courses}
@@ -2250,16 +2239,12 @@ export default function AdminWorkspace() {
                     </div>
                   </AdminPanelCard>
 
-                  <AdminPanelCard eyebrow="Video Upload" title="Publish Bunny Stream lessons" description="Upload a video to Bunny Stream or paste an existing Bunny video ID. Students can watch only inside their assigned course portal.">
+                  <AdminPanelCard eyebrow="Video Upload" title="Publish recorded lessons" description="Upload recorded lessons to secure Cloudflare Stream. Students can watch only inside their assigned course portal.">
                     <div className="grid gap-4">
                       <Field label="Course"><select className={inputClass} value={videoForm.courseId} onChange={(event) => setVideoForm((prev) => ({ ...prev, courseId: event.target.value }))}><option value="">Select course</option>{courses.map((course) => (<option key={course.id} value={course.id}>{course.title}</option>))}</select></Field>
                       <Field label="Video title"><input className={inputClass} value={videoForm.title} onChange={(event) => setVideoForm((prev) => ({ ...prev, title: event.target.value }))} placeholder="Physics Lesson 1" /></Field>
                       <Field label="Visible in"><select className={inputClass} value={videoForm.visibility} onChange={(event) => setVideoForm((prev) => ({ ...prev, visibility: event.target.value as ResourceVisibility }))}><option value="student">Student portal only</option></select></Field>
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <Field label="Library ID" hint="Leave blank when server env has the default library."><input className={inputClass} value={videoForm.libraryId} onChange={(event) => setVideoForm((prev) => ({ ...prev, libraryId: event.target.value }))} placeholder="123456" /></Field>
-                        <Field label="Video ID" hint="Use this for an existing Bunny Stream video."><input className={inputClass} value={videoForm.videoId} onChange={(event) => setVideoForm((prev) => ({ ...prev, videoId: event.target.value }))} placeholder="bunny-video-guid" /></Field>
-                      </div>
-                      <Field label="Video file" hint={videoForm.file ? videoForm.file.name : "Optional when using an existing Bunny video ID."}>
+                      <Field label="Video file" hint={videoForm.file ? videoForm.file.name : "Upload MP4, WebM, or another browser-supported video file."}>
                         <label className={`${secondaryButtonClass} w-full cursor-pointer`}>
                           Choose Video
                           <input key={videoPickerKey} type="file" accept="video/*" className="hidden" onChange={(event) => setVideoForm((prev) => ({ ...prev, file: event.target.files?.[0] ?? null }))} />
@@ -2332,7 +2317,7 @@ export default function AdminWorkspace() {
                       </div>
                       <div className="space-y-3">
                         {videos.length === 0 ? (
-                          <EmptyState title="No videos published" description="Publish the first Bunny Stream lesson above to make it available inside assigned student portals." />
+                          <EmptyState title="No videos published" description="Publish the first recorded lesson above to make it available inside assigned student portals." />
                         ) : (
                           videos.map((video) => (
                             <div key={video.id} className={`${nestedCardClass} flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between`}>
@@ -2341,7 +2326,7 @@ export default function AdminWorkspace() {
                                 <p className="mt-1 text-sm text-slate-600">{courseTitleById.get(video.course_id) ?? "Unknown course"} - {formatDate(video.created_at)}</p>
                                 <div className="mt-3 flex flex-wrap gap-2">
                                   <StatusBadge tone={video.visibility === "public" ? "success" : "neutral"}>{formatResourceVisibility(video.visibility)}</StatusBadge>
-                                  <StatusBadge tone="success">Bunny Stream</StatusBadge>
+                                  <StatusBadge tone="success">Cloudflare Stream</StatusBadge>
                                 </div>
                               </div>
                               <button type="button" onClick={() => void handleDeleteVideo(video)} className={dangerButtonClass}>Remove</button>

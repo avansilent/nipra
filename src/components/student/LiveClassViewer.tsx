@@ -13,8 +13,6 @@ type MeetingResponse = {
   meeting?: {
     provider: StudentLiveSession["live_provider"];
     joinUrl: string;
-    meetingId: string | null;
-    passcode: string | null;
   };
 };
 
@@ -23,8 +21,6 @@ type LiveClassViewerProps = {
   onClose: () => void;
 };
 
-const primaryButtonClass =
-  "inline-flex items-center justify-center rounded-[1.4rem] bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(56,189,248,0.24)] transition duration-300 hover:-translate-y-0.5 hover:bg-sky-700 hover:shadow-[0_18px_34px_rgba(56,189,248,0.3)] disabled:cursor-not-allowed disabled:opacity-70";
 const secondaryButtonClass =
   "inline-flex items-center justify-center rounded-[1.4rem] bg-[#f6f8fb] px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-[0_10px_22px_rgba(226,232,240,0.84)] transition duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_14px_28px_rgba(226,232,240,0.92)] disabled:cursor-not-allowed disabled:opacity-70";
 
@@ -49,15 +45,11 @@ async function readApiResponse<T>(response: Response, fallback: string): Promise
 }
 
 function providerLabel(provider?: StudentLiveSession["live_provider"]) {
-  if (provider === "zoom") {
-    return "Zoom";
-  }
-
   if (provider === "other") {
-    return "Live class";
+    return "Direct live";
   }
 
-  return "Google Meet";
+  return "Live class";
 }
 
 export default function LiveClassViewer({ session, onClose }: LiveClassViewerProps) {
@@ -102,7 +94,7 @@ export default function LiveClassViewer({ session, onClose }: LiveClassViewerPro
     return null;
   }
 
-  const isEmbeddable = meeting?.provider === "other" && meeting.joinUrl;
+  const isPlayerReady = Boolean(meeting?.joinUrl);
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 px-4 py-6 backdrop-blur-sm">
@@ -130,32 +122,19 @@ export default function LiveClassViewer({ session, onClose }: LiveClassViewerPro
             <div className="rounded-[24px] bg-rose-50 p-5 text-sm font-semibold text-rose-700">
               {error}
             </div>
-          ) : meeting?.joinUrl ? (
+          ) : isPlayerReady && meeting?.joinUrl ? (
             <div className="space-y-4">
-              {isEmbeddable ? (
-                <div className="overflow-hidden rounded-[24px] bg-slate-950 shadow-[0_18px_38px_rgba(15,23,42,0.18)]">
-                  <div className="aspect-video w-full">
-                    <iframe
-                      src={meeting.joinUrl}
-                      title={session.title}
-                      className="h-full w-full border-0"
-                      allow="camera; microphone; fullscreen; display-capture"
-                      allowFullScreen
-                    />
-                  </div>
+              <div className="overflow-hidden rounded-[24px] bg-slate-950 shadow-[0_18px_38px_rgba(15,23,42,0.18)]">
+                <div className="aspect-video w-full">
+                  <iframe
+                    src={meeting.joinUrl}
+                    title={session.title}
+                    className="h-full w-full border-0"
+                    allow="camera; microphone; fullscreen; display-capture"
+                    allowFullScreen
+                  />
                 </div>
-              ) : (
-                <div className="rounded-[24px] bg-[#f6f8fb] p-5 shadow-[0_10px_24px_rgba(226,232,240,0.72)]">
-                  <p className="text-sm leading-6 text-slate-600">{providerLabel(meeting.provider)} is ready.</p>
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <a href={meeting.joinUrl} target="_blank" rel="noreferrer" className={primaryButtonClass}>
-                      Launch Class
-                    </a>
-                    {meeting.meetingId ? <StatusBadge tone="neutral">ID {meeting.meetingId}</StatusBadge> : null}
-                    {meeting.passcode ? <StatusBadge tone="neutral">Passcode saved</StatusBadge> : null}
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
           ) : (
             <div className="rounded-[24px] bg-amber-50 p-5 text-sm font-semibold text-amber-700">

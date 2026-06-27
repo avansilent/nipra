@@ -3,18 +3,16 @@ import { getEnrollmentAccessMessage, isEnrollmentAccessActive, type EnrollmentAc
 import { createSupabaseRouteClient } from "../../../../../lib/supabase/route";
 import { createSupabaseServiceClient } from "../../../../../lib/supabase/service";
 import { normalizeResourceVisibility } from "../../../../../lib/resourceVisibility";
+import { createSignedStorageUrl } from "../../../../../lib/r2Storage";
 
 type RouteParams = {
   params: Promise<{ noteId: string }>;
 };
 
 const buildSignedNoteResponse = async (filePath: string, title: string) => {
-  const service = createSupabaseServiceClient();
-  const { data: signed, error: signedError } = await service.storage
-    .from("notes")
-    .createSignedUrl(filePath, 300);
+  const signedUrl = await createSignedStorageUrl(filePath, 300, title);
 
-  if (signedError || !signed?.signedUrl) {
+  if (!signedUrl) {
     return NextResponse.json(
       { error: "Unable to create secure download link" },
       { status: 500 }
@@ -23,7 +21,7 @@ const buildSignedNoteResponse = async (filePath: string, title: string) => {
 
   return NextResponse.json(
     {
-      url: signed.signedUrl,
+      url: signedUrl,
       title,
     },
     { headers: { "Cache-Control": "no-store" } }

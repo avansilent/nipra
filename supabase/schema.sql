@@ -750,7 +750,12 @@ drop policy if exists "Users can read visible materials" on public.materials;
 create policy "Users can read visible materials" on public.materials
   for select
   using (
-    (visibility = 'public' and file_url not like 'bunny-stream:%')
+    (
+      visibility = 'public'
+      and file_url not like 'bunny-stream:%'
+      and file_url not like 'cf-stream:%'
+      and file_url not like 'r2-video:%'
+    )
     or (public.is_admin() and institute_id = public.get_my_institute_id())
     or (
       (select auth.uid()) is not null
@@ -934,8 +939,7 @@ create index if not exists idx_tests_course_id on public.tests(course_id);
 create index if not exists idx_results_test_id on public.results(test_id);
 
 -- Online/offline class system - Phase 1 append only.
--- Live classes use Google Meet / Zoom links for now. Bunny Stream remains for
--- recorded videos uploaded after class, not for the live meeting link.
+-- Live classes use direct Cloudflare Stream. Recorded videos use Cloudflare Stream.
 
 alter table public.courses add column if not exists mode text;
 
@@ -969,7 +973,7 @@ create table if not exists public.class_sessions (
   session_date date not null,
   start_time time not null,
   end_time time not null,
-  live_provider text not null default 'google_meet'
+  live_provider text not null default 'other'
     check (live_provider in ('google_meet', 'zoom', 'other')),
   status text not null default 'scheduled'
     check (status in ('scheduled', 'live', 'completed', 'cancelled')),
@@ -1009,8 +1013,8 @@ create table if not exists public.session_recordings (
   id uuid primary key default gen_random_uuid(),
   institute_id uuid not null references public.institutes(id) on delete cascade,
   session_id uuid not null references public.class_sessions(id) on delete cascade,
-  recording_provider text not null default 'bunny_stream'
-    check (recording_provider in ('bunny_stream', 'external_link')),
+  recording_provider text not null default 'cloudflare_stream'
+    check (recording_provider in ('cloudflare_stream', 'external_link', 'r2_video', 'bunny_stream')),
   title text,
   bunny_video_id text,
   bunny_library_id text,
@@ -1023,6 +1027,12 @@ create table if not exists public.session_recordings (
 
 create index if not exists idx_session_recordings_institute on public.session_recordings(institute_id);
 create index if not exists idx_session_recordings_session on public.session_recordings(session_id);
+
+alter table public.session_recordings alter column recording_provider set default 'cloudflare_stream';
+alter table public.session_recordings drop constraint if exists session_recordings_recording_provider_check;
+alter table public.session_recordings
+  add constraint session_recordings_recording_provider_check
+  check (recording_provider in ('cloudflare_stream', 'external_link', 'r2_video', 'bunny_stream'));
 
 create table if not exists public.session_materials (
   id uuid primary key default gen_random_uuid(),

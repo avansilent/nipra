@@ -1,4 +1,4 @@
-import { isBunnyStreamReference } from "./bunnyStreamReference";
+import { createSignedStorageUrl, isVideoReference } from "./r2Storage";
 import { createSupabaseServiceClient } from "./supabase/service";
 
 type ResourceBucket = "notes" | "materials";
@@ -36,7 +36,7 @@ async function fetchPublicResourceLibrary(bucket: ResourceBucket): Promise<Publi
       return [];
     }
 
-    const rows = ((data ?? []) as ResourceSelectRow[]).filter((row) => !isBunnyStreamReference(row.file_url));
+    const rows = ((data ?? []) as ResourceSelectRow[]).filter((row) => !isVideoReference(row.file_url));
     const courseIds = Array.from(new Set(rows.map((row) => row.course_id).filter(Boolean)));
     const courseTitles = new Map<string, string>();
 
@@ -53,14 +53,14 @@ async function fetchPublicResourceLibrary(bucket: ResourceBucket): Promise<Publi
 
     return Promise.all(
       rows.map(async (row) => {
-        const { data: signed } = await service.storage.from(bucket).createSignedUrl(row.file_url, 3600);
+        const signedUrl = await createSignedStorageUrl(row.file_url, 3600, row.title);
 
         return {
           id: row.id,
           title: row.title,
           courseTitle: courseTitles.get(row.course_id) ?? "Course",
           createdAt: row.created_at,
-          previewUrl: signed?.signedUrl ?? null,
+          previewUrl: signedUrl,
         };
       })
     );

@@ -39,7 +39,7 @@ export async function GET(_request: Request, contextParams: RouteParams<"session
       return NextResponse.json({ error: "Recording is not available yet.", code: "recording_locked" }, { status: 403 });
     }
 
-    const embedUrl = buildRecordingEmbedUrl(recording);
+    const embedUrl = await buildRecordingEmbedUrl(recording);
     if (!embedUrl) {
       return NextResponse.json({ error: "Recording is not ready yet.", code: "recording_not_ready" }, { status: 404 });
     }

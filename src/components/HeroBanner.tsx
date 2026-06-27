@@ -121,6 +121,7 @@ function getInitialSlideIndex(slideId?: string) {
 export default function HeroBanner({ content, siteSettings, initialSlideId, disableAutoplay = false }: HeroBannerProps) {
   const [activeIndex, setActiveIndex] = useState(() => getInitialSlideIndex(initialSlideId));
   const [supportsFinePointer, setSupportsFinePointer] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [failedImageSrcs, setFailedImageSrcs] = useState<Record<string, boolean>>({});
   const lastWheelGestureAtRef = useRef(0);
   const dragGestureRef = useRef({
@@ -221,15 +222,19 @@ export default function HeroBanner({ content, siteSettings, initialSlideId, disa
 
   useEffect(() => {
     const finePointerQuery = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const mobileViewportQuery = window.matchMedia("(max-width: 767px)");
 
     const syncViewport = () => {
       setSupportsFinePointer(finePointerQuery.matches);
+      setIsMobileViewport(mobileViewportQuery.matches);
     };
 
     if (typeof finePointerQuery.addEventListener === "function") {
       finePointerQuery.addEventListener("change", syncViewport);
+      mobileViewportQuery.addEventListener("change", syncViewport);
     } else {
       finePointerQuery.addListener(syncViewport);
+      mobileViewportQuery.addListener(syncViewport);
     }
 
     syncViewport();
@@ -237,14 +242,16 @@ export default function HeroBanner({ content, siteSettings, initialSlideId, disa
     return () => {
       if (typeof finePointerQuery.removeEventListener === "function") {
         finePointerQuery.removeEventListener("change", syncViewport);
+        mobileViewportQuery.removeEventListener("change", syncViewport);
       } else {
         finePointerQuery.removeListener(syncViewport);
+        mobileViewportQuery.removeListener(syncViewport);
       }
     };
   }, []);
 
   useEffect(() => {
-    if (disableAutoplay || !allowRichMotion || slides.length <= 1) {
+    if (isMobileViewport || disableAutoplay || !allowRichMotion || slides.length <= 1) {
       return;
     }
 
@@ -255,7 +262,7 @@ export default function HeroBanner({ content, siteSettings, initialSlideId, disa
     return () => {
       window.clearInterval(interval);
     };
-  }, [allowRichMotion, disableAutoplay, slides.length]);
+  }, [allowRichMotion, disableAutoplay, isMobileViewport, slides.length]);
 
   const goToSlide = (index: number) => {
     const slideCount = slides.length;
@@ -263,6 +270,7 @@ export default function HeroBanner({ content, siteSettings, initialSlideId, disa
   };
 
   const activeSlide = slides[activeIndex];
+  const renderedSlides = isMobileViewport ? [activeSlide] : slides;
 
   const resetDragGesture = () => {
     dragGestureRef.current = {
@@ -557,10 +565,14 @@ export default function HeroBanner({ content, siteSettings, initialSlideId, disa
 
         <div className="hero-ribbon-carousel overflow-hidden">
           <div
-            className={`flex w-full ${transitionDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] transition-transform`}
-            style={{ transform: `translateX(-${activeIndex * 100}%)` }}
+            className={
+              isMobileViewport
+                ? "w-full"
+                : `flex w-full ${transitionDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] transition-transform`
+            }
+            style={isMobileViewport ? undefined : { transform: `translateX(-${activeIndex * 100}%)` }}
           >
-            {slides.map((slide, index) => (
+            {renderedSlides.map((slide) => (
               <article key={slide.id} className="hero-ribbon-slide min-w-full">
                 <div className="hero-ribbon-card grid min-h-0 gap-2.5 py-0 lg:grid-cols-[minmax(0,1.04fr)_minmax(15rem,0.96fr)] lg:items-center lg:gap-4.5">
                   <div className="hero-ribbon-copy relative z-10 min-w-0 lg:pr-2">
@@ -576,11 +588,11 @@ export default function HeroBanner({ content, siteSettings, initialSlideId, disa
 
                     {slide.visual === "founder" ? (
                       <>
-                        <div className="mt-1 grid grid-cols-[minmax(0,1fr)_5.35rem] items-end gap-0.5 lg:hidden">
+                        <div className="hero-ribbon-founder-mobile-row mt-1 grid grid-cols-[minmax(0,1fr)_5.35rem] items-end gap-0.5 lg:hidden">
                           <h3 className="hero-ribbon-title max-w-none text-[clamp(1.7rem,6.2vw,2.06rem)] font-bold leading-[0.9] tracking-[-0.082em] text-slate-950 [text-wrap:balance]">
                             {renderTitleContent(slide)}
                           </h3>
-                          <div className="flex justify-end">
+                          <div className="hero-ribbon-founder-mobile-visual flex justify-end">
                             {renderSlideVisual(slide, true)}
                           </div>
                         </div>
@@ -645,6 +657,20 @@ export default function HeroBanner({ content, siteSettings, initialSlideId, disa
             padding-inline: 0.75rem !important;
             font-size: 0.8rem !important;
             text-align: center;
+          }
+        }
+
+        @media (max-width: 430px) {
+          .hero-ribbon-founder-mobile-row {
+            grid-template-columns: minmax(0, 1fr) !important;
+          }
+
+          .hero-ribbon-founder-mobile-visual {
+            display: none !important;
+          }
+
+          .hero-ribbon-actions {
+            grid-template-columns: 1fr !important;
           }
         }
 

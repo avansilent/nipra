@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminRouteContext } from "../../../../../lib/admin/route";
 import { revalidateAdminContent } from "../../../../../lib/cacheInvalidation";
+import { deleteCloudflareLiveInput } from "../../../../../lib/cloudflareStream";
 import {
   adminJsonError,
   deleteMaterialFiles,
@@ -22,6 +23,7 @@ import {
   upsertMeetingLink,
   type RouteParams,
 } from "../../../../../lib/admin/onlineClasses";
+import { isCloudflareLiveInputReference } from "../../../../../lib/storageReferences";
 
 export async function GET(_request: Request, contextParams: RouteParams<"sessionId">) {
   try {
@@ -205,6 +207,13 @@ export async function DELETE(_request: Request, contextParams: RouteParams<"sess
             .eq("institute_id", context.instituteId)
         : { data: [] as Array<{ file_path: string | null }> };
 
+    const { data: meetingLink } = await context.serviceClient
+      .from("class_session_meeting_links")
+      .select("join_url")
+      .eq("session_id", session.id)
+      .eq("institute_id", context.instituteId)
+      .maybeSingle();
+
     const { error: deleteError } = await context.serviceClient
       .from("class_sessions")
       .delete()
@@ -220,6 +229,14 @@ export async function DELETE(_request: Request, contextParams: RouteParams<"sess
       ...(assignments ?? []).map(getStoredFilePath),
       ...(submissions ?? []).map(getStoredFilePath),
     ]);
+
+    if (isCloudflareLiveInputReference(meetingLink?.join_url)) {
+      try {
+        await deleteCloudflareLiveInput(meetingLink?.join_url);
+      } catch {
+        // Database deletion already succeeded; Cloudflare cleanup can be retried manually if needed.
+      }
+    }
 
     revalidateAdminContent("learning");
 

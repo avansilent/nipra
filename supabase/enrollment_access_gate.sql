@@ -80,7 +80,12 @@ drop policy if exists "Users can read visible materials" on public.materials;
 create policy "Users can read visible materials" on public.materials
   for select
   using (
-    (visibility = 'public' and file_url not like 'bunny-stream:%')
+    (
+      visibility = 'public'
+      and file_url not like 'bunny-stream:%'
+      and file_url not like 'cf-stream:%'
+      and file_url not like 'r2-video:%'
+    )
     or (public.is_admin() and institute_id = public.get_my_institute_id())
     or (
       (select auth.uid()) is not null

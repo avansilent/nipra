@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useDeferredValue, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "../../app/AuthProvider";
-import { isBunnyStreamReference } from "../../lib/bunnyStreamReference";
+import { isVideoReference } from "../../lib/storageReferences";
 import {
   getEnrollmentAccessLabel,
   getEnrollmentAccessMessage,
@@ -73,7 +73,8 @@ type AnnouncementRow = {
 type ActiveVideo = {
   id: string;
   title: string;
-  embedUrl: string;
+  embedUrl: string | null;
+  videoUrl: string | null;
 };
 
 type TimelineFilter = "all" | "upcoming" | "completed" | "missed";
@@ -406,7 +407,6 @@ export default function StudentPortal() {
                 .in("visibility", ["student", "public"])
                 .in("course_id", courseIds)
                 .order("created_at", { ascending: false })
-                .not("file_url", "like", "bunny-stream:%")
                 .limit(12)
             ),
             withTimeout(
@@ -416,7 +416,6 @@ export default function StudentPortal() {
                 .eq("institute_id", effectiveInstituteId)
                 .in("visibility", ["student", "public"])
                 .in("course_id", courseIds)
-                .like("file_url", "bunny-stream:%")
                 .order("created_at", { ascending: false })
                 .limit(12)
             ),
@@ -472,7 +471,7 @@ export default function StudentPortal() {
             if (materialsResult.value.error) {
               throw new Error(materialsResult.value.error.message);
             }
-            setMaterials(((materialsResult.value.data ?? []) as ResourceRow[]).filter((row) => !isBunnyStreamReference(row.file_url)));
+            setMaterials(((materialsResult.value.data ?? []) as ResourceRow[]).filter((row) => !isVideoReference(row.file_url)));
           } else {
             setMaterials([]);
           }
@@ -481,7 +480,7 @@ export default function StudentPortal() {
             if (videosResult.value.error) {
               throw new Error(videosResult.value.error.message);
             }
-            const normalizedVideos = ((videosResult.value.data ?? []) as ResourceRow[]).filter((row) => isBunnyStreamReference(row.file_url));
+            const normalizedVideos = ((videosResult.value.data ?? []) as ResourceRow[]).filter((row) => isVideoReference(row.file_url));
             setVideos(normalizedVideos);
             setActiveVideo((currentVideo) =>
               currentVideo && normalizedVideos.some((video) => video.id === currentVideo.id) ? currentVideo : null
@@ -743,14 +742,15 @@ export default function StudentPortal() {
       const response = await fetch(`/api/videos/${encodeURIComponent(video.id)}/embed`);
       const data = await response.json();
 
-      if (!response.ok || !data?.embedUrl) {
+      if (!response.ok || (!data?.embedUrl && !data?.videoUrl)) {
         throw new Error(data?.error ?? "Unable to open video.");
       }
 
       setActiveVideo({
         id: video.id,
         title: data.title ?? video.title,
-        embedUrl: data.embedUrl,
+        embedUrl: data.embedUrl ?? null,
+        videoUrl: data.videoUrl ?? null,
       });
       setError(null);
     } catch (videoError) {
@@ -1074,15 +1074,28 @@ export default function StudentPortal() {
                 {activeVideo ? (
                   <div className="mb-4 overflow-hidden rounded-[24px] bg-slate-950 shadow-[0_18px_38px_rgba(15,23,42,0.18)]">
                     <div className="aspect-video w-full">
-                      <iframe
-                        key={activeVideo.embedUrl}
-                        src={activeVideo.embedUrl}
-                        title={activeVideo.title}
-                        className="h-full w-full border-0"
-                        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
-                        allowFullScreen
-                        loading="lazy"
-                      />
+                      {activeVideo.embedUrl ? (
+                        <iframe
+                          key={activeVideo.embedUrl}
+                          src={activeVideo.embedUrl}
+                          title={activeVideo.title}
+                          className="h-full w-full border-0"
+                          allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+                          allowFullScreen
+                          loading="lazy"
+                        />
+                      ) : activeVideo.videoUrl ? (
+                        <video
+                          key={activeVideo.videoUrl}
+                          src={activeVideo.videoUrl}
+                          title={activeVideo.title}
+                          className="h-full w-full"
+                          controls
+                          controlsList="nodownload"
+                        >
+                          Your browser does not support secure video playback.
+                        </video>
+                      ) : null}
                     </div>
                   </div>
                 ) : null}

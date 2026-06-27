@@ -62,13 +62,10 @@ function formatTime(value: string) {
 }
 
 function formatProvider(provider: StudentLiveSession["live_provider"]) {
-  if (provider === "zoom") {
-    return "Zoom";
-  }
   if (provider === "other") {
-    return "Live class";
+    return "Direct live";
   }
-  return "Google Meet";
+  return "Live class";
 }
 
 function formatCountdown(targetTime: number, now: number) {

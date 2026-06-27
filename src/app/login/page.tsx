@@ -120,10 +120,6 @@ function rememberOtpSend(phone: string) {
 function formatPhoneOtpError(error: unknown) {
   const message = extractOAuthErrorMessage(error);
 
-  if (/sms|phone|provider|otp/i.test(message)) {
-    return `${message}\nMake sure Phone OTP is enabled in Supabase Auth with an SMS provider.`;
-  }
-
   return message;
 }
 
@@ -314,6 +310,7 @@ function LoginContent() {
   const [phoneNumber, setPhoneNumber] = useState<string | null>(null);
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [phoneOtpUnavailable, setPhoneOtpUnavailable] = useState(false);
   const [loadingAction, setLoadingAction] = useState<LoadingAction>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -365,6 +362,10 @@ function LoginContent() {
   };
   const studentPasswordLoginHref = buildStudentLoginHref("password");
   const studentPhoneLoginHref = buildStudentLoginHref("phone", isForcedStudentLogin);
+  const showStudentPasswordFallback =
+    !isAdminLogin && !isStudentPasswordLogin && (!isForcedPhoneLogin || phoneOtpUnavailable);
+  const showStudentGoogleFallback = !isAdminLogin && (!isForcedPhoneLogin || phoneOtpUnavailable);
+  const disablePrimarySubmit = loading || (!isAdminLogin && !isStudentPasswordLogin && phoneOtpUnavailable);
 
   const getPreferredRedirect = useCallback(
     (nextRole?: string | null) => {
@@ -564,6 +565,7 @@ function LoginContent() {
     }
 
     setError(null);
+    setPhoneOtpUnavailable(false);
 
     if (user && authenticatedPhone === normalizedPhone) {
       rememberVerifiedMobile(normalizedPhone);
@@ -589,13 +591,17 @@ function LoginContent() {
           }),
           8000
         );
-        const payload = await response.json();
+        const payload = (await response.json()) as { error?: string; code?: string };
 
         if (!response.ok) {
+          if (payload.code === "phone_otp_unavailable") {
+            setPhoneOtpUnavailable(true);
+          }
           throw new Error(payload.error ?? "Unable to send OTP.");
         }
 
         rememberOtpSend(normalizedPhone);
+        setPhoneOtpUnavailable(false);
         setOtpSent(true);
       } catch (otpError) {
         setError(formatPhoneOtpError(otpError));
@@ -802,6 +808,7 @@ function LoginContent() {
                           value={mobileInputValue}
                           onChange={(event) => {
                             setPhoneNumber(event.target.value);
+                            setPhoneOtpUnavailable(false);
                             setOtpSent(false);
                             setOtpCode("");
                           }}
@@ -847,7 +854,7 @@ function LoginContent() {
                   ) : null}
 
                   <div className="space-y-2.5">
-                    <button type="submit" className={loginPrimaryButtonClassName} disabled={loading}>
+                    <button type="submit" className={loginPrimaryButtonClassName} disabled={disablePrimarySubmit}>
                       {isAdminLogin || isStudentPasswordLogin ? (
                         loadingAction === "password" ? (
                           <span className="inline-flex items-center gap-2" role="status" aria-live="polite">
@@ -862,6 +869,8 @@ function LoginContent() {
                           <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" aria-hidden="true" />
                           {loadingAction === "phone-send" ? "Sending OTP..." : "Verifying OTP..."}
                         </span>
+                      ) : phoneOtpUnavailable ? (
+                        "OTP unavailable"
                       ) : otpSent ? (
                         "Verify OTP"
                       ) : activePhoneSession ? (
@@ -871,7 +880,7 @@ function LoginContent() {
                       )}
                     </button>
 
-                    {!isAdminLogin && !isStudentPasswordLogin && !isForcedPhoneLogin ? (
+                    {showStudentPasswordFallback ? (
                       <Link href={studentPasswordLoginHref} className={loginSecondaryActionClassName}>
                         Use password instead
                       </Link>
@@ -883,7 +892,7 @@ function LoginContent() {
                       </Link>
                     ) : null}
 
-                    {!isAdminLogin && !isForcedPhoneLogin ? (
+                    {showStudentGoogleFallback ? (
                       <button
                         type="button"
                         onClick={() => void handleGoogleSignIn()}

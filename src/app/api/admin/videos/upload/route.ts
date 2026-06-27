@@ -1,63 +1,10 @@
 import { NextResponse } from "next/server";
 import { revalidateAdminContent } from "../../../../../lib/cacheInvalidation";
+import { deleteCloudflareStreamVideo, uploadCloudflareStreamFile } from "../../../../../lib/cloudflareStream";
 import { normalizeResourceVisibility } from "../../../../../lib/resourceVisibility";
-import {
-  createBunnyStreamReference,
-  getBunnyStreamApiKey,
-  getDefaultBunnyStreamLibraryId,
-  isValidBunnyLibraryId,
-  isValidBunnyVideoId,
-} from "../../../../../lib/bunnyStream";
 import { resolveAdminUploadContext } from "../../_shared/upload";
 
-type BunnyCreateVideoResponse = {
-  guid?: string;
-  videoId?: string;
-  id?: string;
-  title?: string;
-};
-
 const maxVideoUploadBytes = 500 * 1024 * 1024;
-
-async function createBunnyVideo(libraryId: string, title: string, apiKey: string) {
-  const response = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos`, {
-    method: "POST",
-    headers: {
-      AccessKey: apiKey,
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ title }),
-  });
-
-  const payload = (await response.json().catch(() => ({}))) as BunnyCreateVideoResponse & { message?: string };
-  if (!response.ok) {
-    throw new Error(payload.message ?? "Unable to create Bunny Stream video.");
-  }
-
-  const videoId = payload.guid ?? payload.videoId ?? payload.id;
-  if (!videoId || !isValidBunnyVideoId(videoId)) {
-    throw new Error("Bunny Stream did not return a valid video ID.");
-  }
-
-  return videoId;
-}
-
-async function uploadBunnyVideo(libraryId: string, videoId: string, file: File, apiKey: string) {
-  const response = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}`, {
-    method: "PUT",
-    headers: {
-      AccessKey: apiKey,
-      "Content-Type": file.type || "application/octet-stream",
-    },
-    body: file,
-  });
-
-  const payload = (await response.json().catch(() => ({}))) as { message?: string };
-  if (!response.ok) {
-    throw new Error(payload.message ?? "Unable to upload video to Bunny Stream.");
-  }
-}
 
 export async function POST(request: Request) {
   try {
@@ -72,16 +19,10 @@ export async function POST(request: Request) {
     const title = String(formData.get("title") ?? "").trim();
     const requestedVisibility = normalizeResourceVisibility(String(formData.get("visibility") ?? ""));
     const visibility = requestedVisibility === "public" ? "student" : requestedVisibility;
-    const requestedLibraryId = String(formData.get("libraryId") ?? "").trim() || getDefaultBunnyStreamLibraryId();
-    const requestedVideoId = String(formData.get("videoId") ?? "").trim();
     const file = formData.get("file");
 
     if (!courseId || !title) {
       return NextResponse.json({ error: "Course and video title are required." }, { status: 400 });
-    }
-
-    if (!requestedLibraryId || !isValidBunnyLibraryId(requestedLibraryId)) {
-      return NextResponse.json({ error: "Add a valid Bunny Stream library ID." }, { status: 400 });
     }
 
     const { data: course } = await service
@@ -96,39 +37,24 @@ export async function POST(request: Request) {
     }
 
     const videoFile = file instanceof File && file.size > 0 ? file : null;
-    let videoId = requestedVideoId;
-
-    if (videoFile) {
-      if (videoFile.type && !videoFile.type.startsWith("video/")) {
-        return NextResponse.json({ error: "Choose a valid video file." }, { status: 400 });
-      }
-
-      if (videoFile.size > maxVideoUploadBytes) {
-        return NextResponse.json({ error: "Video file must be 500MB or smaller." }, { status: 400 });
-      }
-
-      const apiKey = getBunnyStreamApiKey();
-      if (!apiKey) {
-        return NextResponse.json(
-          { error: "BUNNY_STREAM_API_KEY is required to upload video files. You can still publish an existing Bunny video ID." },
-          { status: 400 }
-        );
-      }
-
-      if (!videoId) {
-        videoId = await createBunnyVideo(requestedLibraryId, title, apiKey);
-      }
-
-      if (!isValidBunnyVideoId(videoId)) {
-        return NextResponse.json({ error: "Add a valid Bunny Stream video ID." }, { status: 400 });
-      }
-
-      await uploadBunnyVideo(requestedLibraryId, videoId, videoFile, apiKey);
+    if (!videoFile) {
+      return NextResponse.json({ error: "Choose a video file." }, { status: 400 });
     }
 
-    if (!videoId || !isValidBunnyVideoId(videoId)) {
-      return NextResponse.json({ error: "Add a valid Bunny Stream video ID or choose a video file." }, { status: 400 });
+    if (videoFile.type && !videoFile.type.startsWith("video/")) {
+      return NextResponse.json({ error: "Choose a valid video file." }, { status: 400 });
     }
+
+    if (videoFile.size > maxVideoUploadBytes) {
+      return NextResponse.json({ error: "Video file must be 500MB or smaller." }, { status: 400 });
+    }
+
+    const fileReference = await uploadCloudflareStreamFile({
+      file: videoFile,
+      title,
+      courseId,
+      instituteId,
+    });
 
     const { data: inserted, error: insertError } = await service
       .from("materials")
@@ -136,13 +62,14 @@ export async function POST(request: Request) {
         course_id: courseId,
         institute_id: instituteId,
         title,
-        file_url: createBunnyStreamReference({ libraryId: requestedLibraryId, videoId }),
+        file_url: fileReference,
         visibility,
       })
       .select("id, title, course_id, file_url, visibility, created_at")
       .single();
 
     if (insertError) {
+      await deleteCloudflareStreamVideo(fileReference);
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 

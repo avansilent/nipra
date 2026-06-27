@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseRouteClient } from "../../../../../lib/supabase/route";
 import { createSupabaseServiceClient } from "../../../../../lib/supabase/service";
 import { normalizeResourceVisibility } from "../../../../../lib/resourceVisibility";
-import { isBunnyStreamReference } from "../../../../../lib/bunnyStreamReference";
+import { createSignedStorageUrl, isVideoReference } from "../../../../../lib/r2Storage";
 import { getEnrollmentAccessMessage, isEnrollmentAccessActive, type EnrollmentAccessRow } from "../../../../../lib/enrollmentAccess";
 
 type RouteParams = {
@@ -17,12 +17,9 @@ const normalizeRole = (role?: string | null): "admin" | "student" | null => {
 };
 
 const buildSignedMaterialResponse = async (filePath: string, title: string) => {
-  const service = createSupabaseServiceClient();
-  const { data: signed, error: signedError } = await service.storage
-    .from("materials")
-    .createSignedUrl(filePath, 300);
+  const signedUrl = await createSignedStorageUrl(filePath, 300, title);
 
-  if (signedError || !signed?.signedUrl) {
+  if (!signedUrl) {
     return NextResponse.json(
       { error: "Unable to create secure download link" },
       { status: 500 }
@@ -31,7 +28,7 @@ const buildSignedMaterialResponse = async (filePath: string, title: string) => {
 
   return NextResponse.json(
     {
-      url: signed.signedUrl,
+      url: signedUrl,
       title,
     },
     { headers: { "Cache-Control": "no-store" } }
@@ -53,7 +50,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Material not found" }, { status: 404 });
     }
 
-    if (isBunnyStreamReference(material.file_url)) {
+    if (isVideoReference(material.file_url)) {
       return NextResponse.json({ error: "Use the secure video player to open this lesson." }, { status: 400 });
     }
 

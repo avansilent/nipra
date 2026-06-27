@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createSignedStorageUrl, deleteR2Objects, toR2ObjectReference, uploadR2File } from "../r2Storage";
 import type { AdminRouteContext } from "./route";
 import { AdminRouteError } from "./route";
 
@@ -55,11 +56,11 @@ export function numberField(value: unknown, fallback = 0) {
 
 export function normalizeLiveProvider(value: unknown): LiveProvider {
   const provider = stringField(value);
-  if (provider === "zoom" || provider === "other") {
+  if (provider === "google_meet" || provider === "zoom" || provider === "other") {
     return provider;
   }
 
-  return "google_meet";
+  return "other";
 }
 
 export function normalizeSessionStatus(value: unknown): SessionStatus | null {
@@ -127,7 +128,7 @@ export function getSessionJoinWindow(sessionDate: string, startTime: string, end
   };
 }
 
-export function safeUrl(value: unknown, provider: LiveProvider, required = false) {
+export function safeUrl(value: unknown, _provider: LiveProvider, required = false) {
   const nextValue = stringField(value);
   if (!nextValue) {
     if (required) {
@@ -146,15 +147,6 @@ export function safeUrl(value: unknown, provider: LiveProvider, required = false
 
   if (parsedUrl.protocol !== "https:") {
     throw new AdminRouteError("Meeting link must use HTTPS", 400);
-  }
-
-  const hostname = parsedUrl.hostname.toLowerCase();
-  if (provider === "google_meet" && hostname !== "meet.google.com") {
-    throw new AdminRouteError("Google Meet link must use meet.google.com", 400);
-  }
-
-  if (provider === "zoom" && !hostname.endsWith("zoom.us") && !hostname.endsWith("zoom.com")) {
-    throw new AdminRouteError("Zoom link must use a Zoom domain", 400);
   }
 
   return parsedUrl.toString();
@@ -304,7 +296,7 @@ export async function upsertMeetingLink(
   }
 
   if (!joinUrl) {
-    throw new AdminRouteError("Student meeting link is required when saving meeting details", 400);
+    throw new AdminRouteError("Student live stream is required when saving live details", 400);
   }
 
   const { data: meetingLink, error } = await context.serviceClient
@@ -347,13 +339,6 @@ export async function getMeetingLink(context: AdminRouteContext, sessionId: stri
   return meetingLink;
 }
 
-export async function ensureStorageBucket(context: AdminRouteContext, bucketName: string) {
-  const { data: bucket } = await context.serviceClient.storage.getBucket(bucketName);
-  if (!bucket) {
-    await context.serviceClient.storage.createBucket(bucketName, { public: false });
-  }
-}
-
 export async function uploadAdminFile(
   context: AdminRouteContext,
   bucketName: string,
@@ -362,20 +347,17 @@ export async function uploadAdminFile(
   fallbackName: string,
   fallbackExtension = ""
 ) {
-  await ensureStorageBucket(context, bucketName);
-
   const baseName = toSafeFileName(file.name.replace(/\.[a-z0-9]{1,10}$/i, "") || fallbackName);
-  const storagePath = `${folder}/${Date.now()}-${baseName}${getSafeFileExtension(file.name, fallbackExtension)}`;
-  const { error } = await context.serviceClient.storage.from(bucketName).upload(storagePath, file, {
+  const storagePath = `${bucketName}/${folder}/${Date.now()}-${baseName}${getSafeFileExtension(file.name, fallbackExtension)}`;
+  const fileReference = toR2ObjectReference(storagePath);
+
+  await uploadR2File({
+    key: storagePath,
+    file,
     contentType: file.type || "application/octet-stream",
-    upsert: false,
   });
 
-  if (error) {
-    throw new AdminRouteError(error.message, 500);
-  }
-
-  return storagePath;
+  return fileReference;
 }
 
 export function requirePdfFile(file: File, label = "File") {
@@ -389,22 +371,17 @@ export function requirePdfFile(file: File, label = "File") {
   }
 }
 
-export async function createSignedMaterialUrl(context: AdminRouteContext, filePath: string | null | undefined) {
+export async function createSignedMaterialUrl(_context: AdminRouteContext, filePath: string | null | undefined) {
   if (!filePath) {
     return null;
   }
 
-  const { data, error } = await context.serviceClient.storage.from("materials").createSignedUrl(filePath, 60 * 60);
-  if (error) {
-    return null;
-  }
-
-  return data.signedUrl;
+  return createSignedStorageUrl(filePath, 60 * 60);
 }
 
-export async function deleteMaterialFiles(context: AdminRouteContext, paths: Array<string | null | undefined>) {
+export async function deleteMaterialFiles(_context: AdminRouteContext, paths: Array<string | null | undefined>) {
   const filteredPaths = paths.filter((path): path is string => Boolean(path));
   if (filteredPaths.length > 0) {
-    await context.serviceClient.storage.from("materials").remove(filteredPaths);
+    await deleteR2Objects(filteredPaths);
   }
 }

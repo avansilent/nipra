@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createCloudflareStreamEmbedUrl } from "../../../../../../lib/cloudflareStream";
 import {
   assertSessionJoinAllowed,
   getStudentRouteContext,
@@ -6,6 +7,7 @@ import {
   studentJsonError,
   type RouteParams,
 } from "../../../../../../lib/student/onlineClasses";
+import { isCloudflareLiveInputReference } from "../../../../../../lib/storageReferences";
 
 export async function POST(_request: Request, contextParams: RouteParams<"sessionId">) {
   try {
@@ -15,7 +17,7 @@ export async function POST(_request: Request, contextParams: RouteParams<"sessio
 
     const { data: meetingLink, error: meetingError } = await context.serviceClient
       .from("class_session_meeting_links")
-      .select("id, provider, join_url, meeting_id, passcode, join_window_opens_at, join_window_closes_at")
+      .select("id, provider, join_url, join_window_opens_at, join_window_closes_at")
       .eq("session_id", session.id)
       .eq("institute_id", context.instituteId)
       .maybeSingle();
@@ -24,9 +26,9 @@ export async function POST(_request: Request, contextParams: RouteParams<"sessio
       return NextResponse.json({ error: meetingError.message }, { status: 500 });
     }
 
-    if (!meetingLink?.join_url) {
+    if (!meetingLink?.join_url || !isCloudflareLiveInputReference(meetingLink.join_url)) {
       return NextResponse.json(
-        { error: "Class meeting link is not ready yet.", code: "meeting_not_ready" },
+        { error: "Direct live stream is not ready yet.", code: "stream_not_ready" },
         { status: 403 }
       );
     }
@@ -49,6 +51,12 @@ export async function POST(_request: Request, contextParams: RouteParams<"sessio
       return NextResponse.json({ error: attendanceError.message }, { status: 500 });
     }
 
+    const joinUrl = await createCloudflareStreamEmbedUrl(meetingLink.join_url);
+
+    if (!joinUrl) {
+      return NextResponse.json({ error: "Secure live player is not ready yet.", code: "stream_not_ready" }, { status: 503 });
+    }
+
     return NextResponse.json(
       {
         session: {
@@ -59,9 +67,7 @@ export async function POST(_request: Request, contextParams: RouteParams<"sessio
         },
         meeting: {
           provider: meetingLink.provider,
-          joinUrl: meetingLink.join_url,
-          meetingId: meetingLink.meeting_id ?? null,
-          passcode: meetingLink.passcode ?? null,
+          joinUrl,
         },
       },
       { headers: { "Cache-Control": "no-store" } }

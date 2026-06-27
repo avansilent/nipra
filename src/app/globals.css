@@ -6760,7 +6760,38 @@ body .admission-page-shell .admission-shell {
   }
 
   body .hero-ribbon-shell {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
     padding: 0.48rem 0.8rem 0.42rem !important;
+  }
+
+  body .hero-ribbon-carousel,
+  body .hero-ribbon-slide,
+  body .hero-ribbon-card,
+  body .hero-ribbon-copy {
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  body .hero-ribbon-carousel {
+    overflow: hidden !important;
+  }
+
+  body .hero-ribbon-slide,
+  body .hero-ribbon-card,
+  body .hero-ribbon-copy {
+    overflow: visible !important;
+  }
+
+  body .hero-ribbon-carousel > div {
+    min-width: 0 !important;
+  }
+
+  body .hero-ribbon-slide {
+    flex: 0 0 100% !important;
+    width: 100% !important;
   }
 
   body .hero-ribbon-card {
@@ -6783,6 +6814,18 @@ body .admission-page-shell .admission-shell {
   body .hero-ribbon-description,
   body .hero-ribbon-footnote {
     max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  body .hero-ribbon-actions {
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  body .hero-ribbon-action {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    white-space: normal !important;
   }
 }
 

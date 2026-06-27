@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { buildBunnyStreamEmbedUrl, parseBunnyStreamReference } from "../../../../../lib/bunnyStream";
+import { createCloudflareStreamEmbedUrl } from "../../../../../lib/cloudflareStream";
 import { getEnrollmentAccessMessage, isEnrollmentAccessActive, type EnrollmentAccessRow } from "../../../../../lib/enrollmentAccess";
+import { createSignedStorageUrl, isR2VideoReference } from "../../../../../lib/r2Storage";
+import { isCloudflareStreamReference } from "../../../../../lib/storageReferences";
 import { createSupabaseRouteClient } from "../../../../../lib/supabase/route";
 import { createSupabaseServiceClient } from "../../../../../lib/supabase/service";
 
@@ -55,8 +57,7 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: videoError.message }, { status: 500 });
   }
 
-  const reference = parseBunnyStreamReference(video?.file_url);
-  if (!video || !reference || video.visibility !== "student") {
+  if (!video || (!isCloudflareStreamReference(video.file_url) && !isR2VideoReference(video.file_url)) || video.visibility !== "student") {
     return NextResponse.json({ error: "Video not found." }, { status: 404 });
   }
 
@@ -80,10 +81,22 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: getEnrollmentAccessMessage(enrollment as EnrollmentAccessRow) }, { status: 403 });
   }
 
+  const embedUrl = isCloudflareStreamReference(video.file_url)
+    ? await createCloudflareStreamEmbedUrl(video.file_url)
+    : null;
+  const videoUrl = isR2VideoReference(video.file_url)
+    ? await createSignedStorageUrl(video.file_url, 60 * 60, video.title)
+    : null;
+
+  if (!embedUrl && !videoUrl) {
+    return NextResponse.json({ error: "Unable to open video." }, { status: 500 });
+  }
+
   return NextResponse.json(
     {
       title: video.title,
-      embedUrl: buildBunnyStreamEmbedUrl(reference),
+      embedUrl,
+      videoUrl,
     },
     { headers: { "Cache-Control": "no-store" } }
   );
