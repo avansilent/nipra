@@ -1,5 +1,6 @@
 import { getEnrollmentAccessMessage, isEnrollmentAccessActive, type EnrollmentAccessRow } from "../enrollmentAccess";
 import { requireUuid, StudentRouteError, type StudentRouteContext } from "../student/onlineClasses";
+import type { TestAudienceScope } from "./mcq";
 
 export type StudentTestRow = {
   id: string;
@@ -14,6 +15,7 @@ export type StudentTestRow = {
   default_marks_per_question: number;
   is_published: boolean;
   is_free: boolean;
+  audience_scope: TestAudienceScope;
   created_at?: string;
   updated_at?: string;
 };
@@ -42,7 +44,7 @@ export async function getStudentTest(context: StudentRouteContext, testId: strin
 
   const { data: test, error } = await context.serviceClient
     .from("tests")
-    .select("id, institute_id, course_id, title, description, test_date, starts_at, ends_at, duration_minutes, default_marks_per_question, is_published, is_free, created_at, updated_at")
+    .select("id, institute_id, course_id, title, description, test_date, starts_at, ends_at, duration_minutes, default_marks_per_question, is_published, is_free, audience_scope, created_at, updated_at")
     .eq("id", testId)
     .eq("institute_id", context.instituteId)
     .maybeSingle();
@@ -60,7 +62,7 @@ export async function getStudentTest(context: StudentRouteContext, testId: strin
     throw new StudentRouteError("This test is not published yet.", 404, "test_not_found");
   }
 
-  if (!typedTest.is_free) {
+  if (!(typedTest.is_free && typedTest.audience_scope === "all_students")) {
     const { data: enrollment, error: enrollmentError } = await context.serviceClient
       .from("enrollments")
       .select("*")
@@ -103,6 +105,7 @@ export function toPublicStudentTest(test: StudentTestRow, courseTitle?: string |
     ends_at: test.ends_at,
     duration_minutes: test.duration_minutes,
     is_free: test.is_free,
+    audience_scope: test.audience_scope,
     question_count: questionCount ?? 0,
     availability,
     attempt: attempt

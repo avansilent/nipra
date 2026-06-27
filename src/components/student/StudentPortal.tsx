@@ -37,6 +37,7 @@ type TestRow = {
   title: string;
   test_date: string;
   course_id: string;
+  course_title?: string | null;
 };
 
 type ResultSelectRow = {
@@ -369,17 +370,16 @@ export default function StudentPortal() {
         const courseIds = enrolledCourses.map((course) => course.id);
         const activeCourseIdSet = new Set(courseIds);
 
+        try {
+          const testsResponse = await fetch("/api/student/tests", { cache: "no-store" });
+          const testsPayload = await readApiResponse<{ tests?: TestRow[] }>(testsResponse, "Unable to load tests");
+          setTests(testsPayload.tests ?? []);
+        } catch {
+          setTests([]);
+        }
+
         if (courseIds.length > 0) {
           const settledCourseQueries = await Promise.allSettled([
-            withTimeout(
-              supabase
-                .from("tests")
-                .select("id, title, test_date, course_id")
-                .eq("institute_id", effectiveInstituteId)
-                .in("course_id", courseIds)
-                .order("test_date", { ascending: true })
-                .limit(24)
-            ),
             withTimeout(
               supabase
                 .from("results")
@@ -421,16 +421,7 @@ export default function StudentPortal() {
             ),
           ]);
 
-          const [testsResult, resultsResult, notesResult, materialsResult, videosResult] = settledCourseQueries;
-
-          if (testsResult.status === "fulfilled") {
-            if (testsResult.value.error) {
-              throw new Error(testsResult.value.error.message);
-            }
-            setTests((testsResult.value.data ?? []) as TestRow[]);
-          } else {
-            setTests([]);
-          }
+          const [resultsResult, notesResult, materialsResult, videosResult] = settledCourseQueries;
 
           if (resultsResult.status === "fulfilled") {
             if (resultsResult.value.error) {
@@ -490,7 +481,6 @@ export default function StudentPortal() {
             setActiveVideo(null);
           }
         } else {
-          setTests([]);
           setResults([]);
           setNotes([]);
           setMaterials([]);
@@ -1036,7 +1026,7 @@ export default function StudentPortal() {
                       <div key={test.id} className={`${softCardClass} flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between`}>
                         <div>
                           <p className="font-semibold text-slate-900">{test.title}</p>
-                          <p className="mt-1 text-sm text-slate-600">{courseTitleById.get(test.course_id) ?? "Course"} - {formatDate(test.test_date)}</p>
+                          <p className="mt-1 text-sm text-slate-600">{test.course_title ?? courseTitleById.get(test.course_id) ?? "Free test"} - {formatDate(test.test_date)}</p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                           <StatusBadge tone={tone}>{label}</StatusBadge>

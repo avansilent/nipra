@@ -27,7 +27,7 @@ export async function GET() {
 
     let testsQuery = context.serviceClient
       .from("tests")
-      .select("id, institute_id, course_id, title, description, test_date, starts_at, ends_at, duration_minutes, default_marks_per_question, is_published, is_free, created_at, updated_at")
+      .select("id, institute_id, course_id, title, description, test_date, starts_at, ends_at, duration_minutes, default_marks_per_question, is_published, is_free, audience_scope, created_at, updated_at")
       .eq("institute_id", context.instituteId)
       .eq("is_published", true)
       .order("starts_at", { ascending: true, nullsFirst: false })
@@ -35,9 +35,9 @@ export async function GET() {
       .limit(50);
 
     if (activeCourseIds.length > 0) {
-      testsQuery = testsQuery.or(`is_free.eq.true,course_id.in.(${activeCourseIds.join(",")})`);
+      testsQuery = testsQuery.or(`and(is_free.eq.true,audience_scope.eq.all_students),course_id.in.(${activeCourseIds.join(",")})`);
     } else {
-      testsQuery = testsQuery.eq("is_free", true);
+      testsQuery = testsQuery.eq("is_free", true).eq("audience_scope", "all_students");
     }
 
     const { data: tests, error: testsError } = await testsQuery;

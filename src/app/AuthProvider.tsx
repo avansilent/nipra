@@ -19,6 +19,7 @@ import {
 import {
   clearSupabaseBrowserAuthStorage,
   createSupabaseBrowserClient,
+  getSupabaseBrowserAuthStorageKeys,
 } from "../lib/supabase/browser";
 
 type AuthRole = "admin" | "student" | null;
@@ -35,6 +36,9 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+const authSessionReadTimeoutMs = 10_000;
+const authSessionRetryDelayMs = 900;
+const authSessionMaxRecoveryAttempts = 3;
 
 const normalizeRole = (role?: string | null): AuthRole => {
   if (role === "admin" || role === "student") {
@@ -68,6 +72,11 @@ const withTimeout = async <T,>(
     }
   }
 };
+
+const delay = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
 
 function readRememberedStudentSessionActiveAt() {
   if (typeof window === "undefined") {
@@ -112,6 +121,30 @@ function clearRememberedStudentSessionActivity() {
   }
 }
 
+function hasStoredSupabaseBrowserSession(url?: string | null) {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  try {
+    const { storageKey, legacyKeys } = getSupabaseBrowserAuthStorageKeys(url);
+    const keys = [storageKey, ...legacyKeys];
+    const hasStorageValue = keys.some((key) => window.localStorage.getItem(key) || window.sessionStorage.getItem(key));
+    if (hasStorageValue) {
+      return true;
+    }
+
+    const cookieNames = document.cookie
+      .split(";")
+      .map((cookie) => cookie.trim().split("=")[0])
+      .filter(Boolean);
+
+    return keys.some((key) => cookieNames.some((cookieName) => cookieName === key || cookieName.startsWith(`${key}.`)));
+  } catch {
+    return false;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const hasSupabaseConfig = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -129,10 +162,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const pathnameRef = useRef(pathname);
+  const sessionRef = useRef<Session | null>(null);
+  const sessionRecoveryAttemptsRef = useRef(0);
 
   useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
 
   const resetLocalAuthState = useCallback(() => {
     setSession(null);
@@ -269,19 +308,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
 
     const initialize = async () => {
+      let keepLoadingForRetry = false;
       setLoading(true);
       setRoleResolved(false);
       try {
         let sessionData: Session | null = null;
+        let sessionReadFailed = false;
         try {
-          const { data } = await withTimeout(supabase.auth.getSession(), 3000);
+          const { data } = await withTimeout(supabase.auth.getSession(), authSessionReadTimeoutMs);
           sessionData = data.session ?? null;
         } catch {
-          await clearBrokenSession();
-          sessionData = null;
+          sessionReadFailed = true;
+          try {
+            await delay(authSessionRetryDelayMs);
+            const { data } = await withTimeout(supabase.auth.getSession(), authSessionReadTimeoutMs);
+            sessionData = data.session ?? null;
+            sessionReadFailed = false;
+          } catch {
+            sessionData = sessionRef.current;
+          }
+        }
+
+        if (
+          !sessionData &&
+          sessionReadFailed &&
+          hasStoredSupabaseBrowserSession(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
+          sessionRecoveryAttemptsRef.current < authSessionMaxRecoveryAttempts
+        ) {
+          sessionRecoveryAttemptsRef.current += 1;
+          keepLoadingForRetry = true;
+          window.setTimeout(() => {
+            if (mounted) {
+              void initialize();
+            }
+          }, authSessionRetryDelayMs * sessionRecoveryAttemptsRef.current);
+          return;
         }
 
         if (sessionData) {
+          sessionRecoveryAttemptsRef.current = 0;
           if (hasRememberedStudentSessionExpired()) {
             await clearBrokenSession();
             sessionData = null;
@@ -302,7 +367,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(nextUser);
         await resolveRole(nextUser);
       } finally {
-        if (mounted) {
+        if (mounted && !keepLoadingForRetry) {
           setLoading(false);
         }
       }

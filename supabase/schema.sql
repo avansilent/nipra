@@ -1550,3 +1550,50 @@ create index if not exists idx_test_attempts_test on public.test_attempts(test_i
 create index if not exists idx_test_attempts_student on public.test_attempts(student_id);
 create index if not exists idx_test_attempts_institute on public.test_attempts(institute_id);
 create index if not exists idx_test_attempts_warning_count on public.test_attempts(institute_id, warning_count);
+
+-- Test audience scope.
+-- all_students = any logged-in student in the institute can attend when the test is free.
+-- course_students = only active students from the selected course can attend.
+alter table public.tests add column if not exists audience_scope text;
+
+update public.tests
+set audience_scope = case
+  when is_free = true then 'all_students'
+  else 'course_students'
+end
+where audience_scope is null;
+
+alter table public.tests alter column audience_scope set default 'all_students';
+alter table public.tests alter column audience_scope set not null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'tests_audience_scope_check'
+      and conrelid = 'public.tests'::regclass
+  ) then
+    alter table public.tests
+      add constraint tests_audience_scope_check
+      check (audience_scope in ('all_students', 'course_students'));
+  end if;
+end $$;
+
+drop policy if exists "Authenticated users can read tests" on public.tests;
+create policy "Authenticated users can read tests" on public.tests
+  for select
+  using (
+    (public.is_admin() and institute_id = public.get_my_institute_id())
+    or (
+      (select auth.uid()) is not null
+      and institute_id = public.get_my_institute_id()
+      and is_published
+      and (
+        (is_free and audience_scope = 'all_students')
+        or public.enrollment_has_active_access((select auth.uid()), public.tests.course_id, public.tests.institute_id)
+      )
+    )
+  );
+
+create index if not exists idx_tests_audience_scope on public.tests(institute_id, audience_scope, is_free, is_published);

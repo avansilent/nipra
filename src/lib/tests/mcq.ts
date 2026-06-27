@@ -34,6 +34,7 @@ export type PublicTestQuestion = {
 };
 
 export type AnswerMap = Record<string, number>;
+export type TestAudienceScope = "all_students" | "course_students";
 
 export const maxMcqQuestions = 100;
 export const maxMcqOptions = 6;
@@ -58,6 +59,18 @@ export function booleanField(value: unknown, fallback = false) {
   }
   if (text === "false" || text === "0" || text === "no" || text === "off") {
     return false;
+  }
+
+  return fallback;
+}
+
+export function normalizeAudienceScope(value: unknown, fallback: TestAudienceScope = "course_students"): TestAudienceScope {
+  const text = stringField(value).toLowerCase();
+  if (text === "all" || text === "all_students" || text === "all-students") {
+    return "all_students";
+  }
+  if (text === "course" || text === "course_students" || text === "course-students") {
+    return "course_students";
   }
 
   return fallback;

@@ -19,6 +19,7 @@ type TestForm = {
   title: string;
   description: string;
   courseId: string;
+  audienceScope: "all_students" | "course_students";
   startsAt: string;
   endsAt: string;
   durationMinutes: string;
@@ -41,6 +42,7 @@ type AdminTest = {
   default_marks_per_question: number;
   is_published: boolean;
   is_free: boolean;
+  audience_scope: "all_students" | "course_students";
   questions: Array<{
     id: string;
     prompt: string;
@@ -173,6 +175,7 @@ function emptyForm(courseId = ""): TestForm {
     title: "",
     description: "",
     courseId,
+    audienceScope: "all_students",
     startsAt: defaultDateTime(30),
     endsAt: defaultDateTime(7 * 24 * 60),
     durationMinutes: "30",
@@ -299,6 +302,7 @@ export default function TestSeriesManager({ courses, disabled = false, onNotice,
       title: test.title,
       description: test.description ?? "",
       courseId: test.course_id,
+      audienceScope: test.audience_scope ?? "course_students",
       startsAt: toDateTimeInput(test.starts_at),
       endsAt: toDateTimeInput(test.ends_at),
       durationMinutes: String(test.duration_minutes ?? 30),
@@ -332,6 +336,7 @@ export default function TestSeriesManager({ courses, disabled = false, onNotice,
         title: form.title,
         description: form.description,
         courseId: form.courseId,
+        audienceScope: form.isFree ? form.audienceScope : "course_students",
         startsAt: form.startsAt,
         endsAt: form.endsAt,
         durationMinutes: form.durationMinutes,
@@ -421,6 +426,19 @@ export default function TestSeriesManager({ courses, disabled = false, onNotice,
               {courses.map((course) => <option key={course.id} value={course.id}>{course.title}</option>)}
             </select>
           </Field>
+          <Field label="Who can attend">
+            <select
+              className={inputClass}
+              value={form.audienceScope}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, audienceScope: event.target.value as TestForm["audienceScope"] }))
+              }
+              disabled={!form.isFree}
+            >
+              <option value="all_students">All logged-in students</option>
+              <option value="course_students">Only selected course students</option>
+            </select>
+          </Field>
           <Field label="Start time">
             <input type="datetime-local" className={inputClass} value={form.startsAt} onChange={(event) => setForm((prev) => ({ ...prev, startsAt: event.target.value }))} />
           </Field>
@@ -446,7 +464,17 @@ export default function TestSeriesManager({ courses, disabled = false, onNotice,
               <span className="block text-sm font-semibold text-slate-900">Free test</span>
               <span className="mt-1 block text-xs leading-5 text-slate-500">Available free for now.</span>
             </span>
-            <input type="checkbox" checked={form.isFree} onChange={(event) => setForm((prev) => ({ ...prev, isFree: event.target.checked }))} />
+            <input
+              type="checkbox"
+              checked={form.isFree}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  isFree: event.target.checked,
+                  audienceScope: event.target.checked ? prev.audienceScope : "course_students",
+                }))
+              }
+            />
           </label>
           <label className={`${nestedCardClass} flex items-center justify-between gap-3`}>
             <span>
@@ -548,6 +576,9 @@ export default function TestSeriesManager({ courses, disabled = false, onNotice,
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Badge tone={test.is_published ? "success" : "warning"}>{test.is_published ? "Published" : "Draft"}</Badge>
                       <Badge tone={test.is_free ? "success" : "neutral"}>{test.is_free ? "Free" : "Course only"}</Badge>
+                      <Badge tone={test.audience_scope === "all_students" ? "success" : "neutral"}>
+                        {test.audience_scope === "all_students" ? "All students" : "Course students"}
+                      </Badge>
                       <Badge>{test.questions.length} Q</Badge>
                     </div>
                   </div>

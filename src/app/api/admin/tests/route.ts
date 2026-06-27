@@ -3,9 +3,11 @@ import { AdminRouteError, getAdminRouteContext, type AdminRouteContext } from ".
 import { revalidateAdminContent } from "../../../../lib/cacheInvalidation";
 import {
   booleanField,
+  normalizeAudienceScope,
   normalizeQuestionsInput,
   numberField,
   stringField,
+  type TestAudienceScope,
   type NormalizedTestQuestion,
 } from "../../../../lib/tests/mcq";
 
@@ -26,6 +28,8 @@ type TestPayload = {
   is_published?: unknown;
   isFree?: unknown;
   is_free?: unknown;
+  audienceScope?: unknown;
+  audience_scope?: unknown;
   questions?: unknown;
 };
 
@@ -42,6 +46,7 @@ type TestRow = {
   default_marks_per_question: number;
   is_published: boolean;
   is_free: boolean;
+  audience_scope: TestAudienceScope;
   created_at?: string;
   updated_at?: string;
 };
@@ -131,6 +136,10 @@ function normalizeTestPayload(body: TestPayload) {
   const defaultMarks = numberField(body.defaultMarksPerQuestion ?? body.default_marks_per_question, 1);
   const startsAt = parseAdminDateTime(body.startsAt ?? body.starts_at, "Start time", true);
   const endsAt = parseAdminDateTime(body.endsAt ?? body.ends_at, "End time");
+  const isFree = booleanField(body.isFree ?? body.is_free, true);
+  const audienceScope = isFree
+    ? normalizeAudienceScope(body.audienceScope ?? body.audience_scope, "all_students")
+    : "course_students";
 
   if (!title) {
     throw new AdminRouteError("Test title is required", 400);
@@ -165,7 +174,8 @@ function normalizeTestPayload(body: TestPayload) {
       duration_minutes: durationMinutes,
       default_marks_per_question: Math.round(defaultMarks * 100) / 100,
       is_published: booleanField(body.isPublished ?? body.is_published, false),
-      is_free: booleanField(body.isFree ?? body.is_free, true),
+      is_free: isFree,
+      audience_scope: audienceScope,
     },
     questions,
   };
@@ -218,7 +228,7 @@ export async function GET() {
     const context = await getAdminRouteContext();
     const { data: tests, error: testsError } = await context.serviceClient
       .from("tests")
-      .select("id, institute_id, course_id, title, description, test_date, starts_at, ends_at, duration_minutes, default_marks_per_question, is_published, is_free, created_at, updated_at")
+      .select("id, institute_id, course_id, title, description, test_date, starts_at, ends_at, duration_minutes, default_marks_per_question, is_published, is_free, audience_scope, created_at, updated_at")
       .eq("institute_id", context.instituteId)
       .order("starts_at", { ascending: false, nullsFirst: false })
       .order("test_date", { ascending: false });
