@@ -1298,3 +1298,255 @@ create index if not exists idx_rate_limit_events_bucket_hit_at
 
 create index if not exists idx_rate_limit_events_hit_at
   on public.rate_limit_events(hit_at);
+
+-- MCQ test series system - append only.
+-- Existing tests/results continue to work. These columns add timed MCQ attempts.
+alter table public.tests add column if not exists description text;
+alter table public.tests add column if not exists starts_at timestamptz;
+alter table public.tests add column if not exists ends_at timestamptz;
+alter table public.tests add column if not exists duration_minutes integer;
+alter table public.tests add column if not exists default_marks_per_question numeric(6,2);
+alter table public.tests add column if not exists is_published boolean;
+alter table public.tests add column if not exists is_free boolean;
+alter table public.tests add column if not exists updated_at timestamptz;
+
+update public.tests
+set starts_at = (test_date::timestamp at time zone 'Asia/Kolkata')
+where starts_at is null and test_date is not null;
+
+update public.tests set duration_minutes = 30 where duration_minutes is null;
+update public.tests set default_marks_per_question = 1 where default_marks_per_question is null;
+update public.tests set is_published = true where is_published is null;
+update public.tests set is_free = true where is_free is null;
+update public.tests set updated_at = timezone('utc', now()) where updated_at is null;
+
+alter table public.tests alter column duration_minutes set default 30;
+alter table public.tests alter column duration_minutes set not null;
+alter table public.tests alter column default_marks_per_question set default 1;
+alter table public.tests alter column default_marks_per_question set not null;
+alter table public.tests alter column is_published set default false;
+alter table public.tests alter column is_published set not null;
+alter table public.tests alter column is_free set default true;
+alter table public.tests alter column is_free set not null;
+alter table public.tests alter column updated_at set default timezone('utc', now());
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'tests_duration_minutes_check'
+      and conrelid = 'public.tests'::regclass
+  ) then
+    alter table public.tests
+      add constraint tests_duration_minutes_check
+      check (duration_minutes between 1 and 360);
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'tests_default_marks_check'
+      and conrelid = 'public.tests'::regclass
+  ) then
+    alter table public.tests
+      add constraint tests_default_marks_check
+      check (default_marks_per_question > 0 and default_marks_per_question <= 100);
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'tests_window_check'
+      and conrelid = 'public.tests'::regclass
+  ) then
+    alter table public.tests
+      add constraint tests_window_check
+      check (ends_at is null or starts_at is null or ends_at > starts_at);
+  end if;
+end $$;
+
+create table if not exists public.test_questions (
+  id uuid primary key default gen_random_uuid(),
+  institute_id uuid not null references public.institutes(id) on delete cascade,
+  test_id uuid not null references public.tests(id) on delete cascade,
+  prompt text not null,
+  options jsonb not null,
+  correct_option_index integer not null,
+  marks numeric(6,2) not null default 1,
+  explanation text,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  check (jsonb_typeof(options) = 'array'),
+  check (jsonb_array_length(options) between 2 and 6),
+  check (correct_option_index >= 0 and correct_option_index < jsonb_array_length(options)),
+  check (marks > 0 and marks <= 100)
+);
+
+alter table public.test_questions add column if not exists institute_id uuid references public.institutes(id) on delete cascade;
+alter table public.test_questions add column if not exists test_id uuid references public.tests(id) on delete cascade;
+alter table public.test_questions add column if not exists prompt text;
+alter table public.test_questions add column if not exists options jsonb;
+alter table public.test_questions add column if not exists correct_option_index integer;
+alter table public.test_questions add column if not exists marks numeric(6,2);
+alter table public.test_questions add column if not exists explanation text;
+alter table public.test_questions add column if not exists sort_order integer;
+alter table public.test_questions add column if not exists created_at timestamptz;
+alter table public.test_questions add column if not exists updated_at timestamptz;
+update public.test_questions set marks = 1 where marks is null;
+update public.test_questions set sort_order = 0 where sort_order is null;
+update public.test_questions set created_at = timezone('utc', now()) where created_at is null;
+update public.test_questions set updated_at = timezone('utc', now()) where updated_at is null;
+alter table public.test_questions alter column marks set default 1;
+alter table public.test_questions alter column marks set not null;
+alter table public.test_questions alter column sort_order set default 0;
+alter table public.test_questions alter column sort_order set not null;
+alter table public.test_questions alter column created_at set default timezone('utc', now());
+alter table public.test_questions alter column created_at set not null;
+alter table public.test_questions alter column updated_at set default timezone('utc', now());
+alter table public.test_questions alter column updated_at set not null;
+
+create table if not exists public.test_attempts (
+  id uuid primary key default gen_random_uuid(),
+  institute_id uuid not null references public.institutes(id) on delete cascade,
+  test_id uuid not null references public.tests(id) on delete cascade,
+  student_id uuid not null references public.users(id) on delete cascade,
+  status text not null default 'in_progress',
+  started_at timestamptz not null default timezone('utc', now()),
+  submitted_at timestamptz,
+  answers jsonb not null default '{}'::jsonb,
+  score numeric(8,2),
+  total_marks numeric(8,2),
+  percentage numeric(5,2),
+  correct_count integer,
+  question_count integer,
+  warning_count integer not null default 0,
+  last_warning_at timestamptz,
+  warning_events jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  unique (test_id, student_id),
+  check (status in ('in_progress', 'submitted', 'expired')),
+  check (warning_count >= 0),
+  check (question_count is null or question_count >= 0),
+  check (correct_count is null or correct_count >= 0),
+  check (percentage is null or (percentage >= 0 and percentage <= 100))
+);
+
+alter table public.test_attempts add column if not exists institute_id uuid references public.institutes(id) on delete cascade;
+alter table public.test_attempts add column if not exists test_id uuid references public.tests(id) on delete cascade;
+alter table public.test_attempts add column if not exists student_id uuid references public.users(id) on delete cascade;
+alter table public.test_attempts add column if not exists status text;
+alter table public.test_attempts add column if not exists started_at timestamptz;
+alter table public.test_attempts add column if not exists submitted_at timestamptz;
+alter table public.test_attempts add column if not exists answers jsonb;
+alter table public.test_attempts add column if not exists score numeric(8,2);
+alter table public.test_attempts add column if not exists total_marks numeric(8,2);
+alter table public.test_attempts add column if not exists percentage numeric(5,2);
+alter table public.test_attempts add column if not exists correct_count integer;
+alter table public.test_attempts add column if not exists question_count integer;
+alter table public.test_attempts add column if not exists warning_count integer;
+alter table public.test_attempts add column if not exists last_warning_at timestamptz;
+alter table public.test_attempts add column if not exists warning_events jsonb;
+alter table public.test_attempts add column if not exists created_at timestamptz;
+alter table public.test_attempts add column if not exists updated_at timestamptz;
+update public.test_attempts set status = 'in_progress' where status is null;
+update public.test_attempts set started_at = timezone('utc', now()) where started_at is null;
+update public.test_attempts set answers = '{}'::jsonb where answers is null;
+update public.test_attempts set warning_count = 0 where warning_count is null;
+update public.test_attempts set warning_events = '[]'::jsonb where warning_events is null;
+update public.test_attempts set created_at = timezone('utc', now()) where created_at is null;
+update public.test_attempts set updated_at = timezone('utc', now()) where updated_at is null;
+alter table public.test_attempts alter column status set default 'in_progress';
+alter table public.test_attempts alter column status set not null;
+alter table public.test_attempts alter column started_at set default timezone('utc', now());
+alter table public.test_attempts alter column started_at set not null;
+alter table public.test_attempts alter column answers set default '{}'::jsonb;
+alter table public.test_attempts alter column answers set not null;
+alter table public.test_attempts alter column warning_count set default 0;
+alter table public.test_attempts alter column warning_count set not null;
+alter table public.test_attempts alter column warning_events set default '[]'::jsonb;
+alter table public.test_attempts alter column warning_events set not null;
+alter table public.test_attempts alter column created_at set default timezone('utc', now());
+alter table public.test_attempts alter column created_at set not null;
+alter table public.test_attempts alter column updated_at set default timezone('utc', now());
+alter table public.test_attempts alter column updated_at set not null;
+
+create or replace function public.set_test_series_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = timezone('utc', now());
+  return new;
+end;
+$$ language plpgsql
+set search_path = public, pg_temp;
+
+drop trigger if exists set_tests_updated_at on public.tests;
+create trigger set_tests_updated_at
+  before update on public.tests
+  for each row execute procedure public.set_test_series_updated_at();
+
+drop trigger if exists set_test_questions_updated_at on public.test_questions;
+create trigger set_test_questions_updated_at
+  before update on public.test_questions
+  for each row execute procedure public.set_test_series_updated_at();
+
+drop trigger if exists set_test_attempts_updated_at on public.test_attempts;
+create trigger set_test_attempts_updated_at
+  before update on public.test_attempts
+  for each row execute procedure public.set_test_series_updated_at();
+
+alter table public.test_questions enable row level security;
+alter table public.test_attempts enable row level security;
+
+drop policy if exists "admin_test_questions_all" on public.test_questions;
+create policy "admin_test_questions_all" on public.test_questions
+  for all
+  using (public.is_admin() and institute_id = public.get_my_institute_id())
+  with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+drop policy if exists "admin_test_attempts_all" on public.test_attempts;
+create policy "admin_test_attempts_all" on public.test_attempts
+  for all
+  using (public.is_admin() and institute_id = public.get_my_institute_id())
+  with check (public.is_admin() and institute_id = public.get_my_institute_id());
+
+drop policy if exists "student_test_attempts_read_own" on public.test_attempts;
+create policy "student_test_attempts_read_own" on public.test_attempts
+  for select
+  using (
+    student_id = (select auth.uid())
+    and institute_id = public.get_my_institute_id()
+  );
+
+drop policy if exists "Authenticated users can read tests" on public.tests;
+create policy "Authenticated users can read tests" on public.tests
+  for select
+  using (
+    (public.is_admin() and institute_id = public.get_my_institute_id())
+    or (
+      (select auth.uid()) is not null
+      and institute_id = public.get_my_institute_id()
+      and is_published
+      and (
+        is_free
+        or public.enrollment_has_active_access((select auth.uid()), public.tests.course_id, public.tests.institute_id)
+      )
+    )
+  );
+
+create index if not exists idx_tests_published_window on public.tests(institute_id, is_published, starts_at, ends_at);
+create index if not exists idx_tests_free on public.tests(institute_id, is_free) where is_free = true;
+create index if not exists idx_test_questions_test_order on public.test_questions(test_id, sort_order);
+create index if not exists idx_test_questions_institute on public.test_questions(institute_id);
+create index if not exists idx_test_attempts_test on public.test_attempts(test_id);
+create index if not exists idx_test_attempts_student on public.test_attempts(student_id);
+create index if not exists idx_test_attempts_institute on public.test_attempts(institute_id);
+create index if not exists idx_test_attempts_warning_count on public.test_attempts(institute_id, warning_count);

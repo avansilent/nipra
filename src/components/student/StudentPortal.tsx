@@ -1038,7 +1038,12 @@ export default function StudentPortal() {
                           <p className="font-semibold text-slate-900">{test.title}</p>
                           <p className="mt-1 text-sm text-slate-600">{courseTitleById.get(test.course_id) ?? "Course"} - {formatDate(test.test_date)}</p>
                         </div>
-                        <StatusBadge tone={tone}>{label}</StatusBadge>
+                        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                          <StatusBadge tone={tone}>{label}</StatusBadge>
+                          <Link href={`/student/tests/${test.id}`} className={secondaryButtonClass}>
+                            Open Test
+                          </Link>
+                        </div>
                       </div>
                     );
                   })

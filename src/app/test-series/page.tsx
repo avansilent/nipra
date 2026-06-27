@@ -34,7 +34,7 @@ export default function TestSeries() {
               </motion.span>
               <motion.h1 variants={itemVariants} className="mobile-public-title text-3xl font-semibold tracking-[-0.05em] text-slate-950 md:text-4xl">Test Series</motion.h1>
               <motion.p variants={itemVariants} className="public-utility-copy text-base leading-relaxed md:text-lg">
-                Practice with real exam-style test series to boost your confidence and performance. Track your progress and improve.
+                Free MCQ test series for enrolled students. Attend timed tests from the student portal and see your score instantly after submission.
               </motion.p>
               <motion.div variants={itemVariants} className="flex flex-wrap items-center justify-center gap-3 pb-2 pt-1">
                 {seriesHighlights.map((item) => (
@@ -43,8 +43,9 @@ export default function TestSeries() {
                   </motion.span>
                 ))}
               </motion.div>
-              <motion.div variants={itemVariants} whileHover={buttonMotion} whileTap={tapPress} className="inline-flex">
-                <Link href="/test-series" className="mobile-public-cta btn rounded-full px-6 py-3">View Test Series</Link>
+              <motion.div variants={itemVariants} whileHover={buttonMotion} whileTap={tapPress} className="inline-flex flex-wrap justify-center gap-3">
+                <Link href="/login?type=student&callbackUrl=%2Fstudent%2Fdashboard" className="mobile-public-cta btn rounded-full px-6 py-3">Login to Attend</Link>
+                <Link href="/courses" className="mobile-public-cta btn rounded-full px-6 py-3">Browse Courses</Link>
               </motion.div>
             </motion.div>
           </div>

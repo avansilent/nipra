@@ -31,6 +31,7 @@ import AdminPanelCard from "./AdminPanelCard";
 import AdminSidebar from "./AdminSidebar";
 import CourseModeSelector, { normalizeCourseMode, type CourseMode } from "./CourseModeSelector";
 import SessionManager from "./SessionManager";
+import TestSeriesManager from "./TestSeriesManager";
 import type { AdminTab } from "./adminTabs";
 
 type StudentRow = {
@@ -2078,31 +2079,7 @@ export default function AdminWorkspace() {
                   </AdminPanelCard>
                 </div>
 
-                <div className="grid gap-5 xl:grid-cols-2">
-                  <AdminPanelCard eyebrow="Assessment Scheduler" title={editingTestId ? "Update scheduled test" : "Create new test"} description="Tests appear directly in the student dashboard timeline once scheduled.">
-                    <div className="grid gap-4">
-                      <Field label="Test title"><input className={inputClass} value={testForm.title} onChange={(event) => setTestForm((prev) => ({ ...prev, title: event.target.value }))} placeholder="Class 10 Science Weekly Test" /></Field>
-                      <Field label="Course"><select className={inputClass} value={testForm.courseId} onChange={(event) => setTestForm((prev) => ({ ...prev, courseId: event.target.value }))}><option value="">Select course</option>{courses.map((course) => (<option key={course.id} value={course.id}>{course.title}</option>))}</select></Field>
-                      <Field label="Test date"><input type="date" className={inputClass} value={testForm.testDate} onChange={(event) => setTestForm((prev) => ({ ...prev, testDate: event.target.value }))} /></Field>
-                    </div>
-                    <div className="mt-5 flex flex-wrap gap-3">
-                      <button type="button" onClick={() => void handleTestSubmit()} className={primaryButtonClass} disabled={busy}>{editingTestId ? "Update Test" : "Schedule Test"}</button>
-                      <button type="button" onClick={() => { setEditingTestId(null); setTestForm(emptyTestForm()); }} className={subtleButtonClass}>Clear Form</button>
-                    </div>
-                  </AdminPanelCard>
-
-                  <AdminPanelCard eyebrow="Result Desk" title="Record or update marks" description="Marks entered here become the latest performance data shown in the student portal.">
-                    <div className="grid gap-4">
-                      <Field label="Student"><select className={inputClass} value={resultForm.studentId} onChange={(event) => setResultForm((prev) => ({ ...prev, studentId: event.target.value }))}><option value="">Select student</option>{students.map((student) => (<option key={student.id} value={student.id}>{student.name}</option>))}</select></Field>
-                      <Field label="Test"><select className={inputClass} value={resultForm.testId} onChange={(event) => setResultForm((prev) => ({ ...prev, testId: event.target.value }))}><option value="">Select test</option>{tests.map((test) => (<option key={test.id} value={test.id}>{test.title}</option>))}</select></Field>
-                      <Field label="Marks"><input className={inputClass} value={resultForm.marks} onChange={(event) => setResultForm((prev) => ({ ...prev, marks: event.target.value }))} placeholder="88" /></Field>
-                    </div>
-                    <div className="mt-5 flex flex-wrap gap-3">
-                      <button type="button" onClick={() => void handleResultSubmit()} className={primaryButtonClass} disabled={busy}>Save Result</button>
-                      <button type="button" onClick={() => setResultForm(emptyResultForm())} className={subtleButtonClass}>Clear Form</button>
-                    </div>
-                  </AdminPanelCard>
-                </div>
+                <TestSeriesManager courses={courses} disabled={busy} onNotice={setMessage} onError={setError} />
 
                 <AdminPanelCard eyebrow="Course Directory" title="Inline course catalog editor" description="Use the table below for live catalog hygiene without leaving the admin system.">
                   {courses.length === 0 ? (
@@ -2151,7 +2128,8 @@ export default function AdminWorkspace() {
                   />
                 </AdminPanelCard>
 
-                <div className="grid gap-5 xl:grid-cols-2">
+                {false ? (
+                <div className="hidden">
                   <AdminPanelCard eyebrow="Scheduled Tests" title="Assessment board" description="Edit dates, clean up old assessments, or jump a test into the result desk.">
                     <div className="space-y-3">
                       {tests.length === 0 ? (
@@ -2197,6 +2175,7 @@ export default function AdminWorkspace() {
                     </div>
                   </AdminPanelCard>
                 </div>
+                ) : null}
               </>
             ) : null}
 

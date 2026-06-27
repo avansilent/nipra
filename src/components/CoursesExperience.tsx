@@ -183,6 +183,31 @@ export default function CoursesExperience({
           </motion.div>
         </motion.section>
 
+        <motion.section
+          initial={false}
+          whileInView="show"
+          viewport={viewportOnce}
+          variants={sectionVariants}
+          className="courses-hero-panel rounded-[2rem] p-5 sm:p-6"
+        >
+          <motion.div variants={itemVariants} className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <p className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-slate-500">Free for now</p>
+              <h2 className="mt-2 text-[clamp(1.45rem,3vw,2rem)] font-semibold tracking-[-0.055em] text-slate-950">
+                MCQ Test Series
+              </h2>
+              <p className="course-body mt-2 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">
+                Students can attend timed MCQ tests from the portal and see scores in their dashboard after submission.
+              </p>
+            </div>
+            <motion.div whileHover={hoverMotion} whileTap={tapMotion} className="shrink-0">
+              <Link href="/test-series" className="course-card-action inline-flex rounded-full px-5 py-3 text-[0.84rem] font-semibold">
+                Open Test Series
+              </Link>
+            </motion.div>
+          </motion.div>
+        </motion.section>
+
         <AssignedCoursesSection />
       </div>
     </section>

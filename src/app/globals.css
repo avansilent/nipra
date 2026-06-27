@@ -4811,6 +4811,17 @@ body {
   contain-intrinsic-size: 760px;
 }
 
+.site-main-shell > .home-shell .section-block {
+  content-visibility: visible;
+  contain-intrinsic-size: auto;
+}
+
+.site-main-shell > .home-shell [style*="opacity:0"],
+.site-main-shell > .home-shell [style*="opacity: 0"] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
 html[data-performance-mode="balanced"] .glass-bar {
   backdrop-filter: blur(12px) saturate(124%) !important;
   -webkit-backdrop-filter: blur(12px) saturate(124%) !important;
@@ -6726,8 +6737,16 @@ body .admission-page-shell .admission-shell {
 }
 
 @media (max-width: 767px) {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
   .site-main-shell {
     padding-top: 5.75rem !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
   }
 
   .mobile-home-shell {
@@ -6735,6 +6754,18 @@ body .admission-page-shell .admission-shell {
     padding-right: 1rem !important;
     padding-bottom: 4rem !important;
     padding-left: 1rem !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+
+  .site-nav-shell,
+  .navbar-mobile-shell,
+  .navbar-mobile-shell > div,
+  .mobile-home-stack,
+  .home-shell {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
   }
 
   .mobile-home-stack > :not([hidden]) ~ :not([hidden]) {
@@ -6782,7 +6813,7 @@ body .admission-page-shell .admission-shell {
   body .hero-ribbon-slide,
   body .hero-ribbon-card,
   body .hero-ribbon-copy {
-    overflow: visible !important;
+    overflow: hidden !important;
   }
 
   body .hero-ribbon-carousel > div {
@@ -6815,14 +6846,20 @@ body .admission-page-shell .admission-shell {
   body .hero-ribbon-footnote {
     max-width: 100% !important;
     overflow-wrap: anywhere !important;
+    word-break: normal !important;
   }
 
   body .hero-ribbon-actions {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
     max-width: 100% !important;
     min-width: 0 !important;
+    width: 100% !important;
   }
 
   body .hero-ribbon-action {
+    width: 100% !important;
+    justify-content: center !important;
     min-width: 0 !important;
     max-width: 100% !important;
     white-space: normal !important;
