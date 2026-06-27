@@ -34,8 +34,8 @@ async function isPhoneOtpEnabled() {
       return null;
     }
 
-    const settings = (await response.json()) as { phone?: boolean };
-    return settings.phone === true;
+    const settings = (await response.json()) as { external?: { phone?: boolean } };
+    return settings.external?.phone === true;
   } catch {
     return null;
   }
@@ -81,6 +81,12 @@ export async function POST(request: Request) {
     });
 
     if (error) {
+      console.warn("Phone OTP send failed", {
+        status: error.status,
+        code: error.code,
+        message: error.message,
+      });
+
       return NextResponse.json(
         { error: phoneOtpUnavailableMessage, code: "phone_otp_unavailable" },
         { status: 503, headers: { "Cache-Control": "no-store" } }
