@@ -44,6 +44,21 @@ async function readApiResponse<T>(response: Response, fallback: string): Promise
   return payload as T;
 }
 
+async function withTimeout<T>(promise: Promise<T> | PromiseLike<T>, ms = 9000): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error("Request timed out. Please try again.")), ms);
+  });
+
+  try {
+    return await Promise.race([Promise.resolve(promise), timeoutPromise]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 function providerLabel(provider?: StudentLiveSession["live_provider"]) {
   if (provider === "other") {
     return "Direct live";
@@ -63,10 +78,10 @@ export default function LiveClassViewer({ session, onClose }: LiveClassViewerPro
     setMeeting(null);
 
     try {
-      const response = await fetch(`/api/student/sessions/${sessionId}/join`, {
+      const response = await withTimeout(fetch(`/api/student/sessions/${sessionId}/join`, {
         method: "POST",
         cache: "no-store",
-      });
+      }));
       const payload = await readApiResponse<MeetingResponse>(response, "Unable to join live class");
       setMeeting(payload.meeting ?? null);
     } catch (joinError) {

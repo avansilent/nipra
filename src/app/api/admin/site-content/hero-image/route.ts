@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+import { defaultHomeContent, mergeHomeContent } from "../../../../../data/homeContent";
 import { getAdminRouteContext, type AdminRouteError } from "../../../../../lib/admin/route";
+import { revalidateAdminContent } from "../../../../../lib/cacheInvalidation";
 import { createPublicR2Url, deleteR2Object, toR2ObjectReference, uploadR2File } from "../../../../../lib/r2Storage";
 import { getSafeFileExtension, toSafeFileName } from "../../_shared/upload";
 
@@ -55,7 +57,7 @@ function validateHeroImage(file: File) {
 
 export async function POST(request: Request) {
   try {
-    const { instituteId, userId } = await getAdminRouteContext();
+    const { instituteId, routeClient, userId } = await getAdminRouteContext();
     const formData = await request.formData();
     const image = formData.get("image");
 
@@ -85,11 +87,39 @@ export async function POST(request: Request) {
       return jsonError("Set R2_PUBLIC_BASE_URL to use uploaded hero images.", 500);
     }
 
+    const { data: existingContent, error: existingContentError } = await routeClient
+      .from("site_content")
+      .select("data")
+      .eq("key", "home")
+      .maybeSingle();
+
+    if (existingContentError) {
+      await deleteR2Object(fileReference);
+      return jsonError(existingContentError.message, 500);
+    }
+
+    const nextHomeContent = mergeHomeContent({
+      ...((existingContent?.data as Partial<typeof defaultHomeContent> | null) ?? {}),
+      heroImageUrl: publicUrl,
+    });
+
+    const { error: saveError } = await routeClient
+      .from("site_content")
+      .upsert({ key: "home", data: nextHomeContent }, { onConflict: "key" });
+
+    if (saveError) {
+      await deleteR2Object(fileReference);
+      return jsonError(saveError.message, 500);
+    }
+
+    revalidateAdminContent("site");
+
     return NextResponse.json(
       {
         success: true,
         url: publicUrl,
         path: fileReference,
+        home: nextHomeContent,
         uploadedBy: userId,
       },
       { headers: { "Cache-Control": "no-store" } }

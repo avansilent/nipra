@@ -5,8 +5,8 @@ import { siteSettingsCacheTag } from "./siteSettings";
 
 export type RevalidationArea = "site" | "courses" | "learning" | "all";
 
-const sitePaths = ["/", "/about", "/courses", "/join", "/terms-and-conditions"];
-const learningPaths = ["/admin/dashboard", "/student/dashboard", "/books", "/notes"];
+const sitePaths = ["/", "/about", "/courses", "/join", "/notes", "/books", "/terms-and-conditions"];
+const learningPaths = ["/admin/dashboard", "/student/dashboard", "/student", "/books", "/notes"];
 
 function revalidateTagSafely(tag: string) {
   try {
@@ -40,6 +40,7 @@ export function revalidateAdminContent(area: RevalidationArea = "all") {
     revalidateTagSafely(siteSettingsCacheTag);
     sitePaths.forEach((path) => paths.add(path));
     revalidatePathSafely("/", "layout");
+    revalidatePathSafely("/", "page");
   }
 
   if (includeCourses) {

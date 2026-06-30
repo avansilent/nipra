@@ -43,6 +43,8 @@ export default function ResourceLibrary({
   const [query, setQuery] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [readingId, setReadingId] = useState<string | null>(null);
+  const [reader, setReader] = useState<{ title: string; url: string } | null>(null);
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
 
   const filteredItems = deferredQuery
@@ -52,22 +54,39 @@ export default function ResourceLibrary({
   const resourceCount = items.length;
   const courseCount = new Set(items.map((item) => item.courseTitle)).size;
 
+  const getSecureResourceUrl = async (resourceId: string) => {
+    const endpoint = downloadKind === "note" ? `/api/notes/${resourceId}/download` : `/api/materials/${resourceId}/download`;
+    const response = await fetch(endpoint, { cache: "no-store" });
+    const payload = await response.json();
+
+    if (!response.ok || !payload?.url) {
+      throw new Error(payload?.error ?? "Unable to open the file right now.");
+    }
+
+    return String(payload.url);
+  };
+
+  const handleRead = async (item: PublicResourceItem) => {
+    try {
+      setFeedback(null);
+      setReadingId(item.id);
+      const url = item.previewUrl ?? await getSecureResourceUrl(item.id);
+      setReader({ title: item.title, url });
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Unable to open the file right now.");
+    } finally {
+      setReadingId(null);
+    }
+  };
+
   const handleDownload = async (resourceId: string) => {
     try {
       setFeedback(null);
       setDownloadingId(resourceId);
-
-      const endpoint = downloadKind === "note" ? `/api/notes/${resourceId}/download` : `/api/materials/${resourceId}/download`;
-      const response = await fetch(endpoint, { cache: "no-store" });
-      const payload = await response.json();
-
-      if (!response.ok || !payload?.url) {
-        throw new Error(payload?.error ?? "Unable to open the PDF right now.");
-      }
-
-      window.open(payload.url, "_blank", "noopener,noreferrer");
+      const url = await getSecureResourceUrl(resourceId);
+      window.open(url, "_blank", "noopener,noreferrer");
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Unable to open the PDF right now.");
+      setFeedback(error instanceof Error ? error.message : "Unable to open the file right now.");
     } finally {
       setDownloadingId(null);
     }
@@ -159,66 +178,85 @@ export default function ResourceLibrary({
             </div>
           </div>
         ) : (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3">
             {filteredItems.map((item) => (
               <article
                 key={item.id}
-                className="resource-library-card min-w-0 rounded-[32px] bg-white/96 p-5 text-center shadow-[0_16px_38px_rgba(36,32,28,0.05)] sm:p-5"
+                className="resource-library-card min-w-0 rounded-[24px] bg-white/96 p-4 shadow-[0_12px_28px_rgba(36,32,28,0.05)] sm:p-5"
               >
-                <div className="overflow-hidden rounded-[26px] bg-stone-50">
-                  {item.previewUrl ? (
-                    <iframe
-                      title={`${item.title} preview`}
-                      src={`${item.previewUrl}#toolbar=0&navpanes=0&scrollbar=0&page=1&view=FitH`}
-                      className="h-[280px] w-full bg-white"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="flex h-[280px] items-center justify-center bg-[linear-gradient(180deg,rgba(248,245,241,1),rgba(255,255,255,1))] px-6 text-center text-sm text-slate-500">
-                      Preview is being prepared for this file.
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-stone-100 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-700">
+                      {surfaceLabel.slice(0, 3)}
                     </div>
-                  )}
-                </div>
-
-                <div className="mt-4 flex flex-col items-center gap-3">
-                  <div className="resource-library-card-copy-column min-w-0 flex-1 pl-2 pr-1 sm:pl-2.5 sm:pr-2">
-                    <p className="resource-library-card-title overflow-wrap-anywhere text-lg font-semibold tracking-[-0.02em] sm:tracking-[-0.03em] text-slate-950">{item.title}</p>
-                    <p className="overflow-wrap-anywhere mt-2 text-sm leading-6 text-slate-600">{item.courseTitle}</p>
+                    <div className="min-w-0">
+                      <p className="resource-library-card-title overflow-wrap-anywhere text-base font-semibold tracking-[-0.02em] text-slate-950 sm:text-lg">
+                        {item.title}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs text-stone-500">
+                        <span>{item.courseTitle}</span>
+                        <span>{formatDate(item.createdAt)}</span>
+                        <span>{surfaceLabel}</span>
+                      </div>
+                    </div>
                   </div>
-                  <span className="inline-flex shrink-0 rounded-full bg-stone-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-700">
-                    {surfaceLabel}
-                  </span>
-                </div>
-
-                <div className="resource-library-card-meta mt-4 flex flex-wrap items-center justify-center gap-3 px-2 text-xs text-stone-500 sm:px-2.5">
-                  <span>{formatDate(item.createdAt)}</span>
-                  <span>First-page preview</span>
-                </div>
-
-                <div className="resource-library-card-actions mt-5 flex flex-col gap-3 px-2 pb-1 sm:flex-row sm:px-2.5">
-                  <button
-                    type="button"
-                    onClick={() => void handleDownload(item.id)}
-                    className="inline-flex w-full flex-1 items-center justify-center rounded-full bg-slate-950 px-4 py-3 text-sm font-semibold text-white sm:w-auto"
-                  >
-                    {downloadingId === item.id ? "Opening..." : "Open / Download"}
-                  </button>
-                  {item.previewUrl ? (
-                    <a
-                      href={item.previewUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex w-full items-center justify-center rounded-full bg-stone-100 px-4 py-3 text-sm font-semibold text-slate-800 sm:w-auto"
+                  <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={() => void handleRead(item)}
+                      className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-stone-100 px-5 py-3 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:bg-white sm:w-auto"
                     >
-                      Preview
-                    </a>
-                  ) : null}
+                      {readingId === item.id ? "Opening..." : "Read here"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleDownload(item.id)}
+                      className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_26px_rgba(15,23,42,0.14)] transition hover:-translate-y-0.5 hover:bg-slate-900 sm:w-auto"
+                    >
+                      {downloadingId === item.id ? "Opening..." : "Open / Download"}
+                    </button>
+                  </div>
                 </div>
               </article>
             ))}
           </div>
         )}
       </div>
+
+      {reader ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm">
+          <div className="flex h-full max-h-[860px] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] bg-white shadow-[0_28px_80px_rgba(15,23,42,0.34)]">
+            <div className="flex flex-col gap-3 border-b border-stone-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="truncate text-base font-semibold text-slate-950">{reader.title}</p>
+                <p className="mt-1 text-xs text-stone-500">Secure in-page reader</p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <a
+                  href={reader.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center rounded-full bg-stone-100 px-4 py-2 text-sm font-semibold text-slate-800"
+                >
+                  New tab
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setReader(null)}
+                  className="inline-flex items-center justify-center rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+            <iframe
+              title={`${reader.title} reader`}
+              src={`${reader.url}#toolbar=1&navpanes=0&view=FitH`}
+              className="min-h-0 flex-1 bg-white"
+            />
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -64,6 +64,15 @@ type SessionManagerProps = {
   onError?: (message: string) => void;
 };
 
+type TeacherHostResponse = {
+  host?: {
+    webRtcUrl?: string | null;
+    rtmpsUrl?: string | null;
+    streamKey?: string | null;
+    viewerUrl?: string | null;
+  };
+};
+
 const inputClass =
   "w-full rounded-[22px] bg-[#f8fafd] px-4 py-3 text-sm text-slate-900 outline-none shadow-[0_10px_24px_rgba(226,232,240,0.8)] transition duration-300 focus:bg-white focus:shadow-[0_0_0_4px_rgba(186,230,253,0.55),0_14px_28px_rgba(226,232,240,0.9)]";
 const textareaClass = `${inputClass} min-h-[108px] resize-y`;
@@ -183,6 +192,21 @@ async function readApiResponse<T>(response: Response, fallback: string): Promise
   return payload as T;
 }
 
+async function withTimeout<T>(promise: Promise<T> | PromiseLike<T>, ms = 9000): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error("Request timed out. Please try again.")), ms);
+  });
+
+  try {
+    return await Promise.race([Promise.resolve(promise), timeoutPromise]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 function sessionBodyFromForm(form: SessionFormState) {
   return {
     course_id: form.courseId,
@@ -239,6 +263,7 @@ export default function SessionManager({
   const [editForm, setEditForm] = useState<SessionFormState>(() => emptySessionForm());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [teacherJoiningSessionId, setTeacherJoiningSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [recordingTitleDrafts, setRecordingTitleDrafts] = useState<Record<string, string>>({});
@@ -258,7 +283,7 @@ export default function SessionManager({
     setError(null);
     try {
       const query = selectedCourseId ? `?courseId=${encodeURIComponent(selectedCourseId)}` : "";
-      const response = await fetch(`/api/admin/sessions${query}`, { cache: "no-store" });
+      const response = await withTimeout(fetch(`/api/admin/sessions${query}`, { cache: "no-store" }));
       const payload = await readApiResponse<{ sessions?: AdminSession[] }>(response, "Unable to load class sessions");
       setSessions(payload.sessions ?? []);
     } catch (loadError) {
@@ -280,7 +305,7 @@ export default function SessionManager({
 
   const loadSessionDetail = useCallback(async (sessionId: string) => {
     try {
-      const response = await fetch(`/api/admin/sessions/${sessionId}`, { cache: "no-store" });
+      const response = await withTimeout(fetch(`/api/admin/sessions/${sessionId}`, { cache: "no-store" }));
       const payload = await readApiResponse<{ session?: AdminSession }>(response, "Unable to load session");
       if (!payload.session) {
         return null;
@@ -313,11 +338,11 @@ export default function SessionManager({
     setMessage(null);
 
     try {
-      const response = await fetch("/api/admin/sessions", {
+      const response = await withTimeout(fetch("/api/admin/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(sessionBodyFromForm(form)),
-      });
+      }));
       const payload = await readApiResponse<{ session?: AdminSession }>(response, "Unable to create session");
       setForm(emptySessionForm(form.courseId));
       showNotice("Class session created.");
@@ -358,11 +383,11 @@ export default function SessionManager({
     setMessage(null);
 
     try {
-      const response = await fetch(`/api/admin/sessions/${sessionId}`, {
+      const response = await withTimeout(fetch(`/api/admin/sessions/${sessionId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(sessionBodyFromForm(editForm)),
-      });
+      }));
       await readApiResponse(response, "Unable to update session");
       setEditingSessionId(null);
       showNotice("Class session updated.");
@@ -383,16 +408,16 @@ export default function SessionManager({
       if (action === "go-live") {
         const detail = sessionDetails[session.id] ?? session;
         if (!isCloudflareLiveLink(detail.meetingLink?.join_url)) {
-          const prepareResponse = await fetch(`/api/admin/sessions/${session.id}/stream`, {
+          const prepareResponse = await withTimeout(fetch(`/api/admin/sessions/${session.id}/stream`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ action: "prepare" }),
-          });
+          }));
           await readApiResponse(prepareResponse, "Unable to prepare direct live stream");
         }
       }
 
-      const response = await fetch(`/api/admin/sessions/${session.id}/${action}`, { method: "POST" });
+      const response = await withTimeout(fetch(`/api/admin/sessions/${session.id}/${action}`, { method: "POST" }));
       await readApiResponse(response, "Unable to update live session");
       showNotice(action === "go-live" ? "Direct live class is ready for students." : "Session completed. Materials and assignments were unlocked.");
       await Promise.all([loadSessions(), loadSessionDetail(session.id)]);
@@ -409,11 +434,11 @@ export default function SessionManager({
     setMessage(null);
 
     try {
-      const response = await fetch(`/api/admin/sessions/${session.id}/stream`, {
+      const response = await withTimeout(fetch(`/api/admin/sessions/${session.id}/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "prepare" }),
-      });
+      }));
       await readApiResponse(response, "Unable to prepare direct live stream");
       showNotice("Direct live stream is ready.");
       await Promise.all([loadSessions(), loadSessionDetail(session.id)]);
@@ -424,20 +449,56 @@ export default function SessionManager({
     }
   };
 
+  const handleJoinAsTeacher = async (session: AdminSession) => {
+    setSaving(true);
+    setTeacherJoiningSessionId(session.id);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const detail = sessionDetails[session.id] ?? session;
+      if (!isCloudflareLiveLink(detail.meetingLink?.join_url)) {
+        const prepareResponse = await withTimeout(fetch(`/api/admin/sessions/${session.id}/stream`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "prepare" }),
+        }));
+        await readApiResponse(prepareResponse, "Unable to prepare direct live stream");
+      }
+
+      const response = await withTimeout(fetch(`/api/admin/sessions/${session.id}/host`, { cache: "no-store" }));
+      const payload = await readApiResponse<TeacherHostResponse>(response, "Unable to open teacher live studio");
+      await loadSessionDetail(session.id);
+
+      if (payload.host?.webRtcUrl) {
+        window.open(payload.host.webRtcUrl, "_blank", "noopener,noreferrer");
+        showNotice("Teacher live studio opened. Allow camera and microphone in the new tab.");
+        return;
+      }
+
+      raiseError("Browser teacher studio is not available for this stream. Use the RTMPS URL and stream key shown in Details with OBS or another encoder.");
+    } catch (joinError) {
+      raiseError(joinError instanceof Error ? joinError.message : "Unable to open teacher live studio");
+    } finally {
+      setSaving(false);
+      setTeacherJoiningSessionId(null);
+    }
+  };
+
   const handleSyncRecording = async (session: AdminSession) => {
     setSaving(true);
     setError(null);
     setMessage(null);
 
     try {
-      const response = await fetch(`/api/admin/sessions/${session.id}/stream`, {
+      const response = await withTimeout(fetch(`/api/admin/sessions/${session.id}/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "sync-recording",
           title: recordingTitleDrafts[session.id]?.trim() || `${session.title} recording`,
         }),
-      });
+      }));
       await readApiResponse(response, "Unable to sync Cloudflare recording");
       showNotice("Recording saved to the course video shelf.");
       await Promise.all([loadSessions(), loadSessionDetail(session.id)]);
@@ -467,11 +528,11 @@ export default function SessionManager({
     setMessage(null);
 
     try {
-      const response = await fetch(`/api/admin/sessions/${session.id}`, {
+      const response = await withTimeout(fetch(`/api/admin/sessions/${session.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
-      });
+      }));
       await readApiResponse(response, "Unable to update session status");
       showNotice("Session status updated.");
       await Promise.all([loadSessions(), loadSessionDetail(session.id)]);
@@ -492,7 +553,7 @@ export default function SessionManager({
     setMessage(null);
 
     try {
-      const response = await fetch(`/api/admin/sessions/${session.id}`, { method: "DELETE" });
+      const response = await withTimeout(fetch(`/api/admin/sessions/${session.id}`, { method: "DELETE" }));
       await readApiResponse(response, "Unable to delete session");
       showNotice("Class session deleted.");
       setSessionDetails((prev) => {
@@ -649,6 +710,16 @@ export default function SessionManager({
                         {session.status === "live" ? "End Live" : "Go Live"}
                       </button>
                     ) : null}
+                    {session.status !== "completed" && session.status !== "cancelled" ? (
+                      <button
+                        type="button"
+                        className={secondaryButtonClass}
+                        disabled={saving || teacherJoiningSessionId === session.id}
+                        onClick={() => void handleJoinAsTeacher(session)}
+                      >
+                        {teacherJoiningSessionId === session.id ? "Opening..." : "Join as Teacher"}
+                      </button>
+                    ) : null}
                     {session.status !== "cancelled" && session.status !== "completed" ? (
                       <button type="button" className={secondaryButtonClass} disabled={saving} onClick={() => void patchSessionStatus(session, "cancelled")}>
                         Cancel
@@ -708,6 +779,14 @@ export default function SessionManager({
                           onClick={() => void handlePrepareStream(session)}
                         >
                           {hasCloudflareStream ? "Refresh Stream" : "Create Live Stream"}
+                        </button>
+                        <button
+                          type="button"
+                          className={primaryButtonClass}
+                          disabled={saving || teacherJoiningSessionId === session.id}
+                          onClick={() => void handleJoinAsTeacher(session)}
+                        >
+                          {teacherJoiningSessionId === session.id ? "Opening..." : "Join as Teacher"}
                         </button>
                       </div>
 

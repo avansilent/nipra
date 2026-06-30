@@ -233,6 +233,28 @@ export async function createCloudflareLiveInput(options: CreateLiveInputOptions)
   };
 }
 
+export async function getCloudflareLiveInputHostDetails(reference: string) {
+  const uid = getCloudflareLiveInputUid(reference);
+  if (!uid) {
+    return null;
+  }
+
+  const { accountId, apiToken } = getStreamConfig();
+  const response = await fetch(`${getStreamApiBase(accountId)}/live_inputs/${encodeURIComponent(uid)}`, {
+    headers: {
+      Authorization: `Bearer ${apiToken}`,
+    },
+  });
+
+  const result = await readCloudflareResponse<LiveInputResult>(response, "Unable to load Cloudflare live input.");
+  return {
+    uid: result.uid ?? uid,
+    webRtcUrl: result.webRTC?.url ?? null,
+    rtmpsUrl: result.rtmps?.url ?? null,
+    streamKey: result.rtmps?.streamKey ?? null,
+  };
+}
+
 export async function deleteCloudflareLiveInput(reference?: string | null) {
   const uid = getCloudflareLiveInputUid(reference);
   if (!uid) {

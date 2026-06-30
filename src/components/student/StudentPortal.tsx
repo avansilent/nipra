@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useCallback, useDeferredValue, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "../../app/AuthProvider";
-import { isVideoReference } from "../../lib/storageReferences";
 import {
   getEnrollmentAccessLabel,
   getEnrollmentAccessMessage,
@@ -62,6 +61,12 @@ type ResourceRow = {
   course_id: string;
   visibility: ResourceVisibility;
   created_at?: string;
+};
+
+type StudentResourcesPayload = {
+  notes?: ResourceRow[];
+  materials?: ResourceRow[];
+  videos?: ResourceRow[];
 };
 
 type AnnouncementRow = {
@@ -371,7 +376,7 @@ export default function StudentPortal() {
         const activeCourseIdSet = new Set(courseIds);
 
         try {
-          const testsResponse = await fetch("/api/student/tests", { cache: "no-store" });
+          const testsResponse = await withTimeout(fetch("/api/student/tests", { cache: "no-store" }));
           const testsPayload = await readApiResponse<{ tests?: TestRow[] }>(testsResponse, "Unable to load tests");
           setTests(testsPayload.tests ?? []);
         } catch {
@@ -390,38 +395,12 @@ export default function StudentPortal() {
                 .limit(12)
             ),
             withTimeout(
-              supabase
-                .from("notes")
-                .select("id, title, file_url, course_id, visibility, created_at")
-                .eq("institute_id", effectiveInstituteId)
-                .in("visibility", ["student", "public"])
-                .in("course_id", courseIds)
-                .order("created_at", { ascending: false })
-                .limit(12)
-            ),
-            withTimeout(
-              supabase
-                .from("materials")
-                .select("id, title, file_url, course_id, visibility, created_at")
-                .eq("institute_id", effectiveInstituteId)
-                .in("visibility", ["student", "public"])
-                .in("course_id", courseIds)
-                .order("created_at", { ascending: false })
-                .limit(12)
-            ),
-            withTimeout(
-              supabase
-                .from("materials")
-                .select("id, title, file_url, course_id, visibility, created_at")
-                .eq("institute_id", effectiveInstituteId)
-                .in("visibility", ["student", "public"])
-                .in("course_id", courseIds)
-                .order("created_at", { ascending: false })
-                .limit(12)
+              fetch("/api/student/resources", { cache: "no-store" })
+                .then((response) => readApiResponse<StudentResourcesPayload>(response, "Unable to load resources"))
             ),
           ]);
 
-          const [resultsResult, notesResult, materialsResult, videosResult] = settledCourseQueries;
+          const [resultsResult, resourcesResult] = settledCourseQueries;
 
           if (resultsResult.status === "fulfilled") {
             if (resultsResult.value.error) {
@@ -449,34 +428,17 @@ export default function StudentPortal() {
             setResults([]);
           }
 
-          if (notesResult.status === "fulfilled") {
-            if (notesResult.value.error) {
-              throw new Error(notesResult.value.error.message);
-            }
-            setNotes((notesResult.value.data ?? []) as ResourceRow[]);
-          } else {
-            setNotes([]);
-          }
-
-          if (materialsResult.status === "fulfilled") {
-            if (materialsResult.value.error) {
-              throw new Error(materialsResult.value.error.message);
-            }
-            setMaterials(((materialsResult.value.data ?? []) as ResourceRow[]).filter((row) => !isVideoReference(row.file_url)));
-          } else {
-            setMaterials([]);
-          }
-
-          if (videosResult.status === "fulfilled") {
-            if (videosResult.value.error) {
-              throw new Error(videosResult.value.error.message);
-            }
-            const normalizedVideos = ((videosResult.value.data ?? []) as ResourceRow[]).filter((row) => isVideoReference(row.file_url));
+          if (resourcesResult.status === "fulfilled") {
+            const normalizedVideos = resourcesResult.value.videos ?? [];
+            setNotes(resourcesResult.value.notes ?? []);
+            setMaterials(resourcesResult.value.materials ?? []);
             setVideos(normalizedVideos);
             setActiveVideo((currentVideo) =>
               currentVideo && normalizedVideos.some((video) => video.id === currentVideo.id) ? currentVideo : null
             );
           } else {
+            setNotes([]);
+            setMaterials([]);
             setVideos([]);
             setActiveVideo(null);
           }
@@ -659,8 +621,8 @@ export default function StudentPortal() {
 
     try {
       const [sessionsResponse, assignmentsResponse] = await Promise.all([
-        fetch("/api/student/sessions", { cache: "no-store" }),
-        fetch("/api/student/assignments", { cache: "no-store" }),
+        withTimeout(fetch("/api/student/sessions", { cache: "no-store" })),
+        withTimeout(fetch("/api/student/assignments", { cache: "no-store" })),
       ]);
       const sessionsPayload = await readApiResponse<{
         upcoming?: StudentLiveSession[];
@@ -685,7 +647,7 @@ export default function StudentPortal() {
         setOnlineClassLoading(false);
       }
     }
-  }, [role, userId]);
+  }, [role, userId, withTimeout]);
 
   useEffect(() => {
     if (authLoading || (userId && !roleResolved)) {
@@ -729,7 +691,7 @@ export default function StudentPortal() {
   const handleVideoOpen = async (video: ResourceRow) => {
     try {
       setLoadingVideoId(video.id);
-      const response = await fetch(`/api/videos/${encodeURIComponent(video.id)}/embed`);
+      const response = await withTimeout(fetch(`/api/videos/${encodeURIComponent(video.id)}/embed`));
       const data = await response.json();
 
       if (!response.ok || (!data?.embedUrl && !data?.videoUrl)) {

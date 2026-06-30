@@ -156,6 +156,14 @@ type AnnouncementFormState = {
 
 type ResourceKind = "note" | "material";
 
+type ResourceEditState = {
+  kind: ResourceKind;
+  id: string;
+  title: string;
+  courseId: string;
+  visibility: ResourceVisibility;
+};
+
 const emptyStudentForm: StudentFormState = {
   name: "",
   email: "",
@@ -380,6 +388,8 @@ export default function AdminWorkspace() {
   const [noteForm, setNoteForm] = useState<ResourceUploadFormState>(emptyResourceForm);
   const [materialForm, setMaterialForm] = useState<ResourceUploadFormState>(emptyResourceForm);
   const [videoForm, setVideoForm] = useState<VideoUploadFormState>(emptyVideoForm);
+  const [resourceSearch, setResourceSearch] = useState("");
+  const [editingResource, setEditingResource] = useState<ResourceEditState | null>(null);
   const [notePickerKey, setNotePickerKey] = useState(0);
   const [materialPickerKey, setMaterialPickerKey] = useState(0);
   const [videoPickerKey, setVideoPickerKey] = useState(0);
@@ -390,6 +400,7 @@ export default function AdminWorkspace() {
   const [editingAnnouncementId, setEditingAnnouncementId] = useState<string | null>(null);
 
   const deferredStudentSearch = useDeferredValue(studentSearch);
+  const deferredResourceSearch = useDeferredValue(resourceSearch.trim().toLowerCase());
 
   const clearFeedback = useCallback(() => {
     setError(null);
@@ -670,6 +681,26 @@ export default function AdminWorkspace() {
   const studentNameById = useMemo(() => new Map(students.map((student) => [student.id, student.name])), [students]);
   const courseTitleById = useMemo(() => new Map(courses.map((course) => [course.id, course.title])), [courses]);
   const testTitleById = useMemo(() => new Map(tests.map((test) => [test.id, test.title])), [tests]);
+  const matchesResourceSearch = useCallback(
+    (resource: ResourceRow) => {
+      if (!deferredResourceSearch) {
+        return true;
+      }
+
+      return [
+        resource.title,
+        courseTitleById.get(resource.course_id) ?? "",
+        formatResourceVisibility(resource.visibility),
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(deferredResourceSearch);
+    },
+    [courseTitleById, deferredResourceSearch]
+  );
+  const filteredNotes = useMemo(() => notes.filter(matchesResourceSearch), [matchesResourceSearch, notes]);
+  const filteredMaterials = useMemo(() => materials.filter(matchesResourceSearch), [matchesResourceSearch, materials]);
+  const filteredVideos = useMemo(() => videos.filter(matchesResourceSearch), [matchesResourceSearch, videos]);
 
   const overviewMetrics = [
     {
@@ -1229,6 +1260,65 @@ export default function AdminWorkspace() {
     }
   };
 
+  const startEditingResource = (kind: ResourceKind, row: ResourceRow) => {
+    clearFeedback();
+    setEditingResource({
+      kind,
+      id: row.id,
+      title: row.title,
+      courseId: row.course_id,
+      visibility: row.visibility,
+    });
+  };
+
+  const handleResourceUpdate = async () => {
+    if (!instituteId || !editingResource) {
+      return;
+    }
+
+    if (!editingResource.title.trim()) {
+      setError("Add a clear file name before saving.");
+      return;
+    }
+
+    if (!editingResource.courseId) {
+      setError("Choose the course shelf for this file.");
+      return;
+    }
+
+    clearFeedback();
+    setBusy(true);
+
+    try {
+      const endpoint =
+        editingResource.kind === "note"
+          ? `/api/admin/notes/${encodeURIComponent(editingResource.id)}`
+          : `/api/admin/materials/${encodeURIComponent(editingResource.id)}`;
+      const response = await fetch(endpoint, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: editingResource.title.trim(),
+          courseId: editingResource.courseId,
+          visibility: editingResource.visibility,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(typeof payload.error === "string" ? payload.error : "Unable to update resource");
+      }
+
+      setEditingResource(null);
+      setMessage(editingResource.kind === "note" ? "Note updated." : "Book updated.");
+      await loadOperationalData(instituteId);
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : "Unable to update resource");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleDeleteResource = async (kind: ResourceKind, row: ResourceRow) => {
     if (!instituteId) {
       return;
@@ -1602,8 +1692,12 @@ export default function AdminWorkspace() {
         throw new Error(payload.error ?? "Unable to upload hero image");
       }
 
-      setHomeContent((prev) => ({ ...prev, heroImageUrl: payload.url ?? "" }));
-      setMessage("Hero image uploaded. Save website content to publish it.");
+      if (payload.home) {
+        setHomeContent(mergeHomeContent(payload.home));
+      } else {
+        setHomeContent((prev) => ({ ...prev, heroImageUrl: payload.url ?? "" }));
+      }
+      setMessage("Hero image uploaded and published on the homepage.");
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Unable to upload hero image");
     } finally {
@@ -2182,10 +2276,10 @@ export default function AdminWorkspace() {
             {activeTab === "resources" ? (
               <>
                 <div className="grid gap-5 xl:grid-cols-2">
-                  <AdminPanelCard eyebrow="Notes Upload" title="Publish revision notes" description="Attach a note PDF to a course, then choose whether it belongs in the public library or only inside the student portal.">
+                  <AdminPanelCard eyebrow="Notes Upload" title="Publish revision notes" description="Attach a note PDF to a course shelf, set the display file name, then choose whether it belongs in the public library or only inside the student portal.">
                     <div className="grid gap-4">
-                      <Field label="Course"><select className={inputClass} value={noteForm.courseId} onChange={(event) => setNoteForm((prev) => ({ ...prev, courseId: event.target.value }))}><option value="">Select course</option>{courses.map((course) => (<option key={course.id} value={course.id}>{course.title}</option>))}</select></Field>
-                      <Field label="Note title"><input className={inputClass} value={noteForm.title} onChange={(event) => setNoteForm((prev) => ({ ...prev, title: event.target.value }))} placeholder="Chapter 4 Revision Pack" /></Field>
+                      <Field label="Course shelf"><select className={inputClass} value={noteForm.courseId} onChange={(event) => setNoteForm((prev) => ({ ...prev, courseId: event.target.value }))}><option value="">Select course</option>{courses.map((course) => (<option key={course.id} value={course.id}>{course.title}</option>))}</select></Field>
+                      <Field label="Display file name"><input className={inputClass} value={noteForm.title} onChange={(event) => setNoteForm((prev) => ({ ...prev, title: event.target.value }))} placeholder="Class 10 Science - Chapter 4 Revision Notes" /></Field>
                       <Field label="Visible in"><select className={inputClass} value={noteForm.visibility} onChange={(event) => setNoteForm((prev) => ({ ...prev, visibility: event.target.value as ResourceVisibility }))}><option value="student">Student portal only</option><option value="public">Public notes page</option></select></Field>
                       <Field label="PDF file" hint={noteForm.file ? noteForm.file.name : "Select a PDF file for secure delivery."}>
                         <label className={`${secondaryButtonClass} w-full cursor-pointer`}>
@@ -2200,10 +2294,10 @@ export default function AdminWorkspace() {
                     </div>
                   </AdminPanelCard>
 
-                  <AdminPanelCard eyebrow="Books Upload" title="Publish books and reference files" description="Use this for books, worksheets, solved papers, or any study file and decide whether it appears publicly or stays inside the portal.">
+                  <AdminPanelCard eyebrow="Books Upload" title="Publish books and reference files" description="Use this for books, worksheets, solved papers, or any study file. The display file name is what students and public visitors will search.">
                     <div className="grid gap-4">
-                      <Field label="Course"><select className={inputClass} value={materialForm.courseId} onChange={(event) => setMaterialForm((prev) => ({ ...prev, courseId: event.target.value }))}><option value="">Select course</option>{courses.map((course) => (<option key={course.id} value={course.id}>{course.title}</option>))}</select></Field>
-                      <Field label="Book title"><input className={inputClass} value={materialForm.title} onChange={(event) => setMaterialForm((prev) => ({ ...prev, title: event.target.value }))} placeholder="Biology Quick Reference" /></Field>
+                      <Field label="Course shelf"><select className={inputClass} value={materialForm.courseId} onChange={(event) => setMaterialForm((prev) => ({ ...prev, courseId: event.target.value }))}><option value="">Select course</option>{courses.map((course) => (<option key={course.id} value={course.id}>{course.title}</option>))}</select></Field>
+                      <Field label="Display file name"><input className={inputClass} value={materialForm.title} onChange={(event) => setMaterialForm((prev) => ({ ...prev, title: event.target.value }))} placeholder="Class 12 Biology - Quick Reference PDF" /></Field>
                       <Field label="Visible in"><select className={inputClass} value={materialForm.visibility} onChange={(event) => setMaterialForm((prev) => ({ ...prev, visibility: event.target.value as ResourceVisibility }))}><option value="student">Student portal only</option><option value="public">Public books page</option></select></Field>
                       <Field label="File" hint={materialForm.file ? materialForm.file.name : "Select any study file for upload and delivery."}>
                         <label className={`${secondaryButtonClass} w-full cursor-pointer`}>
@@ -2237,27 +2331,75 @@ export default function AdminWorkspace() {
                   </AdminPanelCard>
                 </div>
 
-                <AdminPanelCard eyebrow="Resource Library" title="Manage uploaded notes, books, and videos" description="Delete outdated files, verify where each item appears, and keep both the public library and portal shelves clean.">
+                <AdminPanelCard eyebrow="Resource Library" title="Manage uploaded notes, books, and videos" description="Rename files, move them to the right course shelf, verify where each item appears, and keep both the public library and portal shelves clean.">
+                  <div className="mb-5 space-y-4">
+                    <label className="block">
+                      <span className="sr-only">Search uploaded resources</span>
+                      <input
+                        className={inputClass}
+                        value={resourceSearch}
+                        onChange={(event) => setResourceSearch(event.target.value)}
+                        placeholder="Search by file name, course shelf, or public/student"
+                      />
+                    </label>
+                    {editingResource ? (
+                      <div className={nestedCardClass}>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                          Editing {editingResource.kind === "note" ? "note" : "book"}
+                        </p>
+                        <div className="mt-4 grid gap-3 lg:grid-cols-[1.3fr_0.9fr_0.8fr]">
+                          <input
+                            className={inputClass}
+                            value={editingResource.title}
+                            onChange={(event) => setEditingResource((prev) => prev ? { ...prev, title: event.target.value } : prev)}
+                            placeholder="Display file name"
+                          />
+                          <select
+                            className={inputClass}
+                            value={editingResource.courseId}
+                            onChange={(event) => setEditingResource((prev) => prev ? { ...prev, courseId: event.target.value } : prev)}
+                          >
+                            {courses.map((course) => (<option key={course.id} value={course.id}>{course.title}</option>))}
+                          </select>
+                          <select
+                            className={inputClass}
+                            value={editingResource.visibility}
+                            onChange={(event) => setEditingResource((prev) => prev ? { ...prev, visibility: event.target.value as ResourceVisibility } : prev)}
+                          >
+                            <option value="student">Student portal only</option>
+                            <option value="public">{editingResource.kind === "note" ? "Public notes page" : "Public books page"}</option>
+                          </select>
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <button type="button" onClick={() => void handleResourceUpdate()} className={primaryButtonClass} disabled={busy}>Save Changes</button>
+                          <button type="button" onClick={() => setEditingResource(null)} className={subtleButtonClass}>Cancel</button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
                   <div className="grid gap-5 xl:grid-cols-2">
                     <div>
                       <div className="mb-3 flex items-center justify-between">
                         <h3 className="text-base font-semibold text-slate-950">Notes</h3>
-                        <StatusBadge tone="neutral">{notes.length}</StatusBadge>
+                        <StatusBadge tone="neutral">{filteredNotes.length}/{notes.length}</StatusBadge>
                       </div>
                       <div className="space-y-3">
-                        {notes.length === 0 ? (
-                          <EmptyState title="No notes uploaded" description="Upload the first note above to send it to the public notes page or the student portal." />
+                        {filteredNotes.length === 0 ? (
+                          <EmptyState title={notes.length === 0 ? "No notes uploaded" : "No matching notes"} description={notes.length === 0 ? "Upload the first note above to send it to the public notes page or the student portal." : "Try another file name, course shelf, or visibility."} />
                         ) : (
-                          notes.map((note) => (
+                          filteredNotes.map((note) => (
                             <div key={note.id} className={`${nestedCardClass} flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between`}>
                               <div>
                                 <p className="font-semibold text-slate-900">{note.title}</p>
-                                <p className="mt-1 text-sm text-slate-600">{courseTitleById.get(note.course_id) ?? "Unknown course"} · {formatDate(note.created_at)}</p>
+                                <p className="mt-1 text-sm text-slate-600">{courseTitleById.get(note.course_id) ?? "Unknown course"} - {formatDate(note.created_at)}</p>
                                 <div className="mt-3 flex flex-wrap gap-2">
                                   <StatusBadge tone={note.visibility === "public" ? "success" : "neutral"}>{formatResourceVisibility(note.visibility)}</StatusBadge>
                                 </div>
                               </div>
-                              <button type="button" onClick={() => void handleDeleteResource("note", note)} className={dangerButtonClass}>Delete</button>
+                              <div className="flex flex-wrap gap-2">
+                                <button type="button" onClick={() => startEditingResource("note", note)} className={secondaryButtonClass}>Edit</button>
+                                <button type="button" onClick={() => void handleDeleteResource("note", note)} className={dangerButtonClass}>Delete</button>
+                              </div>
                             </div>
                           ))
                         )}
@@ -2267,22 +2409,25 @@ export default function AdminWorkspace() {
                     <div>
                       <div className="mb-3 flex items-center justify-between">
                         <h3 className="text-base font-semibold text-slate-950">Books</h3>
-                        <StatusBadge tone="neutral">{materials.length}</StatusBadge>
+                        <StatusBadge tone="neutral">{filteredMaterials.length}/{materials.length}</StatusBadge>
                       </div>
                       <div className="space-y-3">
-                        {materials.length === 0 ? (
-                          <EmptyState title="No books uploaded" description="Upload the first book or reference PDF above to populate the public books page or portal shelf." />
+                        {filteredMaterials.length === 0 ? (
+                          <EmptyState title={materials.length === 0 ? "No books uploaded" : "No matching books"} description={materials.length === 0 ? "Upload the first book or reference PDF above to populate the public books page or portal shelf." : "Try another file name, course shelf, or visibility."} />
                         ) : (
-                          materials.map((material) => (
+                          filteredMaterials.map((material) => (
                             <div key={material.id} className={`${nestedCardClass} flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between`}>
                               <div>
                                 <p className="font-semibold text-slate-900">{material.title}</p>
-                                <p className="mt-1 text-sm text-slate-600">{courseTitleById.get(material.course_id) ?? "Unknown course"} · {formatDate(material.created_at)}</p>
+                                <p className="mt-1 text-sm text-slate-600">{courseTitleById.get(material.course_id) ?? "Unknown course"} - {formatDate(material.created_at)}</p>
                                 <div className="mt-3 flex flex-wrap gap-2">
                                   <StatusBadge tone={material.visibility === "public" ? "success" : "neutral"}>{formatResourceVisibility(material.visibility)}</StatusBadge>
                                 </div>
                               </div>
-                              <button type="button" onClick={() => void handleDeleteResource("material", material)} className={dangerButtonClass}>Delete</button>
+                              <div className="flex flex-wrap gap-2">
+                                <button type="button" onClick={() => startEditingResource("material", material)} className={secondaryButtonClass}>Edit</button>
+                                <button type="button" onClick={() => void handleDeleteResource("material", material)} className={dangerButtonClass}>Delete</button>
+                              </div>
                             </div>
                           ))
                         )}
@@ -2292,13 +2437,13 @@ export default function AdminWorkspace() {
                     <div>
                       <div className="mb-3 flex items-center justify-between">
                         <h3 className="text-base font-semibold text-slate-950">Videos</h3>
-                        <StatusBadge tone="neutral">{videos.length}</StatusBadge>
+                        <StatusBadge tone="neutral">{filteredVideos.length}/{videos.length}</StatusBadge>
                       </div>
                       <div className="space-y-3">
-                        {videos.length === 0 ? (
-                          <EmptyState title="No videos published" description="Publish the first recorded lesson above to make it available inside assigned student portals." />
+                        {filteredVideos.length === 0 ? (
+                          <EmptyState title={videos.length === 0 ? "No videos published" : "No matching videos"} description={videos.length === 0 ? "Publish the first recorded lesson above to make it available inside assigned student portals." : "Try another file name, course shelf, or visibility."} />
                         ) : (
-                          videos.map((video) => (
+                          filteredVideos.map((video) => (
                             <div key={video.id} className={`${nestedCardClass} flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between`}>
                               <div>
                                 <p className="font-semibold text-slate-900">{video.title}</p>
@@ -2377,7 +2522,7 @@ export default function AdminWorkspace() {
                     <Field label="Secondary CTA label"><input className={inputClass} value={homeContent.heroSecondaryCtaLabel} onChange={(event) => setHomeContent((prev) => ({ ...prev, heroSecondaryCtaLabel: event.target.value }))} /></Field>
                     <Field label="Secondary CTA link"><input className={inputClass} value={homeContent.heroSecondaryCtaHref} onChange={(event) => setHomeContent((prev) => ({ ...prev, heroSecondaryCtaHref: event.target.value }))} /></Field>
                     <div className="md:col-span-2">
-                      <Field label="Hero image" hint="JPG, PNG, WebP, or AVIF. Maximum 5MB. Save website content after upload to publish.">
+                      <Field label="Hero image" hint="JPG, PNG, WebP, or AVIF. Maximum 5MB. Upload publishes the image immediately.">
                         <div className="flex flex-col gap-3 rounded-[24px] bg-[#f6f8fb] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] sm:flex-row sm:items-center sm:justify-between">
                           <div className="min-w-0">
                             <p className="truncate text-sm font-semibold text-slate-900">
