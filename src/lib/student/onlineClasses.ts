@@ -62,12 +62,15 @@ type AssignmentRow = {
 
 export function studentJsonError(error: unknown, fallback: string) {
   const typedError = error as StudentRouteError;
+  const status = typedError.status ?? 500;
+  const safeMessage = status >= 500 ? fallback : typedError.message ?? fallback;
+
   return NextResponse.json(
     {
-      error: typedError.message ?? fallback,
+      error: safeMessage,
       code: typedError.code,
     },
-    { status: typedError.status ?? 500 }
+    { status }
   );
 }
 

@@ -554,7 +554,7 @@ function LoginContent() {
     }
 
     if (!supabase) {
-      setError("Supabase is not configured yet. Please add env vars.");
+      setError("Login is temporarily unavailable. Please contact the institute.");
       return;
     }
 
@@ -649,7 +649,7 @@ function LoginContent() {
     }
 
     if (!supabase) {
-      setError("Supabase is not configured yet. Please add env vars.");
+      setError("Login is temporarily unavailable. Please contact the institute.");
       return;
     }
 
@@ -692,7 +692,7 @@ function LoginContent() {
 
     try {
       if (!supabase) {
-        setError("Supabase is not configured yet. Please add env vars.");
+        setError("Login is temporarily unavailable. Please contact the institute.");
         return;
       }
 

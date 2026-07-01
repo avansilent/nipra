@@ -16,12 +16,19 @@ const normalizeRole = (role?: string | null): "admin" | "student" | null => {
   return null;
 };
 
-const buildSignedMaterialResponse = async (filePath: string, title: string) => {
-  const signedUrl = await createSignedStorageUrl(filePath, 300, title);
+const getDispositionMode = (request: Request) =>
+  new URL(request.url).searchParams.get("mode") === "download" ? "attachment" : "inline";
+
+const buildSignedMaterialResponse = async (
+  filePath: string,
+  title: string,
+  dispositionMode: "inline" | "attachment"
+) => {
+  const signedUrl = await createSignedStorageUrl(filePath, 300, title, dispositionMode);
 
   if (!signedUrl) {
     return NextResponse.json(
-      { error: "Unable to create secure download link" },
+      { error: "Unable to create secure file link" },
       { status: 500 }
     );
   }
@@ -35,8 +42,9 @@ const buildSignedMaterialResponse = async (filePath: string, title: string) => {
   );
 };
 
-export async function GET(_request: Request, { params }: RouteParams) {
+export async function GET(request: Request, { params }: RouteParams) {
   try {
+    const dispositionMode = getDispositionMode(request);
     const { materialId } = await params;
     const service = createSupabaseServiceClient();
 
@@ -57,7 +65,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     const visibility = normalizeResourceVisibility(material.visibility);
 
     if (visibility === "public") {
-      return buildSignedMaterialResponse(material.file_url, material.title);
+      return buildSignedMaterialResponse(material.file_url, material.title, dispositionMode);
     }
 
     const supabase = await createSupabaseRouteClient();
@@ -104,7 +112,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
       }
     }
 
-    return buildSignedMaterialResponse(material.file_url, material.title);
+    return buildSignedMaterialResponse(material.file_url, material.title, dispositionMode);
   } catch (error) {
     return NextResponse.json(
       { error: "Unable to download material" },

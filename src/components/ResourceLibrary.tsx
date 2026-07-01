@@ -54,9 +54,9 @@ export default function ResourceLibrary({
   const resourceCount = items.length;
   const courseCount = new Set(items.map((item) => item.courseTitle)).size;
 
-  const getSecureResourceUrl = async (resourceId: string) => {
+  const getSecureResourceUrl = async (resourceId: string, mode: "view" | "download" = "view") => {
     const endpoint = downloadKind === "note" ? `/api/notes/${resourceId}/download` : `/api/materials/${resourceId}/download`;
-    const response = await fetch(endpoint, { cache: "no-store" });
+    const response = await fetch(`${endpoint}?mode=${mode === "download" ? "download" : "view"}`, { cache: "no-store" });
     const payload = await response.json();
 
     if (!response.ok || !payload?.url) {
@@ -70,7 +70,7 @@ export default function ResourceLibrary({
     try {
       setFeedback(null);
       setReadingId(item.id);
-      const url = item.previewUrl ?? await getSecureResourceUrl(item.id);
+      const url = await getSecureResourceUrl(item.id, "view");
       setReader({ title: item.title, url });
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Unable to open the file right now.");
@@ -83,8 +83,14 @@ export default function ResourceLibrary({
     try {
       setFeedback(null);
       setDownloadingId(resourceId);
-      const url = await getSecureResourceUrl(resourceId);
-      window.open(url, "_blank", "noopener,noreferrer");
+      const url = await getSecureResourceUrl(resourceId, "download");
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.target = "_blank";
+      anchor.rel = "noopener noreferrer";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Unable to open the file right now.");
     } finally {

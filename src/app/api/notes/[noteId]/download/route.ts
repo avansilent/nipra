@@ -9,12 +9,19 @@ type RouteParams = {
   params: Promise<{ noteId: string }>;
 };
 
-const buildSignedNoteResponse = async (filePath: string, title: string) => {
-  const signedUrl = await createSignedStorageUrl(filePath, 300, title);
+const getDispositionMode = (request: Request) =>
+  new URL(request.url).searchParams.get("mode") === "download" ? "attachment" : "inline";
+
+const buildSignedNoteResponse = async (
+  filePath: string,
+  title: string,
+  dispositionMode: "inline" | "attachment"
+) => {
+  const signedUrl = await createSignedStorageUrl(filePath, 300, title, dispositionMode);
 
   if (!signedUrl) {
     return NextResponse.json(
-      { error: "Unable to create secure download link" },
+      { error: "Unable to create secure file link" },
       { status: 500 }
     );
   }
@@ -28,8 +35,9 @@ const buildSignedNoteResponse = async (filePath: string, title: string) => {
   );
 };
 
-export async function GET(_request: Request, { params }: RouteParams) {
+export async function GET(request: Request, { params }: RouteParams) {
   try {
+    const dispositionMode = getDispositionMode(request);
     const { noteId } = await params;
     const service = createSupabaseServiceClient();
 
@@ -46,7 +54,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     const visibility = normalizeResourceVisibility(note.visibility);
 
     if (visibility === "public") {
-      return buildSignedNoteResponse(note.file_url, note.title);
+      return buildSignedNoteResponse(note.file_url, note.title, dispositionMode);
     }
 
     const supabase = await createSupabaseRouteClient();
@@ -95,7 +103,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
       }
     }
 
-    return buildSignedNoteResponse(note.file_url, note.title);
+    return buildSignedNoteResponse(note.file_url, note.title, dispositionMode);
   } catch (error) {
     return NextResponse.json(
       { error: "Unable to download note" },

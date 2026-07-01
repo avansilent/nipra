@@ -72,16 +72,21 @@ function getStreamConfig() {
   const accountId =
     process.env.CLOUDFLARE_STREAM_ACCOUNT_ID ??
     process.env.CLOUDFLARE_ACCOUNT_ID ??
+    process.env.CLOUDFLARE_R2_ACCOUNT_ID ??
+    process.env.R2_ACCOUNT_ID ??
     process.env.CF_ACCOUNT_ID ??
     "";
   const apiToken =
     process.env.CLOUDFLARE_STREAM_API_TOKEN ??
+    process.env.CLOUDFLARE_STREAM_TOKEN ??
     process.env.CLOUDFLARE_API_TOKEN ??
+    process.env.CLOUDFLARE_TOKEN ??
     process.env.CF_STREAM_API_TOKEN ??
+    process.env.CF_API_TOKEN ??
     "";
 
   if (!accountId || !apiToken) {
-    throw new Error("Cloudflare Stream is not configured. Add CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_STREAM_API_TOKEN.");
+    throw new Error("Cloudflare Stream is not configured for live classes. Check the Stream account id and API token in the server environment.");
   }
 
   return {

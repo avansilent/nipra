@@ -30,6 +30,8 @@ type SignedUrlOptions = {
   responseContentDisposition?: string;
 };
 
+type StorageContentDisposition = "inline" | "attachment";
+
 let cachedClient: S3Client | null = null;
 
 function getR2Config() {
@@ -43,7 +45,7 @@ function getR2Config() {
     (accountId ? `https://${accountId}.r2.cloudflarestorage.com` : "");
 
   if (!endpoint || !accessKeyId || !secretAccessKey || !bucketName) {
-    throw new Error("Cloudflare R2 is not configured. Add R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and R2_BUCKET_NAME.");
+    throw new Error("Cloudflare R2 storage is not configured. Check the storage keys and bucket in the server environment.");
   }
 
   return {
@@ -121,14 +123,42 @@ export async function createR2SignedUrl({ key, expiresIn = 300, responseContentD
   );
 }
 
-export async function createSignedStorageUrl(reference: string, expiresIn = 300, title?: string) {
+function getFileExtension(key: string) {
+  const lastPart = key.split("/").pop() ?? "";
+  const match = lastPart.match(/(\.[a-z0-9]{1,12})$/i);
+  return match?.[1] ?? "";
+}
+
+function buildSafeFileName(key: string, title?: string) {
+  const fallbackName = key.split("/").pop()?.replace(/^\d+-/, "") || "file";
+  const extension = getFileExtension(key);
+  const rawName = title || fallbackName;
+  let safeName = rawName.replace(/[^\w\s.-]/g, "").replace(/\s+/g, " ").trim();
+
+  if (!safeName) {
+    safeName = fallbackName.replace(/[^\w\s.-]/g, "").replace(/\s+/g, " ").trim() || "file";
+  }
+
+  if (extension && !safeName.toLowerCase().endsWith(extension.toLowerCase())) {
+    safeName += extension;
+  }
+
+  return safeName.replace(/"/g, "");
+}
+
+export async function createSignedStorageUrl(
+  reference: string,
+  expiresIn = 300,
+  title?: string,
+  dispositionType: StorageContentDisposition = "inline"
+) {
   const key = getObjectKey(reference);
   if (!key) {
     return null;
   }
 
-  const safeTitle = title?.replace(/[^\w\s.-]/g, "").trim();
-  const disposition = safeTitle ? `inline; filename="${safeTitle}"` : undefined;
+  const safeFileName = buildSafeFileName(key, title);
+  const disposition = `${dispositionType}; filename="${safeFileName}"`;
 
   try {
     return await createR2SignedUrl({
