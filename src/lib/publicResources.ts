@@ -1,4 +1,4 @@
-import { createSignedStorageUrl, isVideoReference } from "./r2Storage";
+import { isVideoReference } from "./r2Storage";
 import { createSupabaseServiceClient } from "./supabase/service";
 
 type ResourceBucket = "notes" | "materials";
@@ -51,19 +51,13 @@ async function fetchPublicResourceLibrary(bucket: ResourceBucket): Promise<Publi
       });
     }
 
-    return Promise.all(
-      rows.map(async (row) => {
-        const signedUrl = await createSignedStorageUrl(row.file_url, 3600, row.title);
-
-        return {
-          id: row.id,
-          title: row.title,
-          courseTitle: courseTitles.get(row.course_id) ?? "Course",
-          createdAt: row.created_at,
-          previewUrl: signedUrl,
-        };
-      })
-    );
+    return rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      courseTitle: courseTitles.get(row.course_id) ?? "Course",
+      createdAt: row.created_at,
+      previewUrl: null,
+    }));
   } catch {
     return [];
   }

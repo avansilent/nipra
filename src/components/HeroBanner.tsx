@@ -270,7 +270,7 @@ export default function HeroBanner({ content, siteSettings, initialSlideId, disa
   };
 
   const activeSlide = slides[activeIndex];
-  const renderedSlides = isMobileViewport ? [activeSlide] : slides;
+  const renderedSlides = slides;
 
   const resetDragGesture = () => {
     dragGestureRef.current = {
@@ -565,12 +565,8 @@ export default function HeroBanner({ content, siteSettings, initialSlideId, disa
 
         <div className="hero-ribbon-carousel overflow-hidden">
           <div
-            className={
-              isMobileViewport
-                ? "w-full"
-                : `flex w-full ${transitionDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] transition-transform`
-            }
-            style={isMobileViewport ? undefined : { transform: `translateX(-${activeIndex * 100}%)` }}
+            className={`flex w-full ${transitionDurationClass} ease-[cubic-bezier(0.22,1,0.36,1)] transition-transform`}
+            style={{ transform: `translateX(-${activeIndex * 100}%)` }}
           >
             {renderedSlides.map((slide) => (
               <article key={slide.id} className="hero-ribbon-slide min-w-full">

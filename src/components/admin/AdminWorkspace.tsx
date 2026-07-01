@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   useCallback,
   useDeferredValue,
@@ -25,14 +26,26 @@ import { formatResourceVisibility, type ResourceVisibility } from "../../lib/res
 import { createSupabaseBrowserClient } from "../../lib/supabase/browser";
 import type { Faq, HomeContent, Program, Testimonial } from "../../types/home";
 import type { SiteSettings } from "../../types/site";
-import HeroBanner from "../HeroBanner";
 import AdminMetricCard from "./AdminMetricCard";
 import AdminPanelCard from "./AdminPanelCard";
 import AdminSidebar from "./AdminSidebar";
 import CourseModeSelector, { normalizeCourseMode, type CourseMode } from "./CourseModeSelector";
-import SessionManager from "./SessionManager";
-import TestSeriesManager from "./TestSeriesManager";
 import type { AdminTab } from "./adminTabs";
+
+const HeroBanner = dynamic(() => import("../HeroBanner"), {
+  loading: () => <div className="min-h-[18rem] rounded-[2rem] bg-white shadow-[0_12px_24px_rgba(15,23,42,0.04)]" />,
+  ssr: false,
+});
+
+const SessionManager = dynamic(() => import("./SessionManager"), {
+  loading: () => <div className="min-h-[26rem] rounded-[30px] bg-white/92 shadow-[0_16px_34px_rgba(226,232,240,0.86)]" />,
+  ssr: false,
+});
+
+const TestSeriesManager = dynamic(() => import("./TestSeriesManager"), {
+  loading: () => <div className="min-h-[24rem] rounded-[30px] bg-white/92 shadow-[0_16px_34px_rgba(226,232,240,0.86)]" />,
+  ssr: false,
+});
 
 type StudentRow = {
   id: string;

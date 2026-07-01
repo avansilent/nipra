@@ -2,6 +2,27 @@ import type { NextConfig } from "next";
 
 const isDevelopment = process.env.NODE_ENV !== "production";
 
+const getOrigin = (value?: string) => {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+};
+
+const r2PublicOrigin = getOrigin(process.env.R2_PUBLIC_BASE_URL ?? process.env.CLOUDFLARE_R2_PUBLIC_URL);
+const cloudflareAssetSrc = [
+  "https://iframe.videodelivery.net",
+  "https://*.cloudflarestream.com",
+  "https://*.r2.cloudflarestorage.com",
+  "https://*.r2.dev",
+  ...(r2PublicOrigin ? [r2PublicOrigin] : []),
+];
+
 const scriptSrc = [
   "'self'",
   "'unsafe-inline'",
@@ -15,6 +36,7 @@ const connectSrc = [
   "'self'",
   "https://*.supabase.co",
   "wss://*.supabase.co",
+  ...cloudflareAssetSrc,
   "https://iframe.mediadelivery.net",
   "https://video.bunnycdn.com",
   "https://*.bunnycdn.com",
@@ -32,15 +54,15 @@ const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
-  "frame-ancestors 'self'",
+  "frame-ancestors 'none'",
   `script-src ${scriptSrc}`,
   "script-src-attr 'none'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com data:",
-  "img-src 'self' data: blob: https://*.supabase.co https://*.vercel.app https://vercel.app https://*.razorpay.com https://iframe.mediadelivery.net https://video.bunnycdn.com https://*.bunnycdn.com https://*.b-cdn.net",
+  `img-src 'self' data: blob: https://*.supabase.co https://*.vercel.app https://vercel.app https://*.razorpay.com ${cloudflareAssetSrc.join(" ")} https://iframe.mediadelivery.net https://video.bunnycdn.com https://*.bunnycdn.com https://*.b-cdn.net`,
   `connect-src ${connectSrc}`,
-  "frame-src 'self' https://*.supabase.co https://iframe.mediadelivery.net https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com",
-  "media-src 'self' blob: https://iframe.mediadelivery.net https://video.bunnycdn.com https://*.bunnycdn.com https://*.b-cdn.net",
+  `frame-src 'self' https://*.supabase.co ${cloudflareAssetSrc.join(" ")} https://iframe.mediadelivery.net https://checkout.razorpay.com https://api.razorpay.com https://*.razorpay.com`,
+  `media-src 'self' blob: ${cloudflareAssetSrc.join(" ")} https://iframe.mediadelivery.net https://video.bunnycdn.com https://*.bunnycdn.com https://*.b-cdn.net`,
   "form-action 'self' https://*.supabase.co",
 ].join("; ");
 

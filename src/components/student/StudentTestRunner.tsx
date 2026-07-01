@@ -332,8 +332,35 @@ export default function StudentTestRunner({ testId }: { testId: string }) {
   if (loading) {
     return (
       <section className={shellClass}>
-        <div className={surfaceClass}>
-          <p className="text-sm text-slate-600">Loading test...</p>
+        <div className={`${surfaceClass} min-h-[32rem] animate-pulse`}>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="h-3 w-24 rounded-full bg-stone-200" />
+              <div className="mt-4 h-10 w-3/4 rounded-full bg-stone-200" />
+              <div className="mt-4 h-4 w-full max-w-2xl rounded-full bg-stone-200" />
+              <div className="mt-2 h-4 w-1/2 rounded-full bg-stone-200" />
+            </div>
+            <div className="flex gap-2">
+              <div className="h-8 w-20 rounded-full bg-stone-100" />
+              <div className="h-8 w-20 rounded-full bg-stone-100" />
+            </div>
+          </div>
+          <div className="mt-8 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
+            <div className={cardClass}>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={`test-loading-${index}`}>
+                    <div className="h-3 w-16 rounded-full bg-stone-200" />
+                    <div className="mt-3 h-5 w-28 rounded-full bg-stone-200" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <div className="h-11 w-28 rounded-[1.4rem] bg-stone-200" />
+              <div className="h-11 w-28 rounded-[1.4rem] bg-stone-100" />
+            </div>
+          </div>
         </div>
       </section>
     );

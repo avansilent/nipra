@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useCallback, useDeferredValue, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "../../app/AuthProvider";
 import {
@@ -13,10 +14,18 @@ import {
 import { formatResourceVisibility, type ResourceVisibility } from "../../lib/resourceVisibility";
 import { createSupabaseBrowserClient } from "../../lib/supabase/browser";
 import AssignmentCard, { type StudentAssignment } from "./AssignmentCard";
-import AssignmentSubmitModal from "./AssignmentSubmitModal";
 import LiveClassCard, { type StudentLiveSession } from "./LiveClassCard";
-import LiveClassViewer from "./LiveClassViewer";
 import SessionMaterialsList from "./SessionMaterialsList";
+
+const AssignmentSubmitModal = dynamic(() => import("./AssignmentSubmitModal"), {
+  loading: () => null,
+  ssr: false,
+});
+
+const LiveClassViewer = dynamic(() => import("./LiveClassViewer"), {
+  loading: () => null,
+  ssr: false,
+});
 
 type CourseRow = {
   id: string;

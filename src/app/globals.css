@@ -7768,3 +7768,45 @@ html[data-theme="dark"] .site-route-progress {
   }
 }
 
+/* Performance stability: keep Speed Insights CLS low without changing the visual style. */
+html {
+  scroll-padding-top: 7rem;
+}
+
+.section-block {
+  content-visibility: visible !important;
+  contain-intrinsic-size: none !important;
+}
+
+.hero-ribbon-carousel {
+  contain: layout paint;
+}
+
+.hero-ribbon-slide {
+  flex: 0 0 100%;
+  min-width: 100%;
+}
+
+.site-nav-shell,
+.site-route-progress {
+  contain: layout paint;
+}
+
+.student-portal-shell,
+.resource-library-shell,
+.courses-page-shell {
+  min-height: calc(100svh - 9rem);
+}
+
+@media (max-width: 767px) {
+  html {
+    scroll-padding-top: 6rem;
+  }
+
+  .student-portal-shell,
+  .resource-library-shell,
+  .courses-page-shell {
+    min-height: calc(100svh - 7rem);
+  }
+}
+
