@@ -7,6 +7,7 @@ import {
   useDeferredValue,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ChangeEvent,
   type ReactNode,
@@ -24,6 +25,7 @@ import {
 } from "../../lib/enrollmentAccess";
 import { formatResourceVisibility, type ResourceVisibility } from "../../lib/resourceVisibility";
 import { createSupabaseBrowserClient } from "../../lib/supabase/browser";
+import { hasPersistentDraft, usePersistentDraft } from "../../hooks/usePersistentDraft";
 import type { Faq, HomeContent, Program, Testimonial } from "../../types/home";
 import type { SiteSettings } from "../../types/site";
 import AdminMetricCard from "./AdminMetricCard";
@@ -86,6 +88,15 @@ type StudentFormState = {
   email: string;
   loginId: string;
   password: string;
+};
+
+type CourseFormState = {
+  title: string;
+  description: string;
+  price_text: string;
+  status: CourseRow["status"];
+  cta_label: string;
+  mode: CourseMode;
 };
 
 type AssignmentFormState = {
@@ -184,6 +195,15 @@ const emptyStudentForm: StudentFormState = {
   password: "",
 };
 
+const emptyCourseForm = (): CourseFormState => ({
+  title: "",
+  description: "",
+  price_text: "",
+  status: "draft",
+  cta_label: "View Course",
+  mode: "offline",
+});
+
 const emptyAssignmentForm = (): AssignmentFormState => ({
   studentId: "",
   courseId: "",
@@ -243,6 +263,28 @@ const emptyAnnouncementForm = (): AnnouncementFormState => ({
   title: "",
   body: "",
 });
+
+const sanitizeStudentDraft = (form: StudentFormState): StudentFormState => ({
+  ...form,
+  password: "",
+});
+
+const sanitizeResourceDraft = <T extends ResourceUploadFormState | VideoUploadFormState>(form: T): T => ({
+  ...form,
+  file: null,
+});
+
+const hasStudentDraft = (form: StudentFormState) =>
+  Boolean(form.name.trim() || form.email.trim() || form.loginId.trim());
+const hasCourseDraft = (form: CourseFormState) =>
+  Boolean(form.title.trim() || form.description.trim() || form.price_text.trim() || form.cta_label !== "View Course" || form.status !== "draft" || form.mode !== "offline");
+const hasAssignmentDraft = (form: AssignmentFormState) =>
+  Boolean(form.studentId || form.courseId || form.accessEndsAt || form.paymentDueAt);
+const hasResourceDraft = (form: ResourceUploadFormState | VideoUploadFormState) =>
+  Boolean(form.courseId || form.title.trim() || form.visibility !== "student");
+const hasTestDraft = (form: TestFormState) => Boolean(form.title.trim() || form.courseId || form.testDate);
+const hasResultDraft = (form: ResultFormState) => Boolean(form.studentId || form.testId || form.marks.trim());
+const hasAnnouncementDraft = (form: AnnouncementFormState) => Boolean(form.title.trim() || form.body.trim());
 
 const inputClass =
   "w-full rounded-[22px] bg-[#f8fafd] px-4 py-3 text-sm text-slate-900 outline-none shadow-[0_10px_24px_rgba(226,232,240,0.8)] transition duration-300 focus:bg-white focus:shadow-[0_0_0_4px_rgba(186,230,253,0.55),0_14px_28px_rgba(226,232,240,0.9)]";
@@ -360,9 +402,15 @@ function StatusBadge({
 export default function AdminWorkspace() {
   const { user, role, roleResolved, instituteId, loading: authLoading, logout } = useAuth();
   const supabase = useMemo(() => createSupabaseBrowserClient(), [])!;
+  const draftScope = useMemo(() => (instituteId && user?.id ? `${instituteId}:${user.id}` : null), [instituteId, user?.id]);
+  const getDraftKey = (name: string) => (draftScope ? `nipra-admin-draft:${draftScope}:${name}` : null);
+  const activeTabDraftKey = getDraftKey("active-tab");
+  const homeContentDraftKey = getDraftKey("home-content");
+  const siteSettingsDraftKey = getDraftKey("site-settings");
 
-  const [activeTab, setActiveTab] = useState<AdminTab>("overview");
+  const [activeTab, setActiveTab] = usePersistentDraft<AdminTab>(activeTabDraftKey, "overview");
   const [pageLoading, setPageLoading] = useState(true);
+  const workspaceLoadedRef = useRef(false);
   const [workspaceSnapshotAt, setWorkspaceSnapshotAt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -377,40 +425,91 @@ export default function AdminWorkspace() {
   const [tests, setTests] = useState<TestRow[]>([]);
   const [results, setResults] = useState<ResultRow[]>([]);
   const [announcements, setAnnouncements] = useState<AnnouncementRow[]>([]);
-  const [homeContent, setHomeContent] = useState<HomeContent>(defaultHomeContent);
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>(defaultSiteSettings);
+  const [homeContent, setHomeContent, homeContentDraft] = usePersistentDraft<HomeContent>(
+    homeContentDraftKey,
+    defaultHomeContent
+  );
+  const [siteSettings, setSiteSettings, siteSettingsDraft] = usePersistentDraft<SiteSettings>(
+    siteSettingsDraftKey,
+    defaultSiteSettings
+  );
   const [heroImageUploading, setHeroImageUploading] = useState(false);
   const [heroImagePickerKey, setHeroImagePickerKey] = useState(0);
 
-  const [studentForm, setStudentForm] = useState<StudentFormState>(emptyStudentForm);
-  const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
+  const [studentForm, setStudentForm, studentFormDraft] = usePersistentDraft<StudentFormState>(
+    getDraftKey("student-form"),
+    emptyStudentForm,
+    { sanitize: sanitizeStudentDraft, shouldPersist: hasStudentDraft }
+  );
+  const [editingStudentId, setEditingStudentId, editingStudentDraft] = usePersistentDraft<string | null>(
+    getDraftKey("editing-student-id"),
+    null,
+    { shouldPersist: (value) => Boolean(value) }
+  );
   const [studentSearch, setStudentSearch] = useState("");
   const [studentFilter, setStudentFilter] = useState<"all" | "recent">("all");
   const [generatedCredentials, setGeneratedCredentials] = useState<GeneratedCredentials | null>(null);
   const [bulkUploadSummary, setBulkUploadSummary] = useState<string | null>(null);
 
-  const [courseForm, setCourseForm] = useState({
-    title: "",
-    description: "",
-    price_text: "",
-    status: "draft" as CourseRow["status"],
-    cta_label: "View Course",
-    mode: "offline" as CourseMode,
-  });
-  const [assignmentForm, setAssignmentForm] = useState<AssignmentFormState>(emptyAssignmentForm);
-  const [noteForm, setNoteForm] = useState<ResourceUploadFormState>(emptyResourceForm);
-  const [materialForm, setMaterialForm] = useState<ResourceUploadFormState>(emptyResourceForm);
-  const [videoForm, setVideoForm] = useState<VideoUploadFormState>(emptyVideoForm);
+  const [courseForm, setCourseForm, courseFormDraft] = usePersistentDraft<CourseFormState>(
+    getDraftKey("course-form"),
+    emptyCourseForm,
+    { shouldPersist: hasCourseDraft }
+  );
+  const [assignmentForm, setAssignmentForm, assignmentFormDraft] = usePersistentDraft<AssignmentFormState>(
+    getDraftKey("enrollment-form"),
+    emptyAssignmentForm,
+    { shouldPersist: hasAssignmentDraft }
+  );
+  const [noteForm, setNoteForm, noteFormDraft] = usePersistentDraft<ResourceUploadFormState>(
+    getDraftKey("note-upload-form"),
+    emptyResourceForm,
+    { sanitize: sanitizeResourceDraft, shouldPersist: hasResourceDraft }
+  );
+  const [materialForm, setMaterialForm, materialFormDraft] = usePersistentDraft<ResourceUploadFormState>(
+    getDraftKey("material-upload-form"),
+    emptyResourceForm,
+    { sanitize: sanitizeResourceDraft, shouldPersist: hasResourceDraft }
+  );
+  const [videoForm, setVideoForm, videoFormDraft] = usePersistentDraft<VideoUploadFormState>(
+    getDraftKey("video-upload-form"),
+    emptyVideoForm,
+    { sanitize: sanitizeResourceDraft, shouldPersist: hasResourceDraft }
+  );
   const [resourceSearch, setResourceSearch] = useState("");
-  const [editingResource, setEditingResource] = useState<ResourceEditState | null>(null);
+  const [editingResource, setEditingResource, editingResourceDraft] = usePersistentDraft<ResourceEditState | null>(
+    getDraftKey("editing-resource"),
+    null,
+    { shouldPersist: (value) => Boolean(value) }
+  );
   const [notePickerKey, setNotePickerKey] = useState(0);
   const [materialPickerKey, setMaterialPickerKey] = useState(0);
   const [videoPickerKey, setVideoPickerKey] = useState(0);
-  const [testForm, setTestForm] = useState<TestFormState>(emptyTestForm);
-  const [editingTestId, setEditingTestId] = useState<string | null>(null);
-  const [resultForm, setResultForm] = useState<ResultFormState>(emptyResultForm);
-  const [announcementForm, setAnnouncementForm] = useState<AnnouncementFormState>(emptyAnnouncementForm);
-  const [editingAnnouncementId, setEditingAnnouncementId] = useState<string | null>(null);
+  const [testForm, setTestForm, testFormDraft] = usePersistentDraft<TestFormState>(
+    getDraftKey("legacy-test-form"),
+    emptyTestForm,
+    { shouldPersist: hasTestDraft }
+  );
+  const [editingTestId, setEditingTestId, editingTestDraft] = usePersistentDraft<string | null>(
+    getDraftKey("legacy-editing-test-id"),
+    null,
+    { shouldPersist: (value) => Boolean(value) }
+  );
+  const [resultForm, setResultForm, resultFormDraft] = usePersistentDraft<ResultFormState>(
+    getDraftKey("result-form"),
+    emptyResultForm,
+    { shouldPersist: hasResultDraft }
+  );
+  const [announcementForm, setAnnouncementForm, announcementFormDraft] = usePersistentDraft<AnnouncementFormState>(
+    getDraftKey("announcement-form"),
+    emptyAnnouncementForm,
+    { shouldPersist: hasAnnouncementDraft }
+  );
+  const [editingAnnouncementId, setEditingAnnouncementId, editingAnnouncementDraft] = usePersistentDraft<string | null>(
+    getDraftKey("editing-announcement-id"),
+    null,
+    { shouldPersist: (value) => Boolean(value) }
+  );
 
   const deferredStudentSearch = useDeferredValue(studentSearch);
   const deferredResourceSearch = useDeferredValue(resourceSearch.trim().toLowerCase());
@@ -598,9 +697,13 @@ export default function AdminWorkspace() {
     if (!response.ok) {
       throw new Error(payload.error ?? "Unable to load site content");
     }
-    setHomeContent(mergeHomeContent(payload.home));
-    setSiteSettings(mergeSiteSettings(payload.settings));
-  }, []);
+    if (!hasPersistentDraft(homeContentDraftKey)) {
+      homeContentDraft.replaceValue(mergeHomeContent(payload.home));
+    }
+    if (!hasPersistentDraft(siteSettingsDraftKey)) {
+      siteSettingsDraft.replaceValue(mergeSiteSettings(payload.settings));
+    }
+  }, [homeContentDraft, homeContentDraftKey, siteSettingsDraft, siteSettingsDraftKey]);
 
   const loadWorkspace = useCallback(async () => {
     if (!instituteId) {
@@ -609,7 +712,9 @@ export default function AdminWorkspace() {
 
     const snapshotAt = Date.now();
 
-    setPageLoading(true);
+    if (!workspaceLoadedRef.current) {
+      setPageLoading(true);
+    }
     clearFeedback();
 
     try {
@@ -617,6 +722,7 @@ export default function AdminWorkspace() {
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load admin workspace");
     } finally {
+      workspaceLoadedRef.current = true;
       setWorkspaceSnapshotAt(snapshotAt);
       setPageLoading(false);
     }
@@ -846,6 +952,8 @@ export default function AdminWorkspace() {
         });
       }
 
+      studentFormDraft.clearDraft();
+      editingStudentDraft.clearDraft();
       setStudentForm(emptyStudentForm);
       setEditingStudentId(null);
       setMessage(editingStudentId ? "Student account updated." : "Student account created.");
@@ -882,6 +990,12 @@ export default function AdminWorkspace() {
         throw new Error(payload.error ?? "Unable to delete student");
       }
 
+      if (editingStudentId === studentId) {
+        editingStudentDraft.clearDraft();
+        studentFormDraft.clearDraft();
+        setEditingStudentId(null);
+        setStudentForm(emptyStudentForm);
+      }
       setMessage("Student account deleted.");
       await Promise.all([
         loadStudents(),
@@ -990,7 +1104,8 @@ export default function AdminWorkspace() {
         throw new Error(insertError.message);
       }
 
-      setCourseForm({ title: "", description: "", price_text: "", status: "draft", cta_label: "View Course", mode: "offline" });
+      courseFormDraft.clearDraft();
+      setCourseForm(emptyCourseForm());
       setMessage("Course created.");
       await Promise.all([loadCourses(instituteId), refreshLiveViews("courses")]);
     } catch (courseError) {
@@ -1102,6 +1217,7 @@ export default function AdminWorkspace() {
         throw new Error(insertError.message);
       }
 
+      assignmentFormDraft.clearDraft();
       setAssignmentForm(emptyAssignmentForm());
       setMessage(savedWithAccessControls ? "Enrollment saved." : "Enrollment saved. Apply the latest Supabase schema to save due and end dates.");
       await Promise.all([loadCourses(instituteId), refreshLiveViews("learning")]);
@@ -1172,9 +1288,11 @@ export default function AdminWorkspace() {
       }
 
       if (kind === "note") {
+        noteFormDraft.clearDraft();
         setNoteForm(emptyResourceForm());
         setNotePickerKey((prev) => prev + 1);
       } else {
+        materialFormDraft.clearDraft();
         setMaterialForm(emptyResourceForm());
         setMaterialPickerKey((prev) => prev + 1);
       }
@@ -1262,6 +1380,7 @@ export default function AdminWorkspace() {
         throw new Error(payload.error ?? "Unable to publish video");
       }
 
+      videoFormDraft.clearDraft();
       setVideoForm(emptyVideoForm());
       setVideoPickerKey((prev) => prev + 1);
       setMessage("Video published to the student portal.");
@@ -1322,6 +1441,7 @@ export default function AdminWorkspace() {
         throw new Error(typeof payload.error === "string" ? payload.error : "Unable to update resource");
       }
 
+      editingResourceDraft.clearDraft();
       setEditingResource(null);
       setMessage(editingResource.kind === "note" ? "Note updated." : "Book updated.");
       await loadOperationalData(instituteId);
@@ -1356,6 +1476,10 @@ export default function AdminWorkspace() {
         throw new Error(typeof payload.error === "string" ? payload.error : `Unable to delete ${kind}`);
       }
 
+      if (editingResource?.kind === kind && editingResource.id === row.id) {
+        editingResourceDraft.clearDraft();
+        setEditingResource(null);
+      }
       setMessage(kind === "note" ? "Note deleted." : "Book deleted.");
       await loadOperationalData(instituteId);
     } catch (deleteError) {
@@ -1439,6 +1563,8 @@ export default function AdminWorkspace() {
         setMessage("Test scheduled.");
       }
 
+      editingTestDraft.clearDraft();
+      testFormDraft.clearDraft();
       setEditingTestId(null);
       setTestForm(emptyTestForm());
       await loadOperationalData(instituteId);
@@ -1473,6 +1599,8 @@ export default function AdminWorkspace() {
       }
 
       if (editingTestId === testId) {
+        editingTestDraft.clearDraft();
+        testFormDraft.clearDraft();
         setEditingTestId(null);
         setTestForm(emptyTestForm());
       }
@@ -1500,20 +1628,38 @@ export default function AdminWorkspace() {
     clearFeedback();
     setBusy(true);
     try {
-      const { error: upsertError } = await supabase.from("results").upsert(
-        {
-          student_id: resultForm.studentId,
-          test_id: resultForm.testId,
-          institute_id: instituteId,
-          marks,
-        },
-        { onConflict: "student_id,test_id" }
-      );
+      const { data: existingRows, error: existingError } = await supabase
+        .from("results")
+        .select("student_id, test_id")
+        .eq("student_id", resultForm.studentId)
+        .eq("test_id", resultForm.testId)
+        .eq("institute_id", instituteId)
+        .limit(1);
 
-      if (upsertError) {
-        throw new Error(upsertError.message);
+      if (existingError) {
+        throw new Error(existingError.message);
       }
 
+      const existingResult = existingRows?.[0];
+      const { error: saveError } = existingResult
+        ? await supabase
+            .from("results")
+            .update({ marks, recorded_at: new Date().toISOString() })
+            .eq("student_id", resultForm.studentId)
+            .eq("test_id", resultForm.testId)
+            .eq("institute_id", instituteId)
+        : await supabase.from("results").insert({
+            student_id: resultForm.studentId,
+            test_id: resultForm.testId,
+            institute_id: instituteId,
+            marks,
+          });
+
+      if (saveError) {
+        throw new Error(saveError.message);
+      }
+
+      resultFormDraft.clearDraft();
       setResultForm(emptyResultForm());
       setMessage("Result saved.");
       await loadOperationalData(instituteId);
@@ -1605,6 +1751,8 @@ export default function AdminWorkspace() {
         setMessage("Announcement published.");
       }
 
+      editingAnnouncementDraft.clearDraft();
+      announcementFormDraft.clearDraft();
       setEditingAnnouncementId(null);
       setAnnouncementForm(emptyAnnouncementForm());
       await loadOperationalData(instituteId);
@@ -1635,6 +1783,8 @@ export default function AdminWorkspace() {
       }
 
       if (editingAnnouncementId === announcementId) {
+        editingAnnouncementDraft.clearDraft();
+        announcementFormDraft.clearDraft();
         setEditingAnnouncementId(null);
         setAnnouncementForm(emptyAnnouncementForm());
       }
@@ -1705,11 +1855,8 @@ export default function AdminWorkspace() {
         throw new Error(payload.error ?? "Unable to upload hero image");
       }
 
-      if (payload.home) {
-        setHomeContent(mergeHomeContent(payload.home));
-      } else {
-        setHomeContent((prev) => ({ ...prev, heroImageUrl: payload.url ?? "" }));
-      }
+      const uploadedHome = payload.home ? mergeHomeContent(payload.home) : null;
+      setHomeContent((prev) => ({ ...prev, heroImageUrl: uploadedHome?.heroImageUrl ?? payload.url ?? "" }));
       setMessage("Hero image uploaded and published on the homepage.");
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Unable to upload hero image");
@@ -1734,10 +1881,13 @@ export default function AdminWorkspace() {
       }
       setMessage(key === "home" ? "Website content saved." : "Site settings saved.");
       if (key === "home") {
-        setHomeContent(mergeHomeContent(payload.data));
+        homeContentDraft.clearDraft();
+        homeContentDraft.replaceValue(mergeHomeContent(payload.data));
       } else {
-        setSiteSettings(mergeSiteSettings(payload.data));
+        siteSettingsDraft.clearDraft();
+        siteSettingsDraft.replaceValue(mergeSiteSettings(payload.data));
       }
+      await refreshLiveViews("site");
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Unable to save site content");
     } finally {
@@ -2146,7 +2296,7 @@ export default function AdminWorkspace() {
                     </div>
                     <div className="mt-5 flex flex-wrap gap-3">
                       <button type="button" disabled={busy} onClick={() => void handleCourseCreate()} className={primaryButtonClass}>Create Course</button>
-                      <button type="button" onClick={() => setCourseForm({ title: "", description: "", price_text: "", status: "draft", cta_label: "View Course", mode: "offline" })} className={subtleButtonClass}>Clear Builder</button>
+                      <button type="button" onClick={() => { courseFormDraft.clearDraft(); setCourseForm(emptyCourseForm()); }} className={subtleButtonClass}>Clear Builder</button>
                     </div>
                   </AdminPanelCard>
 
@@ -2186,7 +2336,7 @@ export default function AdminWorkspace() {
                   </AdminPanelCard>
                 </div>
 
-                <TestSeriesManager courses={courses} disabled={busy} onNotice={setMessage} onError={setError} />
+                <TestSeriesManager courses={courses} disabled={busy} onNotice={setMessage} onError={setError} draftScope={draftScope} />
 
                 <AdminPanelCard eyebrow="Course Directory" title="Inline course catalog editor" description="Use the table below for live catalog hygiene without leaving the admin system.">
                   {courses.length === 0 ? (
@@ -2232,6 +2382,7 @@ export default function AdminWorkspace() {
                     disabled={busy}
                     onNotice={setMessage}
                     onError={setError}
+                    draftScope={draftScope}
                   />
                 </AdminPanelCard>
 
@@ -2303,7 +2454,7 @@ export default function AdminWorkspace() {
                     </div>
                     <div className="mt-5 flex flex-wrap gap-3">
                       <button type="button" onClick={() => void handleResourceUpload("note")} className={primaryButtonClass} disabled={busy}>Upload Note</button>
-                      <button type="button" onClick={() => { setNoteForm(emptyResourceForm()); setNotePickerKey((prev) => prev + 1); }} className={subtleButtonClass}>Clear</button>
+                      <button type="button" onClick={() => { noteFormDraft.clearDraft(); setNoteForm(emptyResourceForm()); setNotePickerKey((prev) => prev + 1); }} className={subtleButtonClass}>Clear</button>
                     </div>
                   </AdminPanelCard>
 
@@ -2321,7 +2472,7 @@ export default function AdminWorkspace() {
                     </div>
                     <div className="mt-5 flex flex-wrap gap-3">
                       <button type="button" onClick={() => void handleResourceUpload("material")} className={primaryButtonClass} disabled={busy}>Upload File</button>
-                      <button type="button" onClick={() => { setMaterialForm(emptyResourceForm()); setMaterialPickerKey((prev) => prev + 1); }} className={subtleButtonClass}>Clear</button>
+                      <button type="button" onClick={() => { materialFormDraft.clearDraft(); setMaterialForm(emptyResourceForm()); setMaterialPickerKey((prev) => prev + 1); }} className={subtleButtonClass}>Clear</button>
                     </div>
                   </AdminPanelCard>
 
@@ -2339,7 +2490,7 @@ export default function AdminWorkspace() {
                     </div>
                     <div className="mt-5 flex flex-wrap gap-3">
                       <button type="button" onClick={() => void handleVideoUpload()} className={primaryButtonClass} disabled={busy}>Publish Video</button>
-                      <button type="button" onClick={() => { setVideoForm(emptyVideoForm()); setVideoPickerKey((prev) => prev + 1); }} className={subtleButtonClass}>Clear</button>
+                      <button type="button" onClick={() => { videoFormDraft.clearDraft(); setVideoForm(emptyVideoForm()); setVideoPickerKey((prev) => prev + 1); }} className={subtleButtonClass}>Clear</button>
                     </div>
                   </AdminPanelCard>
                 </div>
@@ -2385,7 +2536,7 @@ export default function AdminWorkspace() {
                         </div>
                         <div className="mt-4 flex flex-wrap gap-2">
                           <button type="button" onClick={() => void handleResourceUpdate()} className={primaryButtonClass} disabled={busy}>Save Changes</button>
-                          <button type="button" onClick={() => setEditingResource(null)} className={subtleButtonClass}>Cancel</button>
+                          <button type="button" onClick={() => { editingResourceDraft.clearDraft(); setEditingResource(null); }} className={subtleButtonClass}>Cancel</button>
                         </div>
                       </div>
                     ) : null}
@@ -2483,7 +2634,7 @@ export default function AdminWorkspace() {
                     </div>
                     <div className="mt-5 flex flex-wrap gap-3">
                       <button type="button" onClick={() => void handleAnnouncementSubmit()} className={primaryButtonClass} disabled={busy}>{editingAnnouncementId ? "Update Announcement" : "Publish Announcement"}</button>
-                      <button type="button" onClick={() => { setEditingAnnouncementId(null); setAnnouncementForm(emptyAnnouncementForm()); }} className={subtleButtonClass}>Clear</button>
+                      <button type="button" onClick={() => { editingAnnouncementDraft.clearDraft(); announcementFormDraft.clearDraft(); setEditingAnnouncementId(null); setAnnouncementForm(emptyAnnouncementForm()); }} className={subtleButtonClass}>Clear</button>
                     </div>
                   </AdminPanelCard>
 

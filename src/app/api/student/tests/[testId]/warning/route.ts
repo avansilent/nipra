@@ -25,17 +25,20 @@ export async function POST(request: Request, contextArg: RouteParams<"testId">) 
     const body = (await request.json().catch(() => ({}))) as WarningPayload;
     const reason = stringField(body.reason).slice(0, 80) || "focus_changed";
 
-    const { data: attempt, error: attemptError } = await context.serviceClient
+    const { data: attempts, error: attemptError } = await context.serviceClient
       .from("test_attempts")
       .select("id, status, warning_count, warning_events")
       .eq("institute_id", context.instituteId)
       .eq("test_id", test.id)
       .eq("student_id", context.userId)
-      .maybeSingle();
+      .order("started_at", { ascending: false })
+      .limit(1);
 
     if (attemptError) {
       return NextResponse.json({ error: attemptError.message }, { status: 500 });
     }
+
+    const attempt = attempts?.[0] ?? null;
 
     if (!attempt || attempt.status !== "in_progress") {
       throw new StudentRouteError("No active test attempt found.", 400, "attempt_not_active");

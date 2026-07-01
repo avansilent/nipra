@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { usePersistentDraft } from "../../hooks/usePersistentDraft";
 
 type CourseOption = {
   id: string;
@@ -93,6 +94,7 @@ type TestSeriesManagerProps = {
   disabled?: boolean;
   onNotice: (message: string | null) => void;
   onError: (message: string | null) => void;
+  draftScope?: string | null;
 };
 
 const inputClass =
@@ -186,6 +188,28 @@ function emptyForm(courseId = ""): TestForm {
   };
 }
 
+const hasTestFormDraft = (form: TestForm) =>
+  Boolean(
+    form.title.trim() ||
+      form.description.trim() ||
+      form.courseId ||
+      form.startsAt ||
+      form.endsAt ||
+      form.durationMinutes !== "30" ||
+      form.defaultMarksPerQuestion !== "1" ||
+      !form.isPublished ||
+      !form.isFree ||
+      form.audienceScope !== "all_students" ||
+      form.questions.some(
+        (question) =>
+          question.prompt.trim() ||
+          question.explanation.trim() ||
+          question.marks.trim() ||
+          question.correctOptionIndex !== 0 ||
+          question.options.some((option) => option.trim())
+      )
+  );
+
 async function readJson<T>(response: Response, fallback: string): Promise<T> {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -194,11 +218,24 @@ async function readJson<T>(response: Response, fallback: string): Promise<T> {
   return payload as T;
 }
 
-export default function TestSeriesManager({ courses, disabled = false, onNotice, onError }: TestSeriesManagerProps) {
+export default function TestSeriesManager({ courses, disabled = false, onNotice, onError, draftScope }: TestSeriesManagerProps) {
+  const draftPrefix = draftScope ? `nipra-admin-draft:${draftScope}:test-series` : null;
   const [tests, setTests] = useState<AdminTest[]>([]);
-  const [form, setForm] = useState<TestForm>(() => emptyForm(courses[0]?.id ?? ""));
-  const [editingTestId, setEditingTestId] = useState<string | null>(null);
-  const [selectedTestId, setSelectedTestId] = useState<string | null>(null);
+  const [form, setForm, formDraft] = usePersistentDraft<TestForm>(
+    draftPrefix ? `${draftPrefix}:form` : null,
+    () => emptyForm(courses[0]?.id ?? ""),
+    { shouldPersist: hasTestFormDraft }
+  );
+  const [editingTestId, setEditingTestId, editingTestDraft] = usePersistentDraft<string | null>(
+    draftPrefix ? `${draftPrefix}:editing-test-id` : null,
+    null,
+    { shouldPersist: (value) => Boolean(value) }
+  );
+  const [selectedTestId, setSelectedTestId, selectedTestDraft] = usePersistentDraft<string | null>(
+    draftPrefix ? `${draftPrefix}:selected-test-id` : null,
+    null,
+    { shouldPersist: (value) => Boolean(value) }
+  );
   const [selectedDetail, setSelectedDetail] = useState<TestDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -232,7 +269,7 @@ export default function TestSeriesManager({ courses, disabled = false, onNotice,
     } catch (error) {
       onError(error instanceof Error ? error.message : "Unable to load attempts");
     }
-  }, [onError]);
+  }, [onError, setSelectedTestId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -323,6 +360,8 @@ export default function TestSeriesManager({ courses, disabled = false, onNotice,
   };
 
   const resetForm = () => {
+    editingTestDraft.clearDraft();
+    formDraft.clearDraft();
     setEditingTestId(null);
     setForm(emptyForm(courses[0]?.id ?? ""));
   };
@@ -389,6 +428,7 @@ export default function TestSeriesManager({ courses, disabled = false, onNotice,
         resetForm();
       }
       if (selectedTestId === testId) {
+        selectedTestDraft.clearDraft();
         setSelectedTestId(null);
         setSelectedDetail(null);
       }

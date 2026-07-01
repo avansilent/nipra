@@ -21,6 +21,8 @@ type PublicTest = {
   attempt: AttemptSummary | null;
 };
 
+type TestAvailability = PublicTest["availability"];
+
 type AttemptSummary = {
   id: string;
   status: string;
@@ -87,6 +89,25 @@ function formatRemaining(ms: number) {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
+function getLiveAvailability(test: PublicTest, now: number): TestAvailability {
+  const startsAt = test.starts_at ? new Date(test.starts_at).getTime() : null;
+  const endsAt = test.ends_at ? new Date(test.ends_at).getTime() : null;
+
+  if (startsAt !== null && Number.isFinite(startsAt) && now < startsAt) {
+    return { available: false, code: "not_started", message: "This test has not opened yet." };
+  }
+
+  if (endsAt !== null && Number.isFinite(endsAt) && now > endsAt) {
+    return { available: false, code: "ended", message: "This test has ended." };
+  }
+
+  if (test.availability.code === "not_published") {
+    return test.availability;
+  }
+
+  return { available: true, code: "available", message: "Test is available." };
+}
+
 function answerStorageKey(attemptId: string) {
   return `nipra-test-answers:${attemptId}`;
 }
@@ -109,6 +130,7 @@ export default function StudentTestRunner({ testId }: { testId: string }) {
   const [answers, setAnswers] = useState<Answers>({});
   const [result, setResult] = useState<TestResult | null>(null);
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
+  const [availabilityNow, setAvailabilityNow] = useState(() => Date.now());
   const [warningCount, setWarningCount] = useState(0);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -119,6 +141,8 @@ export default function StudentTestRunner({ testId }: { testId: string }) {
 
   const activeAttempt = attempt?.status === "in_progress" && questions.length > 0 && !result;
   const answeredCount = useMemo(() => questions.filter((question) => typeof answers[question.id] === "number").length, [answers, questions]);
+  const liveAvailability = useMemo(() => (test ? getLiveAvailability(test, availabilityNow) : null), [availabilityNow, test]);
+  const canStartTest = Boolean(test && liveAvailability?.available && test.question_count > 0);
 
   const loadPreview = useCallback(async () => {
     setLoading(true);
@@ -126,6 +150,7 @@ export default function StudentTestRunner({ testId }: { testId: string }) {
     try {
       const response = await fetch(`/api/student/tests/${encodeURIComponent(testId)}`, { cache: "no-store" });
       const payload = await readJson<{ test: PublicTest }>(response, "Unable to load test");
+      setAvailabilityNow(Date.now());
       setTest(payload.test);
       setAttempt(payload.test.attempt);
       setWarningCount(Number(payload.test.attempt?.warning_count ?? 0));
@@ -154,6 +179,28 @@ export default function StudentTestRunner({ testId }: { testId: string }) {
 
     return () => window.clearTimeout(timer);
   }, [loadPreview]);
+
+  useEffect(() => {
+    if (!test || activeAttempt || result) {
+      return;
+    }
+
+    const startsAt = test.starts_at ? new Date(test.starts_at).getTime() : null;
+    const endsAt = test.ends_at ? new Date(test.ends_at).getTime() : null;
+    const shouldTrackWindow =
+      (startsAt !== null && Number.isFinite(startsAt) && Date.now() <= startsAt) ||
+      (endsAt !== null && Number.isFinite(endsAt) && Date.now() <= endsAt);
+
+    if (!shouldTrackWindow) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setAvailabilityNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [activeAttempt, result, test]);
 
   useEffect(() => {
     if (!attempt?.id) {
@@ -468,13 +515,13 @@ export default function StudentTestRunner({ testId }: { testId: string }) {
               </div>
             </div>
             <div className="flex flex-wrap gap-3">
-              <button type="button" className={primaryButtonClass} disabled={busy || !test?.availability.available || test.question_count === 0} onClick={() => void startTest()}>
+              <button type="button" className={primaryButtonClass} disabled={busy || !canStartTest} onClick={() => void startTest()}>
                 {busy ? "Opening..." : attempt?.status === "in_progress" ? "Resume Test" : "Start Test"}
               </button>
               <Link href="/student/dashboard" className={secondaryButtonClass}>Dashboard</Link>
             </div>
-            {!test?.availability.available ? (
-              <p className="text-sm leading-6 text-amber-700 md:col-span-2">{test?.availability.message}</p>
+            {!liveAvailability?.available ? (
+              <p className="text-sm leading-6 text-amber-700 md:col-span-2">{liveAvailability?.message}</p>
             ) : null}
           </div>
         )}

@@ -163,6 +163,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const pathnameRef = useRef(pathname);
   const sessionRef = useRef<Session | null>(null);
+  const userRef = useRef<User | null>(null);
+  const roleRef = useRef<AuthRole>(null);
+  const roleResolvedRef = useRef(roleResolved);
+  const instituteIdRef = useRef<string | null>(null);
   const sessionRecoveryAttemptsRef = useRef(0);
 
   useEffect(() => {
@@ -172,6 +176,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     sessionRef.current = session;
   }, [session]);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  useEffect(() => {
+    roleRef.current = role;
+  }, [role]);
+
+  useEffect(() => {
+    roleResolvedRef.current = roleResolved;
+  }, [roleResolved]);
+
+  useEffect(() => {
+    instituteIdRef.current = instituteId;
+  }, [instituteId]);
 
   const resetLocalAuthState = useCallback(() => {
     setSession(null);
@@ -227,13 +247,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [clearBrowserSessionArtifacts, supabase]);
 
   const resolveRole = useCallback(
-    async (nextUser: User | null) => {
+    async (nextUser: User | null, options?: { preserveCurrent?: boolean }) => {
       if (!supabase || !nextUser) {
         setRole(null);
         setInstituteId(null);
         setRoleResolved(true);
         return;
       }
+
+      const canPreserveCurrent =
+        Boolean(options?.preserveCurrent) &&
+        userRef.current?.id === nextUser.id &&
+        roleResolvedRef.current &&
+        Boolean(roleRef.current);
 
       const metadataRole = normalizeRole(
         nextUser.app_metadata?.role
@@ -289,12 +315,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           metadataRole
       );
 
+      const nextInstituteId = profile?.institute_id ?? metadataInstituteId ?? null;
+
+      if (canPreserveCurrent && (!nextRole || !nextInstituteId)) {
+        setRole(roleRef.current);
+        setInstituteId(instituteIdRef.current);
+        setRoleResolved(true);
+        return;
+      }
+
       setRole(nextRole);
-      setInstituteId(
-        profile?.institute_id ??
-          metadataInstituteId ??
-          null
-      );
+      setInstituteId(nextInstituteId);
       setRoleResolved(true);
     },
     [supabase]
@@ -307,10 +338,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let mounted = true;
 
-    const initialize = async () => {
+    const initialize = async (options?: { silent?: boolean }) => {
+      const silent = Boolean(options?.silent && sessionRef.current);
       let keepLoadingForRetry = false;
-      setLoading(true);
-      setRoleResolved(false);
+      if (!silent) {
+        setLoading(true);
+        setRoleResolved(false);
+      }
       try {
         let sessionData: Session | null = null;
         let sessionReadFailed = false;
@@ -330,6 +364,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (
+          !silent &&
           !sessionData &&
           sessionReadFailed &&
           hasStoredSupabaseBrowserSession(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
@@ -365,7 +400,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setSession(sessionData);
         setUser(nextUser);
-        await resolveRole(nextUser);
+        await resolveRole(nextUser, { preserveCurrent: silent });
       } finally {
         if (mounted && !keepLoadingForRetry) {
           setLoading(false);
@@ -374,11 +409,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     initialize();
+    let lastSilentRefreshAt = 0;
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event, nextSession) => {
         try {
-          setRoleResolved(false);
+          const verifiedUser = nextSession?.user ?? null;
+          const sameUser = Boolean(verifiedUser?.id && verifiedUser.id === userRef.current?.id);
+          if (!sameUser || !roleResolvedRef.current) {
+            setRoleResolved(false);
+          }
 
           if (nextSession) {
             if (hasRememberedStudentSessionExpired()) {
@@ -392,17 +432,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           setSession(nextSession);
-          const verifiedUser = nextSession?.user ?? null;
           setUser(verifiedUser);
-          await resolveRole(verifiedUser);
+          await resolveRole(verifiedUser, { preserveCurrent: sameUser });
         } finally {
           setLoading(false);
         }
       }
     );
 
+    const refreshVisibleSession = () => {
+      if (document.visibilityState === "hidden") {
+        return;
+      }
+
+      const now = Date.now();
+      if (now - lastSilentRefreshAt < 5000) {
+        return;
+      }
+
+      lastSilentRefreshAt = now;
+      void initialize({ silent: true });
+    };
+
+    window.addEventListener("focus", refreshVisibleSession);
+    document.addEventListener("visibilitychange", refreshVisibleSession);
+
     return () => {
       mounted = false;
+      window.removeEventListener("focus", refreshVisibleSession);
+      document.removeEventListener("visibilitychange", refreshVisibleSession);
       listener.subscription.unsubscribe();
     };
   }, [clearBrokenSession, resetLocalAuthState, resolveRole, supabase]);

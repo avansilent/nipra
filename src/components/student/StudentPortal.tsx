@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useCallback, useDeferredValue, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "../../app/AuthProvider";
 import {
   getEnrollmentAccessLabel,
@@ -259,6 +259,12 @@ export default function StudentPortal() {
   const [loadingVideoId, setLoadingVideoId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const deferredResourceQuery = useDeferredValue(resourceQuery.trim().toLowerCase());
+  const readyRef = useRef(false);
+  const loadedUserIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    readyRef.current = ready;
+  }, [ready]);
 
   const withTimeout = useCallback(async <T,>(promise: Promise<T> | PromiseLike<T>, ms = 6000): Promise<T> => {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -325,11 +331,13 @@ export default function StudentPortal() {
 
     const loadPortal = async () => {
       if (!userId) {
+        loadedUserIdRef.current = null;
         setReady(true);
         return;
       }
 
       if (role !== "student") {
+        loadedUserIdRef.current = userId;
         setReady(true);
         return;
       }
@@ -349,12 +357,15 @@ export default function StudentPortal() {
         setActiveVideo(null);
         setAnnouncements([]);
         setError("Your payment is verified. Refresh this page once if the course is still preparing.");
+        loadedUserIdRef.current = userId;
         setReady(true);
         return;
       }
 
       setError(null);
-      setReady(false);
+      if (!(readyRef.current && loadedUserIdRef.current === userId)) {
+        setReady(false);
+      }
       setStatusTime(Date.now());
 
       try {
@@ -478,8 +489,10 @@ export default function StudentPortal() {
           setAnnouncements([]);
         }
 
+        loadedUserIdRef.current = userId;
         setReady(true);
       } catch (loadError) {
+        loadedUserIdRef.current = userId;
         setReady(true);
         setError(loadError instanceof Error ? loadError.message : "Unable to load the student portal.");
       }

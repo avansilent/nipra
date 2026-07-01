@@ -8,7 +8,7 @@ export async function GET(_request: Request, contextArg: RouteParams<"testId">) 
     const { testId } = await contextArg.params;
     const test = await getStudentTest(context, testId);
 
-    const [{ count, error: questionCountError }, { data: attempt, error: attemptError }, { data: course, error: courseError }] =
+    const [{ count, error: questionCountError }, { data: attemptRows, error: attemptError }, { data: course, error: courseError }] =
       await Promise.all([
         context.serviceClient
           .from("test_questions")
@@ -21,7 +21,8 @@ export async function GET(_request: Request, contextArg: RouteParams<"testId">) 
           .eq("institute_id", context.instituteId)
           .eq("student_id", context.userId)
           .eq("test_id", test.id)
-          .maybeSingle(),
+          .order("started_at", { ascending: false })
+          .limit(1),
         context.serviceClient
           .from("courses")
           .select("id, title")
@@ -34,6 +35,8 @@ export async function GET(_request: Request, contextArg: RouteParams<"testId">) 
     if (firstError) {
       return NextResponse.json({ error: firstError.message }, { status: 500 });
     }
+
+    const attempt = attemptRows?.[0] ?? null;
 
     return NextResponse.json(
       {

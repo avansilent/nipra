@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import { cache } from "react";
 import { defaultSiteSettings, mergeSiteSettings } from "../data/siteSettings";
 import type { SiteSettings } from "../types/site";
 import { createSupabaseServerClient } from "./supabase/server";
@@ -33,6 +34,4 @@ const loadSiteSettings = unstable_cache(
   }
 );
 
-export async function fetchSiteSettings(): Promise<SiteSettings> {
-  return loadSiteSettings();
-}
+export const fetchSiteSettings = cache(async (): Promise<SiteSettings> => loadSiteSettings());

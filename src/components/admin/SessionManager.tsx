@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { usePersistentDraft } from "../../hooks/usePersistentDraft";
 import AssignmentPanel from "./AssignmentPanel";
 import type { CourseMode } from "./CourseModeSelector";
 import SessionMaterialsPanel from "./SessionMaterialsPanel";
@@ -62,6 +63,7 @@ type SessionManagerProps = {
   disabled?: boolean;
   onNotice?: (message: string) => void;
   onError?: (message: string) => void;
+  draftScope?: string | null;
 };
 
 type TeacherHostResponse = {
@@ -104,6 +106,19 @@ const emptySessionForm = (courseId = ""): SessionFormState => ({
   endTime: "",
   sortOrder: "0",
 });
+
+const hasSessionFormDraft = (form: SessionFormState) =>
+  Boolean(
+    form.courseId ||
+      form.title.trim() ||
+      form.description.trim() ||
+      form.startTime ||
+      form.endTime ||
+      form.sortOrder !== "0"
+  );
+
+const hasRecordingTitleDrafts = (drafts: Record<string, string>) =>
+  Object.values(drafts).some((value) => value.trim());
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
@@ -244,7 +259,9 @@ export default function SessionManager({
   disabled,
   onNotice,
   onError,
+  draftScope,
 }: SessionManagerProps) {
+  const draftPrefix = draftScope ? `nipra-admin-draft:${draftScope}:sessions` : null;
   const orderedCourses = useMemo(
     () =>
       [...courses].sort((a, b) => {
@@ -254,19 +271,43 @@ export default function SessionManager({
     [courses]
   );
 
-  const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [selectedCourseId, setSelectedCourseId] = usePersistentDraft<string>(
+    draftPrefix ? `${draftPrefix}:selected-course-id` : null,
+    "",
+    { shouldPersist: (value) => Boolean(value) }
+  );
   const [sessions, setSessions] = useState<AdminSession[]>([]);
   const [sessionDetails, setSessionDetails] = useState<Record<string, AdminSession>>({});
-  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
-  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-  const [form, setForm] = useState<SessionFormState>(() => emptySessionForm(orderedCourses[0]?.id ?? ""));
-  const [editForm, setEditForm] = useState<SessionFormState>(() => emptySessionForm());
+  const [expandedSessionId, setExpandedSessionId, expandedSessionDraft] = usePersistentDraft<string | null>(
+    draftPrefix ? `${draftPrefix}:expanded-session-id` : null,
+    null,
+    { shouldPersist: (value) => Boolean(value) }
+  );
+  const [editingSessionId, setEditingSessionId, editingSessionDraft] = usePersistentDraft<string | null>(
+    draftPrefix ? `${draftPrefix}:editing-session-id` : null,
+    null,
+    { shouldPersist: (value) => Boolean(value) }
+  );
+  const [form, setForm, formDraft] = usePersistentDraft<SessionFormState>(
+    draftPrefix ? `${draftPrefix}:form` : null,
+    () => emptySessionForm(orderedCourses[0]?.id ?? ""),
+    { shouldPersist: hasSessionFormDraft }
+  );
+  const [editForm, setEditForm, editFormDraft] = usePersistentDraft<SessionFormState>(
+    draftPrefix ? `${draftPrefix}:edit-form` : null,
+    emptySessionForm,
+    { shouldPersist: hasSessionFormDraft }
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [teacherJoiningSessionId, setTeacherJoiningSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [recordingTitleDrafts, setRecordingTitleDrafts] = useState<Record<string, string>>({});
+  const [recordingTitleDrafts, setRecordingTitleDrafts] = usePersistentDraft<Record<string, string>>(
+    draftPrefix ? `${draftPrefix}:recording-titles` : null,
+    {},
+    { shouldPersist: hasRecordingTitleDrafts }
+  );
 
   const raiseError = useCallback((messageText: string) => {
     setError(messageText);
@@ -344,6 +385,7 @@ export default function SessionManager({
         body: JSON.stringify(sessionBodyFromForm(form)),
       }));
       const payload = await readApiResponse<{ session?: AdminSession }>(response, "Unable to create session");
+      formDraft.clearDraft();
       setForm(emptySessionForm(form.courseId));
       showNotice("Class session created.");
       await loadSessions();
@@ -389,6 +431,8 @@ export default function SessionManager({
         body: JSON.stringify(sessionBodyFromForm(editForm)),
       }));
       await readApiResponse(response, "Unable to update session");
+      editingSessionDraft.clearDraft();
+      editFormDraft.clearDraft();
       setEditingSessionId(null);
       showNotice("Class session updated.");
       await Promise.all([loadSessions(), loadSessionDetail(sessionId)]);
@@ -500,6 +544,11 @@ export default function SessionManager({
         }),
       }));
       await readApiResponse(response, "Unable to sync Cloudflare recording");
+      setRecordingTitleDrafts((prev) => {
+        const next = { ...prev };
+        delete next[session.id];
+        return next;
+      });
       showNotice("Recording saved to the course video shelf.");
       await Promise.all([loadSessions(), loadSessionDetail(session.id)]);
     } catch (syncError) {
@@ -562,7 +611,13 @@ export default function SessionManager({
         return next;
       });
       if (expandedSessionId === session.id) {
+        expandedSessionDraft.clearDraft();
         setExpandedSessionId(null);
+      }
+      if (editingSessionId === session.id) {
+        editingSessionDraft.clearDraft();
+        editFormDraft.clearDraft();
+        setEditingSessionId(null);
       }
       await loadSessions();
     } catch (deleteError) {
@@ -646,7 +701,7 @@ export default function SessionManager({
           <button type="button" className={primaryButtonClass} disabled={disabled || saving} onClick={() => void handleCreateSession()}>
             Create Session
           </button>
-          <button type="button" className={subtleButtonClass} onClick={() => setForm(emptySessionForm(form.courseId))}>
+          <button type="button" className={subtleButtonClass} onClick={() => { formDraft.clearDraft(); setForm(emptySessionForm(form.courseId)); }}>
             Clear Form
           </button>
           {message ? <span className="text-sm font-semibold text-emerald-700">{message}</span> : null}
@@ -738,7 +793,7 @@ export default function SessionManager({
                       <button type="button" className={primaryButtonClass} disabled={saving} onClick={() => void handleUpdateSession(session.id)}>
                         Save Session
                       </button>
-                      <button type="button" className={subtleButtonClass} onClick={() => setEditingSessionId(null)}>
+                      <button type="button" className={subtleButtonClass} onClick={() => { editingSessionDraft.clearDraft(); editFormDraft.clearDraft(); setEditingSessionId(null); }}>
                         Cancel Edit
                       </button>
                     </div>
@@ -852,6 +907,7 @@ export default function SessionManager({
                         courseId={session.course_id}
                         disabled={saving}
                         onChanged={() => void loadSessionDetail(session.id)}
+                        draftScope={draftScope}
                       />
                     </div>
                   </div>

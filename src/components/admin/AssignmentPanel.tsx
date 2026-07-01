@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ChangeEvent, type ReactNode } from "react";
+import { usePersistentDraft } from "../../hooks/usePersistentDraft";
 import AssignmentSubmissionsView from "./AssignmentSubmissionsView";
 
 type AssignmentRow = {
@@ -36,6 +37,7 @@ type AssignmentPanelProps = {
   courseId: string;
   disabled?: boolean;
   onChanged?: () => void;
+  draftScope?: string | null;
 };
 
 const emptyAssignmentForm = (): AssignmentFormState => ({
@@ -47,6 +49,21 @@ const emptyAssignmentForm = (): AssignmentFormState => ({
   isPublished: false,
   file: null,
 });
+
+const sanitizeAssignmentDraft = (form: AssignmentFormState): AssignmentFormState => ({
+  ...form,
+  file: null,
+});
+
+const hasAssignmentDraft = (form: AssignmentFormState) =>
+  Boolean(
+    form.title.trim() ||
+      form.description.trim() ||
+      form.instructions.trim() ||
+      form.dueDate ||
+      form.maxMarks !== "100" ||
+      form.isPublished
+  );
 
 const inputClass =
   "w-full rounded-[22px] bg-[#f8fafd] px-4 py-3 text-sm text-slate-900 outline-none shadow-[0_10px_24px_rgba(226,232,240,0.8)] transition duration-300 focus:bg-white focus:shadow-[0_0_0_4px_rgba(186,230,253,0.55),0_14px_28px_rgba(226,232,240,0.9)]";
@@ -130,12 +147,30 @@ export default function AssignmentPanel({
   courseId,
   disabled,
   onChanged,
+  draftScope,
 }: AssignmentPanelProps) {
+  const draftPrefix = draftScope ? `nipra-admin-draft:${draftScope}:assignments:${sessionId}` : null;
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
-  const [form, setForm] = useState<AssignmentFormState>(emptyAssignmentForm);
-  const [editForm, setEditForm] = useState<AssignmentFormState>(emptyAssignmentForm);
-  const [editingAssignmentId, setEditingAssignmentId] = useState<string | null>(null);
-  const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null);
+  const [form, setForm, formDraft] = usePersistentDraft<AssignmentFormState>(
+    draftPrefix ? `${draftPrefix}:form` : null,
+    emptyAssignmentForm,
+    { sanitize: sanitizeAssignmentDraft, shouldPersist: hasAssignmentDraft }
+  );
+  const [editForm, setEditForm, editFormDraft] = usePersistentDraft<AssignmentFormState>(
+    draftPrefix ? `${draftPrefix}:edit-form` : null,
+    emptyAssignmentForm,
+    { sanitize: sanitizeAssignmentDraft, shouldPersist: hasAssignmentDraft }
+  );
+  const [editingAssignmentId, setEditingAssignmentId, editingAssignmentDraft] = usePersistentDraft<string | null>(
+    draftPrefix ? `${draftPrefix}:editing-assignment-id` : null,
+    null,
+    { shouldPersist: (value) => Boolean(value) }
+  );
+  const [selectedAssignmentId, setSelectedAssignmentId, selectedAssignmentDraft] = usePersistentDraft<string | null>(
+    draftPrefix ? `${draftPrefix}:selected-assignment-id` : null,
+    null,
+    { shouldPersist: (value) => Boolean(value) }
+  );
   const [filePickerKey, setFilePickerKey] = useState(0);
   const [editFilePickerKey, setEditFilePickerKey] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -225,6 +260,7 @@ export default function AssignmentPanel({
       });
       await readApiResponse(response, "Unable to create assignment");
 
+      formDraft.clearDraft();
       setForm(emptyAssignmentForm());
       setFilePickerKey((prev) => prev + 1);
       setMessage("Assignment created.");
@@ -270,6 +306,8 @@ export default function AssignmentPanel({
       });
       await readApiResponse(response, "Unable to update assignment");
 
+      editingAssignmentDraft.clearDraft();
+      editFormDraft.clearDraft();
       setEditingAssignmentId(null);
       setEditForm(emptyAssignmentForm());
       setMessage("Assignment updated.");
@@ -295,9 +333,12 @@ export default function AssignmentPanel({
       const response = await fetch(`/api/admin/assignments/${assignment.id}`, { method: "DELETE" });
       await readApiResponse(response, "Unable to delete assignment");
       if (selectedAssignmentId === assignment.id) {
+        selectedAssignmentDraft.clearDraft();
         setSelectedAssignmentId(null);
       }
       if (editingAssignmentId === assignment.id) {
+        editingAssignmentDraft.clearDraft();
+        editFormDraft.clearDraft();
         setEditingAssignmentId(null);
       }
       setMessage("Assignment deleted.");
@@ -410,7 +451,7 @@ export default function AssignmentPanel({
                     <button type="button" className={primaryButtonClass} disabled={saving} onClick={() => void handleUpdate(assignment.id)}>
                       Save Assignment
                     </button>
-                    <button type="button" className={subtleButtonClass} onClick={() => setEditingAssignmentId(null)}>
+                    <button type="button" className={subtleButtonClass} onClick={() => { editingAssignmentDraft.clearDraft(); editFormDraft.clearDraft(); setEditingAssignmentId(null); }}>
                       Cancel
                     </button>
                   </div>

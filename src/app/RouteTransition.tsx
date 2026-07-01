@@ -3,7 +3,21 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const prefetchRoutes = ["/", "/about", "/courses", "/books", "/notes", "/join", "/login", "/student/dashboard"];
+const prefetchRoutes = [
+  "/",
+  "/about",
+  "/courses",
+  "/books",
+  "/notes",
+  "/join",
+  "/login",
+  "/student/dashboard",
+  "/test-series",
+  "/question-papers",
+  "/terms-and-conditions",
+  "/privacy-policy",
+  "/refund-policy",
+];
 
 function isPlainLeftClick(event: MouseEvent) {
   return event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
@@ -33,6 +47,45 @@ export default function RouteTransition() {
 
     const handle = window.setTimeout(prefetch, 350);
     return () => window.clearTimeout(handle);
+  }, [router]);
+
+  useEffect(() => {
+    const prefetched = new Set<string>();
+
+    const prefetchAnchor = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const anchor = target.closest<HTMLAnchorElement>("a[href]");
+      if (!anchor || anchor.target || anchor.hasAttribute("download")) {
+        return;
+      }
+
+      const url = new URL(anchor.href, window.location.href);
+      if (url.origin !== window.location.origin || url.pathname.startsWith("/api/")) {
+        return;
+      }
+
+      const route = `${url.pathname}${url.search}`;
+      if (prefetched.has(route)) {
+        return;
+      }
+
+      prefetched.add(route);
+      router.prefetch(route);
+    };
+
+    document.addEventListener("mouseover", prefetchAnchor, true);
+    document.addEventListener("focusin", prefetchAnchor, true);
+    document.addEventListener("touchstart", prefetchAnchor, { capture: true, passive: true });
+
+    return () => {
+      document.removeEventListener("mouseover", prefetchAnchor, true);
+      document.removeEventListener("focusin", prefetchAnchor, true);
+      document.removeEventListener("touchstart", prefetchAnchor, true);
+    };
   }, [router]);
 
   useEffect(() => {

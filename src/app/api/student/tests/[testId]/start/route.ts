@@ -56,19 +56,20 @@ export async function POST(_request: Request, contextArg: RouteParams<"testId">)
       throw new StudentRouteError("This test has no questions yet.", 400, "empty_test");
     }
 
-    const { data: existingAttempt, error: existingError } = await context.serviceClient
+    const { data: existingAttempts, error: existingError } = await context.serviceClient
       .from("test_attempts")
       .select("id, institute_id, test_id, student_id, status, started_at, submitted_at, score, total_marks, percentage, correct_count, question_count, warning_count")
       .eq("institute_id", context.instituteId)
       .eq("test_id", test.id)
       .eq("student_id", context.userId)
-      .maybeSingle();
+      .order("started_at", { ascending: false })
+      .limit(1);
 
     if (existingError) {
       return NextResponse.json({ error: existingError.message }, { status: 500 });
     }
 
-    let attempt = existingAttempt as AttemptRow | null;
+    let attempt = (existingAttempts?.[0] ?? null) as AttemptRow | null;
 
     if (attempt?.status === "submitted") {
       return NextResponse.json(
