@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useDeferredValue, useState } from "react";
 import type { PublicResourceItem } from "../lib/publicResources";
+import ResourceReaderModal from "./ResourceReaderModal";
 
 type ResourceLibraryProps = {
   eyebrow: string;
@@ -44,7 +45,7 @@ export default function ResourceLibrary({
   const [feedback, setFeedback] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [readingId, setReadingId] = useState<string | null>(null);
-  const [reader, setReader] = useState<{ title: string; url: string } | null>(null);
+  const [reader, setReader] = useState<{ title: string; url: string; downloadUrl: string } | null>(null);
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
 
   const filteredItems = deferredQuery
@@ -70,8 +71,11 @@ export default function ResourceLibrary({
     try {
       setFeedback(null);
       setReadingId(item.id);
-      const url = await getSecureResourceUrl(item.id, "view");
-      setReader({ title: item.title, url });
+      const [url, downloadUrl] = await Promise.all([
+        getSecureResourceUrl(item.id, "view"),
+        getSecureResourceUrl(item.id, "download"),
+      ]);
+      setReader({ title: item.title, url, downloadUrl });
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Unable to open the file right now.");
     } finally {
@@ -86,7 +90,7 @@ export default function ResourceLibrary({
       const url = await getSecureResourceUrl(resourceId, "download");
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.target = "_blank";
+      anchor.download = "";
       anchor.rel = "noopener noreferrer";
       document.body.appendChild(anchor);
       anchor.click();
@@ -230,38 +234,12 @@ export default function ResourceLibrary({
       </div>
 
       {reader ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm">
-          <div className="flex h-full max-h-[860px] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] bg-white shadow-[0_28px_80px_rgba(15,23,42,0.34)]">
-            <div className="flex flex-col gap-3 border-b border-stone-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="truncate text-base font-semibold text-slate-950">{reader.title}</p>
-                <p className="mt-1 text-xs text-stone-500">Secure in-page reader</p>
-              </div>
-              <div className="flex shrink-0 gap-2">
-                <a
-                  href={reader.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center justify-center rounded-full bg-stone-100 px-4 py-2 text-sm font-semibold text-slate-800"
-                >
-                  New tab
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setReader(null)}
-                  className="inline-flex items-center justify-center rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-            <iframe
-              title={`${reader.title} reader`}
-              src={`${reader.url}#toolbar=1&navpanes=0&view=FitH`}
-              className="min-h-0 flex-1 bg-white"
-            />
-          </div>
-        </div>
+        <ResourceReaderModal
+          title={reader.title}
+          url={reader.url}
+          downloadUrl={reader.downloadUrl}
+          onClose={() => setReader(null)}
+        />
       ) : null}
     </section>
   );

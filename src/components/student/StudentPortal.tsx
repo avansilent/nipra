@@ -16,6 +16,7 @@ import { createSupabaseBrowserClient } from "../../lib/supabase/browser";
 import AssignmentCard, { type StudentAssignment } from "./AssignmentCard";
 import LiveClassCard, { type StudentLiveSession } from "./LiveClassCard";
 import SessionMaterialsList from "./SessionMaterialsList";
+import ResourceReaderModal from "../ResourceReaderModal";
 
 const AssignmentSubmitModal = dynamic(() => import("./AssignmentSubmitModal"), {
   loading: () => null,
@@ -254,6 +255,8 @@ export default function StudentPortal() {
   const [timelineFilter, setTimelineFilter] = useState<TimelineFilter>("all");
   const [resourceQuery, setResourceQuery] = useState("");
   const [statusTime, setStatusTime] = useState(0);
+  const [resourceReader, setResourceReader] = useState<{ title: string; url: string; downloadUrl: string } | null>(null);
+  const [openingResourceId, setOpeningResourceId] = useState<string | null>(null);
   const [downloadingNoteId, setDownloadingNoteId] = useState<string | null>(null);
   const [downloadingMaterialId, setDownloadingMaterialId] = useState<string | null>(null);
   const [loadingVideoId, setLoadingVideoId] = useState<string | null>(null);
@@ -590,17 +593,57 @@ export default function StudentPortal() {
     [courseTitleById, deferredResourceQuery, videos]
   );
 
+  const getSecureResourceUrl = async (kind: "note" | "material", resourceId: string, mode: "view" | "download") => {
+    const endpoint = kind === "note" ? `/api/notes/${resourceId}/download` : `/api/materials/${resourceId}/download`;
+    const response = await fetch(`${endpoint}?mode=${mode}`, { cache: "no-store" });
+    const data = (await response.json().catch(() => ({}))) as { url?: string; title?: string; error?: string };
+
+    if (!response.ok || !data?.url) {
+      throw new Error(data?.error ?? "Unable to open this file right now.");
+    }
+
+    return {
+      url: data.url,
+      title: data.title,
+    };
+  };
+
+  const startDownload = (url: string) => {
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "";
+    anchor.rel = "noopener noreferrer";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  };
+
+  const handleResourceRead = async (kind: "note" | "material", resource: ResourceRow) => {
+    try {
+      setError(null);
+      setOpeningResourceId(resource.id);
+      const [viewFile, downloadFile] = await Promise.all([
+        getSecureResourceUrl(kind, resource.id, "view"),
+        getSecureResourceUrl(kind, resource.id, "download"),
+      ]);
+      setResourceReader({
+        title: viewFile.title ?? resource.title,
+        url: viewFile.url,
+        downloadUrl: downloadFile.url,
+      });
+    } catch (readError) {
+      setError(readError instanceof Error ? readError.message : "Unable to open this file right now.");
+    } finally {
+      setOpeningResourceId(null);
+    }
+  };
+
   const handleNoteDownload = async (noteId: string) => {
     try {
+      setError(null);
       setDownloadingNoteId(noteId);
-      const response = await fetch(`/api/notes/${noteId}/download`);
-      const data = await response.json();
-
-      if (!response.ok || !data?.url) {
-        throw new Error(data?.error ?? "Unable to download note.");
-      }
-
-      window.open(data.url, "_blank", "noopener,noreferrer");
+      const file = await getSecureResourceUrl("note", noteId, "download");
+      startDownload(file.url);
     } catch (downloadError) {
       setError(downloadError instanceof Error ? downloadError.message : "Unable to download note.");
     } finally {
@@ -610,15 +653,10 @@ export default function StudentPortal() {
 
   const handleMaterialDownload = async (materialId: string) => {
     try {
+      setError(null);
       setDownloadingMaterialId(materialId);
-      const response = await fetch(`/api/materials/${materialId}/download`);
-      const data = await response.json();
-
-      if (!response.ok || !data?.url) {
-        throw new Error(data?.error ?? "Unable to download material.");
-      }
-
-      window.open(data.url, "_blank", "noopener,noreferrer");
+      const file = await getSecureResourceUrl("material", materialId, "download");
+      startDownload(file.url);
     } catch (downloadError) {
       setError(downloadError instanceof Error ? downloadError.message : "Unable to download material.");
     } finally {
@@ -1127,14 +1165,22 @@ export default function StudentPortal() {
                             </div>
                             <StatusBadge tone={note.visibility === "public" ? "success" : "neutral"}>{formatResourceVisibility(note.visibility)}</StatusBadge>
                           </div>
-                          <div className="mt-4">
+                          <div className="mt-4 flex flex-wrap gap-2">
                             <button
                               type="button"
-                              onClick={() => handleNoteDownload(note.id)}
+                              onClick={() => void handleResourceRead("note", note)}
                               className={primaryButtonClass}
+                              disabled={openingResourceId === note.id}
+                            >
+                              {openingResourceId === note.id ? "Opening..." : "Read"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleNoteDownload(note.id)}
+                              className={secondaryButtonClass}
                               disabled={downloadingNoteId === note.id}
                             >
-                              {downloadingNoteId === note.id ? "Preparing..." : "Open Note"}
+                              {downloadingNoteId === note.id ? "Preparing..." : "Download"}
                             </button>
                           </div>
                         </div>
@@ -1161,14 +1207,22 @@ export default function StudentPortal() {
                             </div>
                             <StatusBadge tone={material.visibility === "public" ? "success" : "neutral"}>{formatResourceVisibility(material.visibility)}</StatusBadge>
                           </div>
-                          <div className="mt-4">
+                          <div className="mt-4 flex flex-wrap gap-2">
                             <button
                               type="button"
-                              onClick={() => handleMaterialDownload(material.id)}
+                              onClick={() => void handleResourceRead("material", material)}
                               className={primaryButtonClass}
+                              disabled={openingResourceId === material.id}
+                            >
+                              {openingResourceId === material.id ? "Opening..." : "Read"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleMaterialDownload(material.id)}
+                              className={secondaryButtonClass}
                               disabled={downloadingMaterialId === material.id}
                             >
-                              {downloadingMaterialId === material.id ? "Preparing..." : "Open Book"}
+                              {downloadingMaterialId === material.id ? "Preparing..." : "Download"}
                             </button>
                           </div>
                         </div>
@@ -1276,6 +1330,14 @@ export default function StudentPortal() {
           </div>
         </div>
       </div>
+      {resourceReader ? (
+        <ResourceReaderModal
+          title={resourceReader.title}
+          url={resourceReader.url}
+          downloadUrl={resourceReader.downloadUrl}
+          onClose={() => setResourceReader(null)}
+        />
+      ) : null}
       <LiveClassViewer session={liveViewerSession} onClose={() => setLiveViewerSession(null)} />
       <AssignmentSubmitModal
         assignmentId={activeAssignmentId}
