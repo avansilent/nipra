@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthorizedResourceFile, getResourceFileRouteUrl } from "../../../../../lib/resourceAccess";
+import { getAuthorizedResourceFile, getResourceFileRoutePath } from "../../../../../lib/resourceAccess";
 
 type RouteParams = {
   params: Promise<{ noteId: string }>;
@@ -19,7 +19,7 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     return NextResponse.json(
       {
-        url: getResourceFileRouteUrl(request, "note", noteId, getMode(request)),
+        url: getResourceFileRoutePath("note", noteId, getMode(request)),
         title: access.resource.title,
       },
       { headers: { "Cache-Control": "no-store" } }

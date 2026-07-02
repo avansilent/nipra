@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
-import { createSignedStorageUrl, getObjectKey } from "./r2Storage";
+import { createSignedStorageUrl, getObjectKey, isR2Reference } from "./r2Storage";
+import { createSupabaseServiceClient } from "./supabase/service";
 
 type StorageDisposition = "inline" | "attachment";
+type LegacyStorageBucket = "notes" | "materials";
+type StorageSource = {
+  key: string;
+  response: Response;
+};
 
 function getFileExtension(key: string) {
   const match = key.split("/").pop()?.match(/(\.[a-z0-9]{1,12})$/i);
@@ -50,37 +56,149 @@ function createUnavailableResponse(status = 503) {
   );
 }
 
-export async function createStorageFileResponse(
+function isReadableStorageResponse(response: Response) {
+  return response.ok || response.status === 206;
+}
+
+async function fetchWithOptionalRange(url: string, request: Request) {
+  const range = request.headers.get("range");
+
+  return fetch(url, {
+    cache: "no-store",
+    headers: range ? { Range: range } : undefined,
+  });
+}
+
+function getSafeExternalKey(url: URL) {
+  return decodeURIComponent(url.pathname.split("/").pop() || "file");
+}
+
+function getSafeExternalFileUrl(reference: string) {
+  let url: URL;
+
+  try {
+    url = new URL(reference);
+  } catch {
+    return null;
+  }
+
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    return null;
+  }
+
+  const allowedOrigins = [
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.R2_PUBLIC_BASE_URL,
+    process.env.CLOUDFLARE_R2_PUBLIC_URL,
+  ]
+    .map((value) => {
+      try {
+        return value ? new URL(value).origin : null;
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+
+  return allowedOrigins.includes(url.origin) ? url : null;
+}
+
+async function fetchR2Source(
   request: Request,
   reference: string,
   title: string,
   disposition: StorageDisposition
-) {
+): Promise<StorageSource | null> {
   const key = getObjectKey(reference);
 
   if (!key) {
-    return createUnavailableResponse(404);
+    return null;
   }
 
   const signedUrl = await createSignedStorageUrl(reference, 60, title, disposition);
 
   if (!signedUrl) {
-    return createUnavailableResponse();
+    return null;
   }
 
-  const range = request.headers.get("range");
-  const upstream = await fetch(signedUrl, {
-    cache: "no-store",
-    headers: range ? { Range: range } : undefined,
-  });
+  const response = await fetchWithOptionalRange(signedUrl, request);
 
-  if (!upstream.ok && upstream.status !== 206) {
-    return createUnavailableResponse(upstream.status === 404 ? 404 : 502);
+  return isReadableStorageResponse(response) ? { key, response } : null;
+}
+
+async function fetchLegacySupabaseSource(
+  request: Request,
+  reference: string,
+  bucket: LegacyStorageBucket
+): Promise<StorageSource | null> {
+  const service = createSupabaseServiceClient();
+  const { data, error } = await service.storage.from(bucket).createSignedUrl(reference, 60);
+
+  if (error || !data?.signedUrl) {
+    return null;
   }
 
-  const extension = getFileExtension(key);
-  const upstreamContentType = upstream.headers.get("content-type");
-  const safeFileName = buildSafeFileName(key, title);
+  const response = await fetchWithOptionalRange(data.signedUrl, request);
+
+  return isReadableStorageResponse(response) ? { key: reference, response } : null;
+}
+
+async function fetchExternalSource(request: Request, reference: string): Promise<StorageSource | null> {
+  const url = getSafeExternalFileUrl(reference);
+
+  if (!url) {
+    return null;
+  }
+
+  const response = await fetchWithOptionalRange(url.toString(), request);
+
+  return isReadableStorageResponse(response) ? { key: getSafeExternalKey(url), response } : null;
+}
+
+async function resolveStorageSource(
+  request: Request,
+  reference: string,
+  title: string,
+  disposition: StorageDisposition,
+  legacyBucket?: LegacyStorageBucket
+) {
+  const externalSource = await fetchExternalSource(request, reference);
+
+  if (externalSource) {
+    return externalSource;
+  }
+
+  if (isR2Reference(reference)) {
+    return fetchR2Source(request, reference, title, disposition);
+  }
+
+  if (legacyBucket) {
+    const legacySource = await fetchLegacySupabaseSource(request, reference, legacyBucket);
+
+    if (legacySource) {
+      return legacySource;
+    }
+  }
+
+  return fetchR2Source(request, reference, title, disposition);
+}
+
+export async function createStorageFileResponse(
+  request: Request,
+  reference: string,
+  title: string,
+  disposition: StorageDisposition,
+  legacyBucket?: LegacyStorageBucket
+) {
+  const source = await resolveStorageSource(request, reference, title, disposition, legacyBucket);
+
+  if (!source) {
+    return createUnavailableResponse(404);
+  }
+
+  const extension = getFileExtension(source.key);
+  const upstreamContentType = source.response.headers.get("content-type");
+  const safeFileName = buildSafeFileName(source.key, title);
   const headers = new Headers({
     "Accept-Ranges": "bytes",
     "Cache-Control": "private, no-store",
@@ -92,8 +210,8 @@ export async function createStorageFileResponse(
     "X-Content-Type-Options": "nosniff",
   });
 
-  const contentLength = upstream.headers.get("content-length");
-  const contentRange = upstream.headers.get("content-range");
+  const contentLength = source.response.headers.get("content-length");
+  const contentRange = source.response.headers.get("content-range");
 
   if (contentLength) {
     headers.set("Content-Length", contentLength);
@@ -103,8 +221,8 @@ export async function createStorageFileResponse(
     headers.set("Content-Range", contentRange);
   }
 
-  return new NextResponse(upstream.body, {
-    status: upstream.status === 206 ? 206 : 200,
+  return new NextResponse(source.response.body, {
+    status: source.response.status === 206 ? 206 : 200,
     headers,
   });
 }

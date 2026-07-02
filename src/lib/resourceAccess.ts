@@ -40,15 +40,6 @@ export function getResourceFileRoutePath(kind: ResourceFileKind, resourceId: str
   return `${basePath}?mode=${mode === "download" ? "download" : "view"}`;
 }
 
-export function getResourceFileRouteUrl(
-  request: Request,
-  kind: ResourceFileKind,
-  resourceId: string,
-  mode: "view" | "download"
-) {
-  return new URL(getResourceFileRoutePath(kind, resourceId, mode), request.url).toString();
-}
-
 export async function getAuthorizedResourceFile(
   kind: ResourceFileKind,
   resourceId: string

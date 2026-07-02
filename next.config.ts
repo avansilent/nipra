@@ -66,6 +66,19 @@ const contentSecurityPolicy = [
   "form-action 'self' https://*.supabase.co",
 ].join("; ");
 
+const fileReaderContentSecurityPolicy = contentSecurityPolicy.replace("frame-ancestors 'none'", "frame-ancestors 'self'");
+
+const fileReaderHeaders = [
+  {
+    key: "X-Frame-Options",
+    value: "SAMEORIGIN",
+  },
+  {
+    key: "Content-Security-Policy",
+    value: fileReaderContentSecurityPolicy,
+  },
+];
+
 const nextConfig: NextConfig = {
   devIndicators: false,
   images: {
@@ -115,6 +128,14 @@ const nextConfig: NextConfig = {
             value: contentSecurityPolicy,
           },
         ],
+      },
+      {
+        source: "/api/notes/:noteId/file",
+        headers: fileReaderHeaders,
+      },
+      {
+        source: "/api/materials/:materialId/file",
+        headers: fileReaderHeaders,
       },
     ];
   },

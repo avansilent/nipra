@@ -16,5 +16,5 @@ export async function GET(request: Request, { params }: RouteParams) {
     return access.response;
   }
 
-  return createStorageFileResponse(request, access.resource.file_url, access.resource.title, getDispositionMode(request));
+  return createStorageFileResponse(request, access.resource.file_url, access.resource.title, getDispositionMode(request), "materials");
 }

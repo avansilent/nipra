@@ -9,7 +9,8 @@ export function proxy(request: NextRequest) {
   const isApiRoute = pathname.startsWith("/api/");
   const isAuthApiRoute = pathname.startsWith("/api/auth/");
   const isPublicResourceDownloadRoute = /^\/api\/(notes|materials)\/[^/]+\/download$/.test(pathname);
-  const isProtectedApiRoute = isApiRoute && !isAuthApiRoute && !isPublicResourceDownloadRoute;
+  const isPublicResourceFileRoute = /^\/api\/(notes|materials)\/[^/]+\/file$/.test(pathname);
+  const isProtectedApiRoute = isApiRoute && !isAuthApiRoute && !isPublicResourceDownloadRoute && !isPublicResourceFileRoute;
 
   const isAdminRoute = pathname.startsWith("/admin");
   const isStudentRoute = pathname.startsWith("/student");
