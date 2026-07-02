@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createStudentEmail, createTempPassword, getAdminRouteContext, isStrongStudentPassword, sanitizeLoginId, type AdminRouteError } from "../../../../lib/admin/route";
+import { AdminRouteError, createStudentEmail, createTempPassword, getAdminRouteContext, isStrongStudentPassword, sanitizeLoginId } from "../../../../lib/admin/route";
 
 type StudentInsertPayload = {
   name?: string;
@@ -12,6 +12,90 @@ const privateResponseHeaders = {
   "Cache-Control": "no-store",
   Pragma: "no-cache",
 };
+
+type AdminServiceClient = Awaited<ReturnType<typeof getAdminRouteContext>>["serviceClient"];
+
+async function findExistingStudentByField(
+  serviceClient: AdminServiceClient,
+  field: "email" | "login_id",
+  value: string,
+  excludeStudentId?: string
+) {
+  let query = serviceClient
+    .from("users")
+    .select("id")
+    .eq(field, value)
+    .limit(1);
+
+  if (excludeStudentId) {
+    query = query.neq("id", excludeStudentId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+async function ensureStudentIdentityAvailable(
+  serviceClient: AdminServiceClient,
+  email: string,
+  loginId: string,
+  excludeStudentId?: string
+) {
+  const [existingEmail, existingLogin] = await Promise.all([
+    findExistingStudentByField(serviceClient, "email", email, excludeStudentId),
+    findExistingStudentByField(serviceClient, "login_id", loginId, excludeStudentId),
+  ]);
+
+  if (existingEmail) {
+    throw new AdminRouteError("A student with this email already exists.", 409);
+  }
+
+  if (existingLogin) {
+    throw new AdminRouteError("A student with this login ID already exists.", 409);
+  }
+}
+
+async function upsertStudentRows(
+  serviceClient: AdminServiceClient,
+  student: { id: string; name: string; email: string; loginId: string; instituteId: string }
+) {
+  const { error: profileError } = await serviceClient
+    .from("profiles")
+    .upsert(
+      {
+        id: student.id,
+        role: "student",
+        institute_id: student.instituteId,
+      },
+      { onConflict: "id" }
+    );
+
+  if (profileError) {
+    throw profileError;
+  }
+
+  const { error: userError } = await serviceClient
+    .from("users")
+    .upsert(
+      {
+        id: student.id,
+        name: student.name,
+        email: student.email,
+        login_id: student.loginId,
+        role: "student",
+      },
+      { onConflict: "id" }
+    );
+
+  if (userError) {
+    throw userError;
+  }
+}
 
 export async function GET() {
   try {
@@ -80,7 +164,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { serviceClient, instituteId, routeClient, userId } = await getAdminRouteContext();
+    const { serviceClient, instituteId, userId } = await getAdminRouteContext();
     const body = (await request.json()) as StudentInsertPayload;
 
     const name = String(body.name ?? "").trim();
@@ -106,6 +190,8 @@ export async function POST(request: Request) {
 
     const password = requestedPassword || createTempPassword();
 
+    await ensureStudentIdentityAvailable(serviceClient, email, computedLoginId);
+
     const { data: created, error: createError } = await serviceClient.auth.admin.createUser({
       email,
       password,
@@ -127,10 +213,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: createError?.message ?? "Unable to create student" }, { status: 400 });
     }
 
-    await serviceClient
-      .from("users")
-      .update({ name, email, login_id: computedLoginId, role: "student" })
-      .eq("id", created.user.id);
+    try {
+      await upsertStudentRows(serviceClient, {
+        id: created.user.id,
+        name,
+        email,
+        loginId: computedLoginId,
+        instituteId,
+      });
+    } catch (syncError) {
+      await serviceClient.auth.admin.deleteUser(created.user.id);
+      throw syncError;
+    }
 
     return NextResponse.json(
       {

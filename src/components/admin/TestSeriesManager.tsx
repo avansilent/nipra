@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePersistentDraft } from "../../hooks/usePersistentDraft";
 
 type CourseOption = {
@@ -220,6 +220,8 @@ async function readJson<T>(response: Response, fallback: string): Promise<T> {
 
 export default function TestSeriesManager({ courses, disabled = false, onNotice, onError, draftScope }: TestSeriesManagerProps) {
   const draftPrefix = draftScope ? `nipra-admin-draft:${draftScope}:test-series` : null;
+  const editorRef = useRef<HTMLElement | null>(null);
+  const titleInputRef = useRef<HTMLInputElement | null>(null);
   const [tests, setTests] = useState<AdminTest[]>([]);
   const [form, setForm, formDraft] = usePersistentDraft<TestForm>(
     draftPrefix ? `${draftPrefix}:form` : null,
@@ -239,11 +241,13 @@ export default function TestSeriesManager({ courses, disabled = false, onNotice,
   const [selectedDetail, setSelectedDetail] = useState<TestDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [editJustOpened, setEditJustOpened] = useState(false);
 
   const currentCourseTitle = useMemo(
     () => courses.find((course) => course.id === form.courseId)?.title ?? "Select course",
     [courses, form.courseId]
   );
+  const editingTest = useMemo(() => tests.find((test) => test.id === editingTestId) ?? null, [editingTestId, tests]);
 
   const loadTests = useCallback(async () => {
     setLoading(true);
@@ -278,6 +282,15 @@ export default function TestSeriesManager({ courses, disabled = false, onNotice,
 
     return () => window.clearTimeout(timer);
   }, [loadTests]);
+
+  useEffect(() => {
+    if (!editJustOpened) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setEditJustOpened(false), 2200);
+    return () => window.clearTimeout(timer);
+  }, [editJustOpened]);
 
   const updateQuestion = (index: number, patch: Partial<QuestionForm>) => {
     setForm((current) => ({
@@ -335,6 +348,8 @@ export default function TestSeriesManager({ courses, disabled = false, onNotice,
 
   const startEditing = (test: AdminTest) => {
     setEditingTestId(test.id);
+    setSelectedTestId(test.id);
+    setEditJustOpened(true);
     setForm({
       title: test.title,
       description: test.description ?? "",
@@ -356,7 +371,10 @@ export default function TestSeriesManager({ courses, disabled = false, onNotice,
           }))
         : [emptyQuestion()],
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.requestAnimationFrame(() => {
+      editorRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      titleInputRef.current?.focus({ preventScroll: true });
+    });
   };
 
   const resetForm = () => {
@@ -442,7 +460,10 @@ export default function TestSeriesManager({ courses, disabled = false, onNotice,
 
   return (
     <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
-      <section className={cardClass}>
+      <section
+        ref={editorRef}
+        className={`${cardClass} transition-[box-shadow,transform] duration-300 ${editingTestId ? "ring-2 ring-sky-100" : ""}`}
+      >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">MCQ Test Series</p>
@@ -456,9 +477,24 @@ export default function TestSeriesManager({ courses, disabled = false, onNotice,
           <Badge tone={form.isPublished ? "success" : "warning"}>{form.isPublished ? "Published" : "Draft"}</Badge>
         </div>
 
+        {editingTestId ? (
+          <div className={`mt-5 rounded-[24px] border border-sky-100 bg-sky-50/90 p-4 transition duration-300 ${editJustOpened ? "shadow-[0_18px_36px_rgba(56,189,248,0.18)]" : ""}`}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-700">Editing now</p>
+                <p className="mt-1 text-sm font-semibold text-slate-950">{editingTest?.title ?? (form.title || "Selected test")}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-600">All details, timing, audience, publish status, marks, and questions can be changed below.</p>
+              </div>
+              <button type="button" className={secondaryButtonClass} disabled={busy || disabled} onClick={resetForm}>
+                Cancel Edit
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <Field label="Test title">
-            <input className={inputClass} value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} placeholder="Class 10 Science MCQ Test" />
+            <input ref={titleInputRef} className={inputClass} value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} placeholder="Class 10 Science MCQ Test" />
           </Field>
           <Field label="Course">
             <select className={inputClass} value={form.courseId} onChange={(event) => setForm((prev) => ({ ...prev, courseId: event.target.value }))}>
@@ -623,7 +659,13 @@ export default function TestSeriesManager({ courses, disabled = false, onNotice,
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 sm:justify-end">
-                    <button type="button" className={secondaryButtonClass} onClick={() => startEditing(test)}>Edit</button>
+                    <button
+                      type="button"
+                      className={editingTestId === test.id ? primaryButtonClass : secondaryButtonClass}
+                      onClick={() => startEditing(test)}
+                    >
+                      {editingTestId === test.id ? "Editing now" : "Edit"}
+                    </button>
                     <button type="button" className={secondaryButtonClass} onClick={() => void loadDetail(test.id)}>Attempts</button>
                     <button type="button" className={dangerButtonClass} onClick={() => void deleteTest(test.id)} disabled={busy}>Delete</button>
                   </div>

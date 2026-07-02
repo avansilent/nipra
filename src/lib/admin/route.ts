@@ -69,7 +69,7 @@ export function createTempPassword(length = 16) {
 }
 
 export function createStudentEmail(loginId: string) {
-  return `${loginId}@students.nipracademy.local`;
+  return `${loginId}@students.nipracademy.com`;
 }
 
 export function isStrongStudentPassword(value: string) {

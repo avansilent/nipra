@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAdminRouteContext, sanitizeLoginId, type AdminRouteError } from "../../../../../lib/admin/route";
+import { AdminRouteError, createStudentEmail, getAdminRouteContext, sanitizeLoginId } from "../../../../../lib/admin/route";
 
 type StudentUpdatePayload = {
   name?: string;
@@ -10,6 +10,49 @@ type StudentUpdatePayload = {
 type RouteParams = {
   params: Promise<{ studentId: string }>;
 };
+
+type AdminServiceClient = Awaited<ReturnType<typeof getAdminRouteContext>>["serviceClient"];
+
+async function findExistingStudentByField(
+  serviceClient: AdminServiceClient,
+  field: "email" | "login_id",
+  value: string,
+  excludeStudentId: string
+) {
+  const { data, error } = await serviceClient
+    .from("users")
+    .select("id")
+    .eq(field, value)
+    .neq("id", excludeStudentId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+async function ensureStudentIdentityAvailable(
+  serviceClient: AdminServiceClient,
+  email: string,
+  loginId: string,
+  studentId: string
+) {
+  const [existingEmail, existingLogin] = await Promise.all([
+    findExistingStudentByField(serviceClient, "email", email, studentId),
+    findExistingStudentByField(serviceClient, "login_id", loginId, studentId),
+  ]);
+
+  if (existingEmail) {
+    throw new AdminRouteError("A student with this email already exists.", 409);
+  }
+
+  if (existingLogin) {
+    throw new AdminRouteError("A student with this login ID already exists.", 409);
+  }
+}
 
 export async function PATCH(request: Request, context: RouteParams) {
   try {
@@ -29,12 +72,14 @@ export async function PATCH(request: Request, context: RouteParams) {
     }
 
     const name = String(body.name ?? "").trim();
-    const email = String(body.email ?? "").trim().toLowerCase();
-    const loginId = sanitizeLoginId(String(body.loginId ?? "").trim());
+    const loginId = sanitizeLoginId(String(body.loginId ?? "").trim() || name);
+    const email = String(body.email ?? "").trim().toLowerCase() || createStudentEmail(loginId);
 
-    if (!name || !email || !loginId) {
-      return NextResponse.json({ error: "Name, email, and login ID are required" }, { status: 400 });
+    if (!name || !loginId) {
+      return NextResponse.json({ error: "Student name and login ID are required" }, { status: 400 });
     }
+
+    await ensureStudentIdentityAvailable(serviceClient, email, loginId, studentId);
 
     const { error: authError } = await serviceClient.auth.admin.updateUserById(studentId, {
       email,
@@ -54,10 +99,33 @@ export async function PATCH(request: Request, context: RouteParams) {
       return NextResponse.json({ error: authError.message }, { status: 400 });
     }
 
+    const { error: profileError } = await serviceClient
+      .from("profiles")
+      .upsert(
+        {
+          id: studentId,
+          role: "student",
+          institute_id: instituteId,
+        },
+        { onConflict: "id" }
+      );
+
+    if (profileError) {
+      return NextResponse.json({ error: profileError.message }, { status: 400 });
+    }
+
     const { error: updateError } = await serviceClient
       .from("users")
-      .update({ name, email, login_id: loginId })
-      .eq("id", studentId);
+      .upsert(
+        {
+          id: studentId,
+          name,
+          email,
+          login_id: loginId,
+          role: "student",
+        },
+        { onConflict: "id" }
+      );
 
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 400 });

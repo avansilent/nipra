@@ -1,6 +1,6 @@
 import Papa from "papaparse";
 import { NextResponse } from "next/server";
-import { createStudentEmail, createTempPassword, getAdminRouteContext, isStrongStudentPassword, sanitizeLoginId, type AdminRouteError } from "../../../../../lib/admin/route";
+import { AdminRouteError, createStudentEmail, createTempPassword, getAdminRouteContext, isStrongStudentPassword, sanitizeLoginId } from "../../../../../lib/admin/route";
 
 type CsvStudentRow = {
   name?: string;
@@ -15,9 +15,63 @@ const privateResponseHeaders = {
   Pragma: "no-cache",
 };
 
+type AdminServiceClient = Awaited<ReturnType<typeof getAdminRouteContext>>["serviceClient"];
+
+async function studentIdentityExists(serviceClient: AdminServiceClient, field: "email" | "login_id", value: string) {
+  const { data, error } = await serviceClient
+    .from("users")
+    .select("id")
+    .eq(field, value)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return Boolean(data);
+}
+
+async function upsertStudentRows(
+  serviceClient: AdminServiceClient,
+  student: { id: string; name: string; email: string; loginId: string; instituteId: string }
+) {
+  const { error: profileError } = await serviceClient
+    .from("profiles")
+    .upsert(
+      {
+        id: student.id,
+        role: "student",
+        institute_id: student.instituteId,
+      },
+      { onConflict: "id" }
+    );
+
+  if (profileError) {
+    throw profileError;
+  }
+
+  const { error: userError } = await serviceClient
+    .from("users")
+    .upsert(
+      {
+        id: student.id,
+        name: student.name,
+        email: student.email,
+        login_id: student.loginId,
+        role: "student",
+      },
+      { onConflict: "id" }
+    );
+
+  if (userError) {
+    throw userError;
+  }
+}
+
 export async function POST(request: Request) {
   try {
-    const { serviceClient, instituteId, routeClient, userId } = await getAdminRouteContext();
+    const { serviceClient, instituteId, userId } = await getAdminRouteContext();
     const formData = await request.formData();
     const file = formData.get("file");
 
@@ -63,6 +117,23 @@ export async function POST(request: Request) {
         continue;
       }
 
+      const [emailExists, loginExists] = await Promise.all([
+        studentIdentityExists(serviceClient, "email", email),
+        studentIdentityExists(serviceClient, "login_id", loginId),
+      ]);
+
+      if (emailExists || loginExists) {
+        results.push({
+          row: index + 2,
+          status: "failed",
+          name,
+          email,
+          loginId,
+          error: emailExists ? "Email already exists" : "Login ID already exists",
+        });
+        continue;
+      }
+
       const { data: created, error: createError } = await serviceClient.auth.admin.createUser({
         email,
         password,
@@ -85,10 +156,26 @@ export async function POST(request: Request) {
         continue;
       }
 
-      await serviceClient
-        .from("users")
-        .update({ name, email, login_id: loginId, role: "student" })
-        .eq("id", created.user.id);
+      try {
+        await upsertStudentRows(serviceClient, {
+          id: created.user.id,
+          name,
+          email,
+          loginId,
+          instituteId,
+        });
+      } catch (syncError) {
+        await serviceClient.auth.admin.deleteUser(created.user.id);
+        results.push({
+          row: index + 2,
+          status: "failed",
+          name,
+          email,
+          loginId,
+          error: syncError instanceof Error ? syncError.message : "Unable to sync student account",
+        });
+        continue;
+      }
 
       results.push({ row: index + 2, status: "created", name, email, loginId, password });
     }
